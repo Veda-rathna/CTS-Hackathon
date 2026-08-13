@@ -2,6 +2,9 @@
 
 This document describes what the FastAPI backend expects from the PostgreSQL database so that the data team can prepare the CMS data independently.
 
+> [!NOTE]
+> The **Data Collection and Relationship Mapping** was designed and compiled by **Nikhil** and **Naveen Krishnan**.
+
 ---
 
 ## Purpose

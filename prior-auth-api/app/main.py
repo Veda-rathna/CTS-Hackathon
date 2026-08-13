@@ -52,7 +52,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     contact={
-        "name": "CTS Hackathon Team",
+        "name": "Vedarathna",
     },
     license_info={
         "name": "MIT",

@@ -1,0 +1,12 @@
+# Ignore data directories containing large raw datasets
+Filtered_Data/
+
+# Ignore virtual environments and standard dev files
+.venv/
+.env
+*.env
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+*.log

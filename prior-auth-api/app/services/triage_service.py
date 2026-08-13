@@ -57,7 +57,7 @@ _W_ACTIVE_POLICY = 0.15
 _W_ARTICLE = 0.10
 
 
-def _calc_confidence(
+def _calc_evidence_score(
     procedure_match: bool,
     diagnosis_match: bool,
     jurisdiction_match: bool,
@@ -86,6 +86,25 @@ def _is_policy_effective(policy: PolicyMatch, as_of: date | None = None) -> bool
     if policy.end_date and policy.end_date < check:
         return False
     return True
+
+
+def _filter_latest_effective_policies(
+    policies: list[PolicyMatch], as_of: date | None = None
+) -> list[PolicyMatch]:
+    """Filter policies to keep only the most recent effective version per ID."""
+    active = [p for p in policies if _is_policy_effective(p, as_of)]
+    grouped = {}
+    for p in active:
+        if p.policy_id not in grouped:
+            grouped[p.policy_id] = p
+        else:
+            existing = grouped[p.policy_id]
+            if p.effective_date and existing.effective_date:
+                if p.effective_date > existing.effective_date:
+                    grouped[p.policy_id] = p
+            elif p.effective_date:
+                grouped[p.policy_id] = p
+    return list(grouped.values())
 
 
 class TriageService:
@@ -126,18 +145,20 @@ class TriageService:
             logger.info("Triage result: POLICY_NOT_FOUND | procedure=%s", procedure)
             return TriageResponse(
                 decision=TriageDecision.POLICY_NOT_FOUND,
-                confidence=0.0,
+                evidence_score=0.0,
                 reason=f"No policy was found for procedure code '{procedure}'.",
+                reason_codes=["POLICY_NOT_FOUND"],
                 missing_information=[f"No coverage policy references procedure code '{procedure}'."],
             )
 
-        active_policies = [p for p in all_policies if _is_policy_effective(p)]
+        active_policies = _filter_latest_effective_policies(all_policies)
         if not active_policies:
             logger.info("Triage result: POLICY_EXPIRED | procedure=%s", procedure)
             return TriageResponse(
                 decision=TriageDecision.POLICY_EXPIRED,
-                confidence=0.0,
+                evidence_score=0.0,
                 reason=f"All policies referencing procedure code '{procedure}' are expired.",
+                reason_codes=["POLICY_EXPIRED"],
                 warnings=["All matching policies have expired."],
             )
 
@@ -172,8 +193,9 @@ class TriageService:
                         logger.info("Triage result: LIKELY_COVERED (NCD) | procedure=%s", procedure)
                         return TriageResponse(
                             decision=TriageDecision.LIKELY_COVERED,
-                            confidence=_calc_confidence(True, False, False, True, False),
+                            evidence_score=_calc_evidence_score(True, False, False, True, False),
                             reason=f"National Coverage Determination ({ncd_policy.policy_id}) explicitly covers procedure {procedure}.",
+                            reason_codes=["NCD_COVERS_PROCEDURE"],
                             policies=[mp],
                             matched_codes=MatchedCodes(procedure=procedure),
                             evidence=evidence,
@@ -182,8 +204,9 @@ class TriageService:
                         logger.info("Triage result: LIKELY_NOT_COVERED (NCD) | procedure=%s", procedure)
                         return TriageResponse(
                             decision=TriageDecision.LIKELY_NOT_COVERED,
-                            confidence=_calc_confidence(True, False, False, True, False),
+                            evidence_score=_calc_evidence_score(True, False, False, True, False),
                             reason=f"National Coverage Determination ({ncd_policy.policy_id}) explicitly excludes procedure {procedure}.",
+                            reason_codes=["NCD_EXCLUDES_PROCEDURE"],
                             policies=[mp],
                             matched_codes=MatchedCodes(procedure=procedure),
                             evidence=evidence,
@@ -196,22 +219,22 @@ class TriageService:
             logger.info("Triage result: POLICY_NOT_FOUND (No LCD) | procedure=%s", procedure)
             return TriageResponse(
                 decision=TriageDecision.POLICY_NOT_FOUND,
-                confidence=0.0,
+                evidence_score=0.0,
                 reason=f"NCDs do not address coverage and no LCDs exist for procedure '{procedure}'.",
+                reason_codes=["NO_APPLICABLE_LCD"],
                 missing_information=["Missing specific LCD or Article for evaluation."],
             )
 
         candidate_policies = lcd_policies
         if state:
             jurisdiction_matching = [
-                p for p in lcd_policies if p.jurisdiction_id and self._state_in_jurisdiction(state, p)
+                p for p in lcd_policies if self._policy_repo.is_state_in_jurisdiction(state, p)
             ]
             if not jurisdiction_matching:
-                jurisdictions = [p.jurisdiction_id for p in lcd_policies if p.jurisdiction_id]
                 evidence.append(
                     Evidence(
                         type="JURISDICTION",
-                        identifier=", ".join(j for j in jurisdictions if j),
+                        identifier="",
                         state=state,
                         result="NOT_MATCHED",
                         explanation=f"State '{state}' is outside the jurisdiction(s) of the matching LCDs.",
@@ -220,22 +243,22 @@ class TriageService:
                 logger.info("Triage result: OUTSIDE_JURISDICTION | state=%s procedure=%s", state, procedure)
                 return TriageResponse(
                     decision=TriageDecision.OUTSIDE_JURISDICTION,
-                    confidence=_calc_confidence(True, False, False, True, False),
+                    evidence_score=_calc_evidence_score(True, False, False, True, False),
                     reason=f"State '{state}' is not covered by the jurisdiction of the matching LCD. Contact your MAC.",
+                    reason_codes=["OUTSIDE_JURISDICTION"],
                     policies=[MatchedPolicy(policy_type=p.policy_type, policy_id=p.policy_id, title=p.title, article_id=p.article_id) for p in lcd_policies],
                     evidence=evidence,
                     warnings=[f"State '{state}' is outside policy jurisdiction."],
                 )
-            
+
             candidate_policies = jurisdiction_matching
-            jurisdiction_id = candidate_policies[0].jurisdiction_id
             evidence.append(
                 Evidence(
                     type="JURISDICTION",
-                    identifier=jurisdiction_id,
+                    identifier=candidate_policies[0].jurisdiction_id or candidate_policies[0].policy_id,
                     state=state,
                     result="MATCHED",
-                    explanation=f"State '{state}' falls within jurisdiction '{jurisdiction_id}'.",
+                    explanation=f"State '{state}' falls within the jurisdiction of LCD {candidate_policies[0].policy_id}.",
                 )
             )
         else:
@@ -298,7 +321,7 @@ class TriageService:
         has_article = article_id is not None
         jurisdiction_match = state is not None and bool(candidate_policies[0].jurisdiction_id)
 
-        confidence = _calc_confidence(
+        evidence_score = _calc_evidence_score(
             procedure_match=procedure_matched,
             diagnosis_match=len(covered_matches) > 0,
             jurisdiction_match=jurisdiction_match,
@@ -312,23 +335,27 @@ class TriageService:
             and len(covered_matches) == 0
         )
 
+        reason_codes = ["PROCEDURE_FOUND"]
+        if jurisdiction_match:
+            reason_codes.append("JURISDICTION_MATCH")
+
         if covered_matches:
             decision = TriageDecision.LIKELY_COVERED
             reason = f"Procedure '{procedure}' and diagnosis ({', '.join(covered_matches)}) match an active LCD/Article."
+            reason_codes.append("DIAGNOSIS_COVERED")
         elif all_explicitly_noncovered:
             decision = TriageDecision.LIKELY_NOT_COVERED
             reason = f"All diagnosis codes ({', '.join(noncovered_matches)}) are explicitly non-covered under the applicable policy."
+            reason_codes.append("DIAGNOSIS_EXPLICITLY_NON_COVERED")
         else:
-            # UNKNOWN outcome. Check if NURSE_REVIEW is applicable
-            # (e.g. procedure is in article but diagnosis is not addressed, and patient age/context exists)
-            # This triggers NURSE_REVIEW instead of MORE_INFORMATION_REQUIRED if age context is supplied
-            # acting as a stand-in for clinical flags.
             if request.patient_age is not None and unknown_matches:
                 decision = TriageDecision.NURSE_REVIEW
                 reason = "Diagnosis codes are not explicitly covered or non-covered, but clinical context (age) requires manual nurse review."
+                reason_codes.append("CLINICAL_CONTEXT_REVIEW")
             else:
                 decision = TriageDecision.MORE_INFORMATION_REQUIRED
                 reason = "Diagnosis codes could not be confirmed as covered or non-covered. Additional clinical documentation may be required."
+                reason_codes.append("DIAGNOSIS_NOT_EXPLICITLY_DEFINED")
 
         if noncovered_matches:
             warnings.append(f"Explicitly non-covered diagnosis codes: {', '.join(noncovered_matches)}")
@@ -338,13 +365,14 @@ class TriageService:
             for p in candidate_policies
         ]
 
-        logger.info("Triage result: %s | confidence=%.2f | procedure=%s", decision.value, confidence, procedure)
+        logger.info("Triage result: %s | evidence_score=%.2f | procedure=%s", decision.value, evidence_score, procedure)
 
         return TriageResponse(
             decision=decision,
-            confidence=confidence,
+            evidence_score=evidence_score,
             requires_prior_authorization=None,
             reason=reason,
+            reason_codes=reason_codes,
             policies=matched_policies,
             matched_codes=MatchedCodes(procedure=procedure, diagnosis=covered_matches),
             diagnosis_evaluation=diagnosis_evals,
@@ -353,9 +381,3 @@ class TriageService:
             warnings=warnings,
         )
 
-    def _state_in_jurisdiction(self, state: str, policy: PolicyMatch) -> bool:
-        from app.repositories.mock.policy_repository import _JURISDICTION_STATES
-        if not policy.jurisdiction_id:
-            return False
-        states = _JURISDICTION_STATES.get(policy.jurisdiction_id, [])
-        return state.upper() in states

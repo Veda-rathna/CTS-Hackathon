@@ -1,13 +1,11 @@
-"""SQLAlchemy model for the Contractor (Medicare Administrative Contractor / MAC).
+"""SQLAlchemy model for Contractors.
 
-⚠️  SCHEMA NOTE: Column names reflect a best-guess mapping to the CMS data
-    the data team is preparing.  Update this model when the final PostgreSQL
-    schema is available — services and API routers will NOT need to change.
+Maps exactly to Contractor.csv fields.
 """
 from __future__ import annotations
 
-from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
 
@@ -15,11 +13,9 @@ from app.models.base import Base
 class Contractor(Base):
     __tablename__ = "contractors"
 
-    id: Mapped[str] = mapped_column(String(50), primary_key=True)
-    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    region: Mapped[str | None] = mapped_column(String(100), nullable=True)
-
-    # Relationships
-    jurisdictions: Mapped[list["Jurisdiction"]] = relationship(  # type: ignore[name-defined]
-        "Jurisdiction", back_populates="contractor"
-    )
+    contractor_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    contract_type_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    contract_subtype_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    contractor_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    contract_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    contractor_name: Mapped[str | None] = mapped_column(Text, nullable=True)

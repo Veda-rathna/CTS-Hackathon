@@ -12,14 +12,14 @@ def test_triage_likely_covered(client: TestClient) -> None:
             "procedure_code": "64483",
             "diagnosis_codes": ["M54.16"],
             "state": "TX",
-            "payer": "Medicare",
+            
             "patient_age": 65,
         },
     )
     assert response.status_code == 200
     data = response.json()
     assert data["decision"] == "LIKELY_COVERED"
-    assert data["confidence"] > 0.0
+    assert data["evidence_score"] > 0.0
     assert data["requires_prior_authorization"] is None  # not enough data to determine
     assert len(data["policies"]) > 0
     assert len(data["evidence"]) > 0
@@ -103,7 +103,7 @@ def test_triage_policy_not_found(client: TestClient) -> None:
     assert response.status_code == 200
     data = response.json()
     assert data["decision"] == "POLICY_NOT_FOUND"
-    assert data["confidence"] == 0.0
+    assert data["evidence_score"] == 0.0
 
 
 # ── OUTSIDE_JURISDICTION ──────────────────────────────────────────────────────
@@ -239,7 +239,7 @@ def test_triage_state_normalized_to_uppercase(client: TestClient) -> None:
     assert data["decision"] == "LIKELY_COVERED"
 
 
-def test_triage_confidence_between_0_and_1(client: TestClient) -> None:
+def test_triage_evidence_score_between_0_and_1(client: TestClient) -> None:
     response = client.post(
         "/api/v1/triage",
         json={
@@ -250,4 +250,4 @@ def test_triage_confidence_between_0_and_1(client: TestClient) -> None:
     )
     assert response.status_code == 200
     data = response.json()
-    assert 0.0 <= data["confidence"] <= 1.0
+    assert 0.0 <= data["evidence_score"] <= 1.0
