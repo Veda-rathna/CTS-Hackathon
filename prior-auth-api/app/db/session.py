@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 _settings = get_settings()
 
 engine = create_engine(
-    _settings.database_url,
+    _settings.database_url_normalized,
     pool_pre_ping=True,        # detect stale connections
     pool_size=5,
     max_overflow=10,

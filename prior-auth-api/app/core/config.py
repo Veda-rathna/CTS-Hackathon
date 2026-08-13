@@ -53,6 +53,15 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
 
+    @property
+    def database_url_normalized(self) -> str:
+        """Ensure standard postgresql:// scheme is converted to postgresql+psycopg://."""
+        url = self.database_url
+        if url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+psycopg://", 1)
+        return url
+
+
 @lru_cache
 def get_settings() -> Settings:
     """Return the cached application settings singleton."""

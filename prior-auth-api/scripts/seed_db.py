@@ -15,6 +15,15 @@ import os
 import sys
 from datetime import datetime, date
 
+# Increase CSV field size limit to handle large CMS narrative fields
+max_int = sys.maxsize
+while True:
+    try:
+        csv.field_size_limit(max_int)
+        break
+    except OverflowError:
+        max_int = int(max_int / 10)
+
 # Add the project root to sys.path so app imports work
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -210,7 +219,9 @@ def main():
                         "reference_article": clean_bool(row.get("reference_article", ""))
                     }
         if article_dicts:
-            db.execute(insert(Article), list(article_dicts.values()))
+            art_list = list(article_dicts.values())
+            for i in range(0, len(art_list), 50):
+                db.execute(insert(Article), art_list[i:i+50])
             print(f"Inserted {len(article_dicts)} Articles.")
 
         # 6. Seed Article HCPCS Codes
@@ -368,7 +379,9 @@ def main():
                         "associated_article_ids": articles_str
                     }
         if lcd_dicts:
-            db.execute(insert(LCD), list(lcd_dicts.values()))
+            lcd_list = list(lcd_dicts.values())
+            for i in range(0, len(lcd_list), 50):
+                db.execute(insert(LCD), lcd_list[i:i+50])
             print(f"Inserted {len(lcd_dicts)} LCD versions.")
 
         # 11. Populate LCD-level code tables from associated articles
@@ -483,7 +496,9 @@ def main():
                         "decision": decision
                     }
         if ncd_dicts:
-            db.execute(insert(NCD), list(ncd_dicts.values()))
+            ncd_list = list(ncd_dicts.values())
+            for i in range(0, len(ncd_list), 50):
+                db.execute(insert(NCD), ncd_list[i:i+50])
             print(f"Inserted {len(ncd_dicts)} NCD versions.")
 
         # 13. Seed LCD NCD Associations
