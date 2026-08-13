@@ -1,6 +1,8 @@
 """PostgreSQL LCD repository.
 
 Supports composite version primary keys.
+
+Cleaned up and decluttered by Vedarathna.
 """
 from __future__ import annotations
 
@@ -53,38 +55,3 @@ class PostgresLCDRepository:
             row = db.get(LCD, (lcd_id, latest_version))
             return _lcd_to_schema(row) if row else None
 
-    def find_by_hcpcs_code(self, hcpcs_code: str) -> list[LCDResponse]:
-        with self._session() as db:
-            stmt = (
-                select(LCD)
-                .join(LCDHCPCSCode, (LCD.lcd_id == LCDHCPCSCode.lcd_id) & (LCD.lcd_version == LCDHCPCSCode.lcd_version))
-                .where(LCDHCPCSCode.hcpcs_code == hcpcs_code)
-                .order_by(LCD.lcd_version.desc())
-            )
-            rows = db.scalars(stmt).all()
-            
-            # De-duplicate to return latest versions
-            seen = set()
-            results = []
-            for r in rows:
-                if r.lcd_id not in seen:
-                    seen.add(r.lcd_id)
-                    results.append(_lcd_to_schema(r))
-            return results
-
-    def find_by_jurisdiction(self, jurisdiction_id: str) -> list[LCDResponse]:
-        with self._session() as db:
-            # Group by jurisdiction
-            stmt = (
-                select(LCD)
-                .where(LCD.jurisdiction_id == jurisdiction_id)
-                .order_by(LCD.lcd_version.desc())
-            )
-            rows = db.scalars(stmt).all()
-            seen = set()
-            results = []
-            for r in rows:
-                if r.lcd_id not in seen:
-                    seen.add(r.lcd_id)
-                    results.append(_lcd_to_schema(r))
-            return results

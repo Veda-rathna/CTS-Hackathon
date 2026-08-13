@@ -1,6 +1,8 @@
 """Mock LCD repository.
 
 ⚠️  THIS IS MOCK DATA — FOR DEVELOPMENT AND DEMO PURPOSES ONLY ⚠️
+
+Cleaned up and decluttered by Vedarathna.
 """
 from __future__ import annotations
 
@@ -63,12 +65,6 @@ _HCPCS_TO_LCDS: dict[str, list[str]] = {
     "62321": ["L39054"],
 }
 
-# Jurisdiction → LCD mapping
-_JURISDICTION_TO_LCDS: dict[str, list[str]] = {
-    "J5": ["L39054"],
-    "J8": ["L99001"],
-}
-
 
 # ── Repository class ──────────────────────────────────────────────────────────
 
@@ -78,13 +74,3 @@ class MockLCDRepository:
 
     def get_by_id(self, lcd_id: str) -> LCDResponse | None:
         return _LCDS.get(lcd_id.upper())
-
-    def find_by_hcpcs_code(self, hcpcs_code: str) -> list[LCDResponse]:
-        """Return all LCDs referencing the given HCPCS/CPT code."""
-        lcd_ids = _HCPCS_TO_LCDS.get(hcpcs_code.upper(), [])
-        return [_LCDS[lid] for lid in lcd_ids if lid in _LCDS]
-
-    def find_by_jurisdiction(self, jurisdiction_id: str) -> list[LCDResponse]:
-        """Return all LCDs within the given jurisdiction."""
-        lcd_ids = _JURISDICTION_TO_LCDS.get(jurisdiction_id.upper(), [])
-        return [_LCDS[lid] for lid in lcd_ids if lid in _LCDS]
