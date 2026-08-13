@@ -1,12 +1,12 @@
 """SQLAlchemy models for LCD and its code tables.
 
-⚠️  SCHEMA NOTE: Update when the data team delivers the final schema.
+Supports composite version primary keys.
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import Date, ForeignKey, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKeyConstraint, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -15,23 +15,42 @@ from app.models.base import Base
 class LCD(Base):
     __tablename__ = "lcds"
 
-    id: Mapped[str] = mapped_column(String(50), primary_key=True)
-    title: Mapped[str] = mapped_column(String(500))
-    version: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    effective_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    jurisdiction_id: Mapped[str | None] = mapped_column(
-        ForeignKey("jurisdictions.id"), nullable=True, index=True
-    )
-    contractor_id: Mapped[str | None] = mapped_column(
-        ForeignKey("contractors.id"), nullable=True, index=True
-    )
-    # Article IDs stored as comma-separated string; update if data team uses a join table
+    lcd_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    lcd_version: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    display_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
+    cms_cov_policy: Mapped[str | None] = mapped_column(Text, nullable=True)
+    indication: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    diagnoses_support: Mapped[str | None] = mapped_column(Text, nullable=True)
+    diagnoses_dont_support: Mapped[str | None] = mapped_column(Text, nullable=True)
+    coding_guidelines: Mapped[str | None] = mapped_column(Text, nullable=True)
+    doc_reqs: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    summary_of_evidence: Mapped[str | None] = mapped_column(Text, nullable=True)
+    analysis_of_evidence: Mapped[str | None] = mapped_column(Text, nullable=True)
+    associated_info: Mapped[str | None] = mapped_column(Text, nullable=True)
+    bibliography: Mapped[str | None] = mapped_column(Text, nullable=True)
+    appendices: Mapped[str | None] = mapped_column(Text, nullable=True)
+    util_guide: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    orig_det_eff_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    rev_eff_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    rev_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    date_retired: Mapped[date | None] = mapped_column(Date, nullable=True)
+    last_updated: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    icd10_doc: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    keywords: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Note: associated_article_ids is kept as a comma-separated text list of article_ids
+    # as an easy-access field populated by Related_Documents.csv
     associated_article_ids: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
-    jurisdiction: Mapped["Jurisdiction | None"] = relationship("Jurisdiction")  # type: ignore[name-defined]
-    contractor: Mapped["Contractor | None"] = relationship("Contractor")  # type: ignore[name-defined]
     hcpcs_codes: Mapped[list["LCDHCPCSCode"]] = relationship(
         "LCDHCPCSCode", back_populates="lcd", cascade="all, delete-orphan"
     )
@@ -46,10 +65,17 @@ class LCD(Base):
 class LCDHCPCSCode(Base):
     __tablename__ = "lcd_hcpcs_codes"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    lcd_id: Mapped[str] = mapped_column(ForeignKey("lcds.id"), index=True)
-    hcpcs_code: Mapped[str] = mapped_column(String(20), index=True)
-    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    lcd_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    lcd_version: Mapped[int] = mapped_column(Integer, primary_key=True)
+    hcpcs_code: Mapped[str] = mapped_column(String(20), primary_key=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["lcd_id", "lcd_version"],
+            ["lcds.lcd_id", "lcds.lcd_version"],
+        ),
+    )
 
     lcd: Mapped["LCD"] = relationship("LCD", back_populates="hcpcs_codes")
 
@@ -57,10 +83,17 @@ class LCDHCPCSCode(Base):
 class LCDIcd10Covered(Base):
     __tablename__ = "lcd_icd10_covered"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    lcd_id: Mapped[str] = mapped_column(ForeignKey("lcds.id"), index=True)
-    icd10_code: Mapped[str] = mapped_column(String(20))
-    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    lcd_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    lcd_version: Mapped[int] = mapped_column(Integer, primary_key=True)
+    icd10_code: Mapped[str] = mapped_column(String(20), primary_key=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["lcd_id", "lcd_version"],
+            ["lcds.lcd_id", "lcds.lcd_version"],
+        ),
+    )
 
     lcd: Mapped["LCD"] = relationship("LCD", back_populates="icd10_covered")
 
@@ -68,9 +101,16 @@ class LCDIcd10Covered(Base):
 class LCDIcd10NonCovered(Base):
     __tablename__ = "lcd_icd10_noncovered"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    lcd_id: Mapped[str] = mapped_column(ForeignKey("lcds.id"), index=True)
-    icd10_code: Mapped[str] = mapped_column(String(20))
-    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    lcd_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    lcd_version: Mapped[int] = mapped_column(Integer, primary_key=True)
+    icd10_code: Mapped[str] = mapped_column(String(20), primary_key=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["lcd_id", "lcd_version"],
+            ["lcds.lcd_id", "lcds.lcd_version"],
+        ),
+    )
 
     lcd: Mapped["LCD"] = relationship("LCD", back_populates="icd10_noncovered")
