@@ -40,7 +40,6 @@ class PostgresArticleRepository:
                 version=str(row.article_version),
                 display_id=row.display_id,
                 title=row.title or "",
-                publication_number=row.publication_number,
                 effective_date=row.article_eff_date,
                 end_date=row.article_end_date,
                 description=row.description,

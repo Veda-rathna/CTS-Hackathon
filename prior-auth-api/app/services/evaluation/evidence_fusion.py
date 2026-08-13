@@ -136,3 +136,45 @@ class EvidenceFusion:
             overall_status=status,
             explanation=explanation
         )
+
+    def determine_article_status(
+        self, 
+        matrix: EvidenceMatrix,
+    ) -> PolicyEvaluationResult:
+        """Determine Article overall status based on fused evidence."""
+        matrix.criteria = self._apply_precedence(matrix.criteria)
+        
+        has_coding_conflict = False
+        has_missing_documentation = False
+        
+        for c in matrix.criteria:
+            if c.status == "NOT_SATISFIED" and c.authoritative:
+                if c.criterion_type == "STRUCTURED":
+                    has_coding_conflict = True
+                elif c.criterion_type == "DOCUMENT":
+                    has_missing_documentation = True
+        
+        if has_coding_conflict or has_missing_documentation:
+            status = "NOT_MATCHED"
+            explanation = "Article criteria not satisfied (coding conflict or missing documentation)."
+        elif matrix.all_satisfied:
+            status = "MATCHED"
+            explanation = "All mandatory Article criteria were satisfied."
+        elif matrix.has_unknown:
+            status = "UNKNOWN"
+            explanation = "Insufficient evidence to determine Article status."
+            has_missing_documentation = True # Treat UNKNOWN doc requirement as missing doc
+        else:
+            status = "UNKNOWN"
+            explanation = "Insufficient evidence to determine Article status."
+            
+        return PolicyEvaluationResult(
+            policy_id="", # Filled by caller
+            policy_type="ARTICLE",
+            criteria=matrix.criteria,
+            evidence_matrix=matrix,
+            overall_status=status,
+            explanation=explanation,
+            has_coding_conflict=has_coding_conflict,
+            has_missing_documentation=has_missing_documentation
+        )

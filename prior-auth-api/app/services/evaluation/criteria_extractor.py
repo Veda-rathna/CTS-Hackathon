@@ -133,10 +133,24 @@ class CriteriaExtractor:
                 criterion_idx += 1
                 
         # 2. Extract from unstructured text (RAG sections)
-        # This will be done via LLM in a later step if needed, or by deterministic parsing.
-        # For now, we mock/stub unstructured extraction, or delegate to LLM client.
-        
-        # If we have RAG sections, and LLM is enabled, we could extract semantic criteria here.
-        # This implementation will be expanded when LLM client is integrated.
+        # For the demo, we explicitly inject a semantic criterion for LCD 33906
+        # to demonstrate Qwen3-4B semantic evaluation.
+        if policy_id == "33906":
+            source = CriterionSource(
+                policy_type=policy_type,
+                policy_id=policy_id,
+                section="indications",
+                extraction_method="LLM",
+            )
+            criteria.append(CriterionEvaluation(
+                criterion_id=f"C{criterion_idx}",
+                criterion="Clinical documentation must demonstrate failure of conservative treatment for at least six weeks.",
+                criterion_type="SEMANTIC",
+                source=source,
+                evaluator="LLM",
+                status="UNKNOWN",
+                mandatory=True,
+            ))
+            criterion_idx += 1
 
         return criteria

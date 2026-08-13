@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     llm_api_key: str = "local"
     llm_base_url: str = "http://127.0.0.1:1234/v1"
     llm_enabled: bool = False
+    llm_timeout_seconds: int = 30
 
     # ── Embedding ─────────────────────────────────────────────────────────
     # Model used to generate policy text embeddings for RAG retrieval.

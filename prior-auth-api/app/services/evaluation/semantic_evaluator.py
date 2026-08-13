@@ -70,6 +70,6 @@ class SemanticEvaluator:
         criterion.status = result.get("status", "UNKNOWN")
         criterion.patient_evidence = result.get("patient_evidence", [])
         criterion.policy_evidence = result.get("policy_evidence", [])
-        criterion.explanation = result.get("explanation", "LLM evaluation completed.")
+        # No explanation generated for semantic criteria per requirements.
 
         return criterion

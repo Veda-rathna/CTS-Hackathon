@@ -303,26 +303,17 @@ class TriageService:
                     request_facts=request
                 )
                 
-                # In a full implementation, we'd add custom Article criteria checking here
-                # (e.g. check if code is explicitly in Article's covered list)
-                
-                # For now, let's create a minimal result simulating the Article evaluation
-                # based on existing deterministic checks.
-                hcpcs_codes = {c.code for c in self._article_repo.get_hcpcs(article_id)}
-                procedure_matched = procedure in hcpcs_codes if hcpcs_codes else True
-                
-                covered_set = {c.code for c in self._article_repo.get_icd10_covered(article_id)}
-                noncovered_set = {c.code for c in self._article_repo.get_icd10_noncovered(article_id)}
-                
-                has_coding_conflict = not procedure_matched and len(hcpcs_codes) > 0
-                has_noncovered_dx = any(dx in noncovered_set for dx in request.diagnosis_codes)
-                
-                art_eval = PolicyEvaluationResult(
-                    policy_id=article_id,
-                    policy_type="ARTICLE",
-                    overall_status="MATCHED" if not (has_coding_conflict or has_noncovered_dx) else "NOT_MATCHED",
-                    has_coding_conflict=has_coding_conflict or has_noncovered_dx
+                # Use MultiEvaluator and EvidenceFusion exactly like NCD and LCD
+                art_matrix = self._multi_evaluator.evaluate_all(
+                    criteria=art_criteria,
+                    request=request,
+                    policy_data=article_details,
+                    policy_sections=article_sections
                 )
+                
+                art_eval = self._fusion.determine_article_status(art_matrix)
+                art_eval.policy_id = article_id
+                art_eval.title = getattr(article_details, "title", None)
                 
                 policy_path.append(art_eval)
                 article_result = art_eval

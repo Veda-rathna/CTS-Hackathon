@@ -208,7 +208,6 @@ class PolicyContentService:
                     if value and value.strip():
                         sections.append(PolicySection(
                             **base,
-                            policy_version=version,
                             section_type=section_type,
                             content=value.strip(),
                         ))
