@@ -57,3 +57,28 @@ def db_health_check(
         database="connected" if connected else "unreachable",
         mode="postgresql",
     )
+
+
+@router.get(
+    "/ready",
+    response_model=DBHealthResponse,
+    summary="Readiness check",
+    description="Alias for the DB health check to verify the service is fully ready.",
+)
+def readiness_check(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> DBHealthResponse:
+    return db_health_check(settings)
+
+
+@router.get(
+    "/version",
+    summary="API version check",
+)
+def version_check(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> dict[str, str]:
+    return {
+        "service": "prior-auth-triage-api",
+        "version": settings.app_version,
+    }

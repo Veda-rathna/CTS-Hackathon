@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import date
 
 from sqlalchemy import Date, ForeignKeyConstraint, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 
@@ -38,6 +38,11 @@ class NCD(Base):
     # Added decision parsed value for policy engine
     decision: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
+    # Relationships
+    hcpcs_codes: Mapped[list["NCDHCPCSCode"]] = relationship(
+        "NCDHCPCSCode", back_populates="ncd", cascade="all, delete-orphan"
+    )
+
 
 class LCDNCDAssociation(Base):
     __tablename__ = "lcd_ncd_associations"
@@ -58,3 +63,21 @@ class LCDNCDAssociation(Base):
             ["ncds.document_id", "ncds.document_version"],
         ),
     )
+
+
+class NCDHCPCSCode(Base):
+    __tablename__ = "ncd_hcpcs_codes"
+
+    ncd_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    ncd_version: Mapped[int] = mapped_column(Integer, primary_key=True)
+    hcpcs_code: Mapped[str] = mapped_column(String(20), primary_key=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["ncd_id", "ncd_version"],
+            ["ncds.document_id", "ncds.document_version"],
+        ),
+    )
+
+    ncd: Mapped["NCD"] = relationship("NCD", back_populates="hcpcs_codes")

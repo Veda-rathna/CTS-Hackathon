@@ -11,6 +11,7 @@ from sqlalchemy import select
 from app.db.session import SessionLocal
 from app.models.lcd import LCD, LCDHCPCSCode, LCDIcd10Covered
 from app.models.jurisdiction import Jurisdiction
+from app.models.ncd import NCD, LCDNCDAssociation, NCDHCPCSCode
 from app.models.state import State
 from app.schemas.policy import PolicyMatch
 
@@ -29,6 +30,33 @@ class PostgresPolicyRepository:
 
     def _session(self):  # type: ignore[no-untyped-def]
         return SessionLocal()
+
+    def is_state_in_jurisdiction(self, state: str, policy: PolicyMatch) -> bool:
+        """Check if a state falls within the policy's jurisdiction via DB lookup."""
+        if policy.policy_type.upper() != "LCD":
+            # NCDs are national — always in jurisdiction
+            return True
+        with self._session() as db:
+            # Get the latest version for this LCD
+            stmt_ver = (
+                select(LCD.lcd_version)
+                .where(LCD.lcd_id == policy.policy_id)
+                .order_by(LCD.lcd_version.desc())
+                .limit(1)
+            )
+            latest_ver = db.scalars(stmt_ver).first()
+            if latest_ver is None:
+                return False
+            state_stmt = (
+                select(State.state_code)
+                .join(Jurisdiction, State.state_id == Jurisdiction.state_id)
+                .where(
+                    Jurisdiction.lcd_id == policy.policy_id,
+                    Jurisdiction.lcd_version == latest_ver,
+                )
+            )
+            state_list = [s.strip().upper() for s in db.scalars(state_stmt).all()]
+            return state.upper() in state_list
 
     def find_policies_for_procedure(self, procedure_code: str) -> list[PolicyMatch]:
         with self._session() as db:
@@ -66,10 +94,11 @@ class PostgresPolicyRepository:
                     )
             
             # Find and append linked NCD policies
-            from app.models.ncd import NCD, LCDNCDAssociation
             matched_lcd_ids = list(seen)
+            seen_ncd = set()
+            
+            # 1. NCDs found via LCD bridge
             if matched_lcd_ids:
-                # Find NCDs mapped to these matched LCD versions
                 ncd_stmt = (
                     select(NCD)
                     .join(LCDNCDAssociation, (NCD.document_id == LCDNCDAssociation.ncd_id) & (NCD.document_version == LCDNCDAssociation.ncd_version))
@@ -77,7 +106,6 @@ class PostgresPolicyRepository:
                     .distinct()
                 )
                 ncd_rows = db.scalars(ncd_stmt).all()
-                seen_ncd = set()
                 for ncd in ncd_rows:
                     if ncd.document_id not in seen_ncd:
                         seen_ncd.add(ncd.document_id)
@@ -91,6 +119,28 @@ class PostgresPolicyRepository:
                                 effective=_is_effective(ncd.effective_date, ncd.effective_end_date, None),
                             )
                         )
+
+            # 2. Standalone NCDs found via direct HCPCS crosswalk
+            direct_ncd_stmt = (
+                select(NCD)
+                .join(NCDHCPCSCode, (NCD.document_id == NCDHCPCSCode.ncd_id) & (NCD.document_version == NCDHCPCSCode.ncd_version))
+                .where(NCDHCPCSCode.hcpcs_code == procedure_code)
+                .distinct()
+            )
+            direct_ncd_rows = db.scalars(direct_ncd_stmt).all()
+            for ncd in direct_ncd_rows:
+                if ncd.document_id not in seen_ncd:
+                    seen_ncd.add(ncd.document_id)
+                    result.append(
+                        PolicyMatch(
+                            policy_type="NCD",
+                            policy_id=ncd.document_id,
+                            title=ncd.title,
+                            effective_date=ncd.effective_date,
+                            end_date=ncd.effective_end_date,
+                            effective=_is_effective(ncd.effective_date, ncd.effective_end_date, None),
+                        )
+                    )
             return result
 
     def search(

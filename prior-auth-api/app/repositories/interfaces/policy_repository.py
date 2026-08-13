@@ -34,3 +34,7 @@ class PolicyRepository(Protocol):
     def find_policies_for_procedure(self, procedure_code: str) -> list[PolicyMatch]:
         """Return all active policies that reference the given procedure code."""
         ...
+
+    def is_state_in_jurisdiction(self, state: str, policy: PolicyMatch) -> bool:
+        """Check if a state falls within the policy's jurisdiction."""
+        ...

@@ -103,6 +103,13 @@ def _jurisdiction_matches(jurisdiction_id: str | None, state: str | None) -> boo
 class MockPolicyRepository:
     """In-memory Policy repository for development and testing."""
 
+    def is_state_in_jurisdiction(self, state: str, policy: PolicyMatch) -> bool:
+        """Check if a state falls within the policy's jurisdiction."""
+        if not policy.jurisdiction_id:
+            return False
+        states = _JURISDICTION_STATES.get(policy.jurisdiction_id, [])
+        return state.upper() in states
+
     def find_policies_for_procedure(self, procedure_code: str) -> list[PolicyMatch]:
         """Return all policies (active or not) referencing the procedure code."""
         indices = _HCPCS_TO_POLICY_IDX.get(procedure_code.upper(), [])

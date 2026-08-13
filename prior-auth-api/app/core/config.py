@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     # ── Repository strategy ───────────────────────────────────────────────
     # When True the application runs entirely on in-memory mock data so that
     # the API and services can be exercised without a live PostgreSQL database.
-    use_mock_repositories: bool = True
+    use_mock_repositories: bool = False
 
     # ── API ───────────────────────────────────────────────────────────────
     api_v1_prefix: str = "/api/v1"

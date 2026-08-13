@@ -52,10 +52,6 @@ class TriageRequest(BaseModel):
         max_length=2,
         description="Two-letter US state abbreviation (e.g. 'TX'). Normalized to uppercase.",
     )
-    payer: str | None = Field(
-        default=None,
-        description="Payer name (e.g. 'Medicare').",
-    )
     patient_age: int | None = Field(
         default=None,
         ge=0,
@@ -84,7 +80,6 @@ class TriageRequest(BaseModel):
                     "procedure_code": "64483",
                     "diagnosis_codes": ["M54.16"],
                     "state": "TX",
-                    "payer": "Medicare",
                     "patient_age": 65,
                 }
             ]
@@ -163,7 +158,7 @@ class TriageResponse(BaseModel):
     """
 
     decision: TriageDecision
-    confidence: float = Field(
+    evidence_score: float = Field(
         ge=0.0,
         le=1.0,
         description=(
@@ -179,6 +174,7 @@ class TriageResponse(BaseModel):
         ),
     )
     reason: str
+    reason_codes: list[str] = []
     policies: list[MatchedPolicy] = []
     matched_codes: MatchedCodes | None = None
     diagnosis_evaluation: list[DiagnosisEvaluation] = []
@@ -191,9 +187,10 @@ class TriageResponse(BaseModel):
             "examples": [
                 {
                     "decision": "LIKELY_COVERED",
-                    "confidence": 0.9,
+                    "evidence_score": 0.9,
                     "requires_prior_authorization": None,
                     "reason": "The procedure and diagnosis match an active applicable policy.",
+                    "reason_codes": ["PROCEDURE_FOUND", "DIAGNOSIS_COVERED"],
                     "policies": [
                         {
                             "policy_type": "LCD",
