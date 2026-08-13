@@ -112,8 +112,10 @@ def get_policy_service(
 def get_triage_service(
     policy_repo: Annotated[PolicyRepository, Depends(get_policy_repository)],
     article_repo: Annotated[ArticleRepository, Depends(get_article_repository)],
+    ncd_repo: Annotated[NCDRepository, Depends(get_ncd_repository)],
 ) -> TriageService:
     return TriageService(
         policy_repository=policy_repo,
         article_repository=article_repo,
+        ncd_repository=ncd_repo,
     )

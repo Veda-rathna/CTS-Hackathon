@@ -142,6 +142,58 @@ def test_triage_policy_expired(client: TestClient) -> None:
     assert article.end_date is not None
 
 
+# ── NCD Cascade Tests ─────────────────────────────────────────────────────────
+
+def test_triage_ncd_covered(client: TestClient) -> None:
+    """Procedure mapped to an NCD with COVERED decision."""
+    response = client.post(
+        "/api/v1/triage",
+        json={
+            "procedure_code": "11111",
+            "diagnosis_codes": ["M54.16"],
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["decision"] == "LIKELY_COVERED"
+    assert "N111" in data["reason"]
+    # Check that NCD policy was returned
+    assert any(p["policy_type"] == "NCD" and p["policy_id"] == "N111" for p in data["policies"])
+
+
+def test_triage_ncd_excluded(client: TestClient) -> None:
+    """Procedure mapped to an NCD with EXCLUDED decision."""
+    response = client.post(
+        "/api/v1/triage",
+        json={
+            "procedure_code": "22222",
+            "diagnosis_codes": ["M54.16"],
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["decision"] == "LIKELY_NOT_COVERED"
+    assert "N222" in data["reason"]
+
+
+# ── NURSE_REVIEW ──────────────────────────────────────────────────────────────
+
+def test_triage_nurse_review(client: TestClient) -> None:
+    """Diagnosis unknown but clinical flags (patient_age) exist -> NURSE_REVIEW."""
+    response = client.post(
+        "/api/v1/triage",
+        json={
+            "procedure_code": "64483",
+            "diagnosis_codes": ["R99.99"],  # Unknown code
+            "patient_age": 70,  # Triggers nurse review fallback
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["decision"] == "NURSE_REVIEW"
+    assert len(data["missing_information"]) > 0
+
+
 # ── Input validation ──────────────────────────────────────────────────────────
 
 def test_triage_missing_procedure_code(client: TestClient) -> None:
