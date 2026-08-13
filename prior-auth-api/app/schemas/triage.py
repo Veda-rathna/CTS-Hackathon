@@ -1,6 +1,7 @@
 """Pydantic schemas for the Triage API (request and response)."""
 from __future__ import annotations
 
+from datetime import date
 from enum import Enum
 from typing import Any
 
@@ -56,6 +57,23 @@ class TriageRequest(BaseModel):
         default=None,
         ge=0,
         description="Patient age in years (≥ 0). Optional context for policy checks.",
+    )
+
+    service_date: date | None = Field(
+        default=None,
+        description=(
+            "Date of the proposed service. Determines which policy version applies. "
+            "When omitted, policy-version applicability is flagged as UNVERIFIED."
+        ),
+    )
+
+    clinical_notes: str | None = Field(
+        default=None,
+        description=(
+            "Free-text clinical notes for semantic policy evaluation. "
+            "Optional. When absent, semantic criteria requiring clinical "
+            "evidence will evaluate to UNKNOWN."
+        ),
     )
 
     @field_validator("procedure_code")
@@ -181,6 +199,22 @@ class TriageResponse(BaseModel):
     evidence: list[Evidence] = []
     missing_information: list[str] = []
     warnings: list[str] = []
+
+    # Enhanced evaluation output (populated when RAG/LLM pipeline is active)
+    criteria_evaluation: list[dict[str, Any]] | None = Field(
+        default=None,
+        description=(
+            "Per-criterion evaluation results from the multi-evaluator pipeline. "
+            "Only populated when RAG_ENABLED=true."
+        ),
+    )
+    policy_path: list[dict[str, Any]] | None = Field(
+        default=None,
+        description=(
+            "Ordered list of policy evaluation results showing the full "
+            "NCD → Jurisdiction → LCD → Article evaluation path taken."
+        ),
+    )
 
     model_config = {
         "json_schema_extra": {

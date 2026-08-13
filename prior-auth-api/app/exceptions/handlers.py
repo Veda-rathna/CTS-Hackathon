@@ -66,6 +66,20 @@ class RepositoryError(AppError):
     http_status = 503
 
 
+class LLMServiceError(AppError):
+    """Raised when an LLM or embedding service call fails.
+
+    This does NOT prevent the triage engine from producing a result —
+    the system falls back to deterministic-only evaluation.  This error
+    is caught internally; it should only reach the HTTP layer if a
+    caller explicitly depends on LLM results.
+    """
+
+    code = "LLM_SERVICE_ERROR"
+    message = "The LLM service is temporarily unavailable."
+    http_status = 503
+
+
 # ── FastAPI exception handlers ────────────────────────────────────────────────
 
 
@@ -103,6 +117,14 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(RepositoryError)
     async def repo_error_handler(request: Request, exc: RepositoryError) -> JSONResponse:
         logger.error("RepositoryError: %s", exc.message)
+        return JSONResponse(
+            status_code=exc.http_status,
+            content=_error_body(exc.code, exc.message, exc.details),
+        )
+
+    @app.exception_handler(LLMServiceError)
+    async def llm_error_handler(request: Request, exc: LLMServiceError) -> JSONResponse:
+        logger.error("LLMServiceError: %s", exc.message)
         return JSONResponse(
             status_code=exc.http_status,
             content=_error_body(exc.code, exc.message, exc.details),

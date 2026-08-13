@@ -1,95 +1,48 @@
-"""Triage service — deterministic policy-matching engine.
+"""Triage service — Hybrid Deterministic/Semantic policy engine.
 
-This module implements the core triage logic.  It is completely independent
-of any database technology.  All data access goes through repository
-interfaces so the engine can be tested in isolation using mock data.
-
-IMPORTANT DISCLAIMER
---------------------
-The triage engine produces a **policy-matching result** only.
-It does NOT constitute clinical advice, medical diagnosis, insurance
-coverage confirmation, or a guarantee of prior authorization approval.
-
-Decision Logic (in order)
---------------------------
-1. Normalize inputs.
-2. Search for policies by procedure code → POLICY_NOT_FOUND if none.
-3. Check NCD cascade:
-   - If NCD COVERED → APPROVE (LIKELY_COVERED)
-   - If NCD EXCLUDED → DENY (LIKELY_NOT_COVERED)
-   - If NOT ADDRESSED → Proceed to LCD
-4. Check LCD & jurisdiction:
-   - If OUTSIDE_JURISDICTION → Return
-5. Article coding validation:
-   - Evaluate each diagnosis code against Article's covered/non-covered lists.
-   - If COVERED → APPROVE (LIKELY_COVERED)
-   - If NOT_COVERED → DENY (LIKELY_NOT_COVERED)
-   - If UNKNOWN (with clinical flags) → NURSE_REVIEW
-   - If UNKNOWN (no clinical flags) → MORE_INFORMATION_REQUIRED
+Implements the multi-evaluator pipeline with RAG and LLM integration,
+while preserving deterministic exact-match authority.
 """
 from __future__ import annotations
 
 import logging
 from datetime import date
 
+from app.core.config import Settings
 from app.repositories.interfaces.article_repository import ArticleRepository
+from app.repositories.interfaces.lcd_repository import LCDRepository
 from app.repositories.interfaces.ncd_repository import NCDRepository
 from app.repositories.interfaces.policy_repository import PolicyRepository
+from app.schemas.evaluation import PolicyEvaluationResult
 from app.schemas.policy import PolicyMatch
 from app.schemas.triage import (
     DiagnosisEvaluation,
     Evidence,
-    MatchedCodes,
-    MatchedPolicy,
-    TriageDecision,
     TriageRequest,
     TriageResponse,
 )
+from app.services.evaluation.criteria_extractor import CriteriaExtractor
+from app.services.evaluation.decision_engine import DecisionEngine
+from app.services.evaluation.evidence_fusion import EvidenceFusion
+from app.services.evaluation.multi_evaluator import MultiEvaluator
+from app.services.policy_content_service import PolicyContentService
+
+# Import Protocol for the retriever to avoid circular imports
+from app.services.rag.vector_policy_retriever import PolicyRetriever
 
 logger = logging.getLogger(__name__)
 
-# ── Confidence weights ────────────────────────────────────────────────────────
 
-_W_PROCEDURE = 0.25
-_W_DIAGNOSIS = 0.30
-_W_JURISDICTION = 0.20
-_W_ACTIVE_POLICY = 0.15
-_W_ARTICLE = 0.10
-
-
-def _calc_evidence_score(
-    procedure_match: bool,
-    diagnosis_match: bool,
-    jurisdiction_match: bool,
-    policy_active: bool,
-    article_match: bool,
-) -> float:
-    """Return a deterministic evidence-completeness score (0.0–1.0)."""
-    score = 0.0
-    if procedure_match:
-        score += _W_PROCEDURE
-    if diagnosis_match:
-        score += _W_DIAGNOSIS
-    if jurisdiction_match:
-        score += _W_JURISDICTION
-    if policy_active:
-        score += _W_ACTIVE_POLICY
-    if article_match:
-        score += _W_ARTICLE
-    return min(round(score, 2), 1.0)
-
-
-def _is_policy_effective(policy: PolicyMatch, as_of: date | None = None) -> bool:
-    check = as_of or date.today()
-    if policy.effective_date and policy.effective_date > check:
+def _is_policy_effective(policy: PolicyMatch, as_of: date) -> bool:
+    if policy.effective_date and policy.effective_date > as_of:
         return False
-    if policy.end_date and policy.end_date < check:
+    if policy.end_date and policy.end_date < as_of:
         return False
     return True
 
 
 def _filter_latest_effective_policies(
-    policies: list[PolicyMatch], as_of: date | None = None
+    policies: list[PolicyMatch], as_of: date
 ) -> list[PolicyMatch]:
     """Filter policies to keep only the most recent effective version per ID."""
     active = [p for p in policies if _is_policy_effective(p, as_of)]
@@ -108,276 +61,279 @@ def _filter_latest_effective_policies(
 
 
 class TriageService:
-    """Deterministic triage engine that matches a clinical request to policies."""
+    """Triage engine that matches a clinical request to policies using RAG/LLM and rules."""
 
     def __init__(
         self,
         policy_repository: PolicyRepository,
         article_repository: ArticleRepository,
         ncd_repository: NCDRepository,
+        lcd_repository: LCDRepository,
+        policy_content: PolicyContentService,
+        rag_retriever: PolicyRetriever,
+        extractor: CriteriaExtractor,
+        multi_evaluator: MultiEvaluator,
+        fusion: EvidenceFusion,
+        decision_engine: DecisionEngine,
+        settings: Settings,
     ) -> None:
         self._policy_repo = policy_repository
         self._article_repo = article_repository
         self._ncd_repo = ncd_repository
+        self._lcd_repo = lcd_repository
+        
+        self._policy_content = policy_content
+        self._rag_retriever = rag_retriever
+        self._extractor = extractor
+        self._multi_evaluator = multi_evaluator
+        self._fusion = fusion
+        self._decision_engine = decision_engine
+        self._settings = settings
+
+    def _build_query(self, request: TriageRequest) -> str:
+        """Build search query for RAG from facts."""
+        q = f"Procedure {request.procedure_code}. "
+        if request.diagnosis_codes:
+            q += f"Diagnoses: {', '.join(request.diagnosis_codes)}. "
+        if request.clinical_notes:
+            q += request.clinical_notes
+        return q
 
     # ── Public entry point ────────────────────────────────────────────────────
 
     def evaluate(self, request: TriageRequest) -> TriageResponse:
-        """Run the full triage pipeline and return a structured, explained result."""
+        """Run the full triage pipeline."""
         procedure = request.procedure_code
-        diagnoses = request.diagnosis_codes
         state = request.state
-
-        logger.info(
-            "Triage started | procedure=%s diagnoses=%s state=%s",
-            procedure,
-            ",".join(diagnoses),
-            state or "N/A",
-        )
 
         evidence: list[Evidence] = []
         warnings: list[str] = []
-        missing: list[str] = []
+        policy_path: list[PolicyEvaluationResult] = []
 
-        # ── Step 2: Find all policies ─────────────────────────────────────────
-        all_policies = self._policy_repo.find_policies_for_procedure(procedure)
-        if not all_policies:
-            logger.info("Triage result: POLICY_NOT_FOUND | procedure=%s", procedure)
-            return TriageResponse(
-                decision=TriageDecision.POLICY_NOT_FOUND,
-                evidence_score=0.0,
-                reason=f"No policy was found for procedure code '{procedure}'.",
-                reason_codes=["POLICY_NOT_FOUND"],
-                missing_information=[f"No coverage policy references procedure code '{procedure}'."],
+        # ── Service date handling ──────────────────────────────────
+        if request.service_date:
+            effective_as_of = request.service_date
+        else:
+            effective_as_of = date.today()
+            warnings.append(
+                "Service date not provided. Policy version applicability is UNVERIFIED. "
+                "The system used today's date for filtering, which may not reflect the actual service date."
             )
 
-        active_policies = _filter_latest_effective_policies(all_policies)
+        # ── Policy resolution (existing) ──────────────────────────
+        all_policies = self._policy_repo.find_policies_for_procedure(procedure)
+        if not all_policies:
+            return self._decision_engine._build_response(
+                decision="POLICY_NOT_FOUND",
+                reason=f"No policy was found for procedure code '{procedure}'.",
+                reason_codes=["POLICY_NOT_FOUND"],
+                policy_path=policy_path,
+                evidence=evidence,
+                warnings=warnings,
+                procedure=procedure
+            )
+
+        active_policies = _filter_latest_effective_policies(all_policies, effective_as_of)
         if not active_policies:
-            logger.info("Triage result: POLICY_EXPIRED | procedure=%s", procedure)
-            return TriageResponse(
-                decision=TriageDecision.POLICY_EXPIRED,
-                evidence_score=0.0,
+            warnings.append("All matching policies have expired based on service date.")
+            return self._decision_engine._build_response(
+                decision="POLICY_EXPIRED",
                 reason=f"All policies referencing procedure code '{procedure}' are expired.",
                 reason_codes=["POLICY_EXPIRED"],
-                warnings=["All matching policies have expired."],
+                policy_path=policy_path,
+                evidence=evidence,
+                warnings=warnings,
+                procedure=procedure
             )
 
         ncd_policies = [p for p in active_policies if p.policy_type.upper() == "NCD"]
         lcd_policies = [p for p in active_policies if p.policy_type.upper() == "LCD"]
 
-        # ── Step 3: NCD cascade ───────────────────────────────────────────────
-        if ncd_policies:
-            for ncd_policy in ncd_policies:
-                ncd_details = self._ncd_repo.get_by_id(ncd_policy.policy_id)
-                if ncd_details and ncd_details.decision:
-                    ncd_decision = ncd_details.decision.upper()
-                    
-                    # Log evidence of NCD evaluation
-                    evidence.append(
-                        Evidence(
-                            type="HCPCS",
-                            identifier=ncd_policy.policy_id,
-                            code=procedure,
-                            result="MATCHED",
-                            explanation=f"Procedure {procedure} is addressed by NCD {ncd_policy.policy_id}.",
-                        )
-                    )
-                    
-                    mp = MatchedPolicy(
-                        policy_type="NCD",
-                        policy_id=ncd_policy.policy_id,
-                        title=ncd_policy.title,
-                    )
-                    
-                    if "COVERED" in ncd_decision:
-                        logger.info("Triage result: LIKELY_COVERED (NCD) | procedure=%s", procedure)
-                        return TriageResponse(
-                            decision=TriageDecision.LIKELY_COVERED,
-                            evidence_score=_calc_evidence_score(True, False, False, True, False),
-                            reason=f"National Coverage Determination ({ncd_policy.policy_id}) explicitly covers procedure {procedure}.",
-                            reason_codes=["NCD_COVERS_PROCEDURE"],
-                            policies=[mp],
-                            matched_codes=MatchedCodes(procedure=procedure),
-                            evidence=evidence,
-                        )
-                    elif "EXCLUDED" in ncd_decision or "NON_COVERED" in ncd_decision:
-                        logger.info("Triage result: LIKELY_NOT_COVERED (NCD) | procedure=%s", procedure)
-                        return TriageResponse(
-                            decision=TriageDecision.LIKELY_NOT_COVERED,
-                            evidence_score=_calc_evidence_score(True, False, False, True, False),
-                            reason=f"National Coverage Determination ({ncd_policy.policy_id}) explicitly excludes procedure {procedure}.",
-                            reason_codes=["NCD_EXCLUDES_PROCEDURE"],
-                            policies=[mp],
-                            matched_codes=MatchedCodes(procedure=procedure),
-                            evidence=evidence,
-                        )
-                    # If NOT_ADDRESSED or UNKNOWN, continue to LCD
+        # ── NCD Evaluation ─────────────────────────────
+        ncd_result = None
+        for ncd_policy in ncd_policies:
+            ncd_details = self._ncd_repo.get_by_id(ncd_policy.policy_id)
+            if not ncd_details:
+                continue
 
-        # ── Step 4: LCD and Jurisdiction ──────────────────────────────────────
-        if not lcd_policies:
-            # We had NCDs but they were not addressed, and no LCDs exist
-            logger.info("Triage result: POLICY_NOT_FOUND (No LCD) | procedure=%s", procedure)
-            return TriageResponse(
-                decision=TriageDecision.POLICY_NOT_FOUND,
-                evidence_score=0.0,
-                reason=f"NCDs do not address coverage and no LCDs exist for procedure '{procedure}'.",
-                reason_codes=["NO_APPLICABLE_LCD"],
-                missing_information=["Missing specific LCD or Article for evaluation."],
-            )
-
-        candidate_policies = lcd_policies
-        if state:
-            jurisdiction_matching = [
-                p for p in lcd_policies if self._policy_repo.is_state_in_jurisdiction(state, p)
-            ]
-            if not jurisdiction_matching:
-                evidence.append(
-                    Evidence(
-                        type="JURISDICTION",
-                        identifier="",
-                        state=state,
-                        result="NOT_MATCHED",
-                        explanation=f"State '{state}' is outside the jurisdiction(s) of the matching LCDs.",
-                    )
+            ncd_sections = self._policy_content.get_ncd_sections(ncd_policy.policy_id)
+            
+            if self._settings.rag_enabled:
+                retrieval = self._rag_retriever.retrieve(
+                    query=self._build_query(request),
+                    candidate_sections=ncd_sections,
+                    min_score=self._settings.vector_min_score
                 )
-                logger.info("Triage result: OUTSIDE_JURISDICTION | state=%s procedure=%s", state, procedure)
-                return TriageResponse(
-                    decision=TriageDecision.OUTSIDE_JURISDICTION,
-                    evidence_score=_calc_evidence_score(True, False, False, True, False),
-                    reason=f"State '{state}' is not covered by the jurisdiction of the matching LCD. Contact your MAC.",
-                    reason_codes=["OUTSIDE_JURISDICTION"],
-                    policies=[MatchedPolicy(policy_type=p.policy_type, policy_id=p.policy_id, title=p.title, article_id=p.article_id) for p in lcd_policies],
+
+                if retrieval.status == "RETRIEVAL_UNAVAILABLE":
+                    warnings.append("RAG unavailable. Using structured evaluation only.")
+                    retrieved_sections = []
+                elif retrieval.status == "RETRIEVAL_NO_MATCH":
+                    retrieved_sections = []
+                else:
+                    retrieved_sections = retrieval.sections
+            else:
+                retrieval = None
+                retrieved_sections = []
+
+            criteria = self._extractor.extract(
+                structured_data=ncd_details,
+                policy_sections=retrieved_sections,
+                request_facts=request
+            )
+            
+            matrix = self._multi_evaluator.evaluate_all(
+                criteria=criteria,
+                request=request,
+                policy_data=ncd_details,
+                policy_sections=retrieved_sections
+            )
+            
+            ncd_eval = self._fusion.determine_ncd_status(
+                matrix=matrix, 
+                ncd_hint=getattr(ncd_details, "decision", None)
+            )
+            ncd_eval.policy_id = ncd_policy.policy_id
+            ncd_eval.title = ncd_policy.title
+            if retrieval:
+                ncd_eval.retrieval_status = retrieval.status
+                
+            policy_path.append(ncd_eval)
+
+            if ncd_eval.overall_status == "EXCLUDED":
+                return self._decision_engine.decide(
+                    ncd_eval, None, None, policy_path, evidence, warnings, procedure
+                )
+
+            if ncd_eval.overall_status == "COVERED":
+                ncd_result = ncd_eval
+                break  # NCD coverage is authoritative
+
+        # ── Jurisdiction + LCD ───────────
+        lcd_result = None
+        if ncd_result is None or ncd_result.overall_status == "NOT_ADDRESSED":
+            if not lcd_policies:
+                return self._decision_engine._build_response(
+                    decision="POLICY_NOT_FOUND",
+                    reason=f"NCDs do not address coverage and no LCDs exist for procedure '{procedure}'.",
+                    reason_codes=["NO_APPLICABLE_LCD"],
+                    policy_path=policy_path,
                     evidence=evidence,
-                    warnings=[f"State '{state}' is outside policy jurisdiction."],
+                    warnings=warnings,
+                    procedure=procedure
                 )
 
-            candidate_policies = jurisdiction_matching
-            evidence.append(
-                Evidence(
-                    type="JURISDICTION",
-                    identifier=candidate_policies[0].jurisdiction_id or candidate_policies[0].policy_id,
-                    state=state,
-                    result="MATCHED",
-                    explanation=f"State '{state}' falls within the jurisdiction of LCD {candidate_policies[0].policy_id}.",
-                )
-            )
-        else:
-            missing.append("State not provided — jurisdiction could not be verified.")
-
-        # ── Step 5: Article validation (HCPCS & ICD-10) ───────────────────────
-        best_policy = candidate_policies[0]
-        article_id = best_policy.article_id
-
-        procedure_matched = False
-        if article_id:
-            hcpcs_codes = {c.code for c in self._article_repo.get_hcpcs(article_id)}
-            procedure_matched = procedure in hcpcs_codes
-            evidence.append(
-                Evidence(
-                    type="HCPCS",
-                    identifier=article_id,
-                    code=procedure,
-                    result="MATCHED" if procedure_matched else "NOT_FOUND",
-                    explanation=f"Procedure code '{procedure}' {'is' if procedure_matched else 'was not'} listed in article {article_id}.",
-                )
-            )
-        else:
-            missing.append("No associated article found for detailed code validation.")
-
-        covered_set: set[str] = set()
-        noncovered_set: set[str] = set()
-        if article_id:
-            covered_set = {c.code for c in self._article_repo.get_icd10_covered(article_id)}
-            noncovered_set = {c.code for c in self._article_repo.get_icd10_noncovered(article_id)}
-
-        diagnosis_evals: list[DiagnosisEvaluation] = []
-        covered_matches: list[str] = []
-        noncovered_matches: list[str] = []
-        unknown_matches: list[str] = []
-
-        for dx in diagnoses:
-            if dx in covered_set:
-                status = "COVERED"
-                covered_matches.append(dx)
-                evidence.append(
-                    Evidence(type="ICD10", identifier=article_id, code=dx, result="COVERED", explanation=f"Diagnosis '{dx}' is covered.")
-                )
-            elif dx in noncovered_set:
-                status = "NOT_COVERED"
-                noncovered_matches.append(dx)
-                evidence.append(
-                    Evidence(type="ICD10", identifier=article_id, code=dx, result="NOT_COVERED", explanation=f"Diagnosis '{dx}' is explicitly non-covered.")
-                )
+            # Jurisdiction resolution
+            if state:
+                jurisdiction_matching = [
+                    p for p in lcd_policies if self._policy_repo.is_state_in_jurisdiction(state, p)
+                ]
+                if not jurisdiction_matching:
+                    warnings.append(f"State '{state}' is outside policy jurisdiction.")
+                    return self._decision_engine._build_response(
+                        decision="OUTSIDE_JURISDICTION",
+                        reason=f"State '{state}' is not covered by the jurisdiction of the matching LCD. Contact your MAC.",
+                        reason_codes=["OUTSIDE_JURISDICTION"],
+                        policy_path=policy_path,
+                        evidence=evidence,
+                        warnings=warnings,
+                        procedure=procedure
+                    )
+                candidate_policies = jurisdiction_matching
             else:
-                status = "NOT_FOUND"
-                unknown_matches.append(dx)
-                missing.append(f"Diagnosis code '{dx}' not found in policy code lists.")
-                evidence.append(
-                    Evidence(type="ICD10", identifier=article_id, code=dx, result="NOT_FOUND", explanation=f"Diagnosis '{dx}' not found in article {article_id}.")
+                # No state provided, just take the first LCD
+                candidate_policies = lcd_policies
+
+            lcd_policy = candidate_policies[0]
+            lcd_details = self._lcd_repo.get_by_id(lcd_policy.policy_id)
+
+            if lcd_details:
+                lcd_sections = self._policy_content.get_lcd_sections(lcd_policy.policy_id)
+
+                lcd_criteria = self._extractor.extract(
+                    structured_data=lcd_details,
+                    policy_sections=lcd_sections,
+                    request_facts=request
                 )
-            diagnosis_evals.append(DiagnosisEvaluation(code=dx, status=status))
+                
+                lcd_matrix = self._multi_evaluator.evaluate_all(
+                    criteria=lcd_criteria,
+                    request=request,
+                    policy_data=lcd_details,
+                    policy_sections=lcd_sections
+                )
+                
+                lcd_eval = self._fusion.determine_lcd_status(lcd_matrix)
+                lcd_eval.policy_id = lcd_policy.policy_id
+                lcd_eval.title = lcd_policy.title
+                
+                policy_path.append(lcd_eval)
+                lcd_result = lcd_eval
 
-        # ── Step 6: Final Decision Logic ──────────────────────────────────────
-        has_article = article_id is not None
-        jurisdiction_match = state is not None and bool(candidate_policies[0].jurisdiction_id)
+                if lcd_eval.overall_status == "EXCLUDED":
+                    return self._decision_engine.decide(
+                        ncd_result, lcd_eval, None, policy_path, evidence, warnings, procedure
+                    )
 
-        evidence_score = _calc_evidence_score(
-            procedure_match=procedure_matched,
-            diagnosis_match=len(covered_matches) > 0,
-            jurisdiction_match=jurisdiction_match,
-            policy_active=True,
-            article_match=has_article,
-        )
+                if lcd_eval.overall_status == "UNKNOWN":
+                    return self._decision_engine.decide(
+                        ncd_result, lcd_eval, None, policy_path, evidence, warnings, procedure
+                    )
+                    # Article is NOT executed if LCD is UNKNOWN
 
-        all_explicitly_noncovered = (
-            len(diagnoses) > 0
-            and len(noncovered_matches) == len(diagnoses)
-            and len(covered_matches) == 0
-        )
+        # ── Article Validation ──────────────────
+        # Reached only when NCD COVERED or LCD COVERED
+        article_result = None
+        best_policy = None
+        if lcd_result:
+            best_policy = next((p for p in lcd_policies if p.policy_id == lcd_result.policy_id), None)
+        elif ncd_result:
+            best_policy = next((p for p in ncd_policies if p.policy_id == ncd_result.policy_id), None)
 
-        reason_codes = ["PROCEDURE_FOUND"]
-        if jurisdiction_match:
-            reason_codes.append("JURISDICTION_MATCH")
+        if best_policy and best_policy.article_id:
+            article_id = best_policy.article_id
+            article_details = self._article_repo.get_by_id(article_id)
+            
+            if article_details:
+                article_sections = self._policy_content.get_article_sections(article_id)
+                
+                art_criteria = self._extractor.extract(
+                    structured_data=article_details,
+                    policy_sections=article_sections,
+                    request_facts=request
+                )
+                
+                # In a full implementation, we'd add custom Article criteria checking here
+                # (e.g. check if code is explicitly in Article's covered list)
+                
+                # For now, let's create a minimal result simulating the Article evaluation
+                # based on existing deterministic checks.
+                hcpcs_codes = {c.code for c in self._article_repo.get_hcpcs(article_id)}
+                procedure_matched = procedure in hcpcs_codes if hcpcs_codes else True
+                
+                covered_set = {c.code for c in self._article_repo.get_icd10_covered(article_id)}
+                noncovered_set = {c.code for c in self._article_repo.get_icd10_noncovered(article_id)}
+                
+                has_coding_conflict = not procedure_matched and len(hcpcs_codes) > 0
+                has_noncovered_dx = any(dx in noncovered_set for dx in request.diagnosis_codes)
+                
+                art_eval = PolicyEvaluationResult(
+                    policy_id=article_id,
+                    policy_type="ARTICLE",
+                    overall_status="MATCHED" if not (has_coding_conflict or has_noncovered_dx) else "NOT_MATCHED",
+                    has_coding_conflict=has_coding_conflict or has_noncovered_dx
+                )
+                
+                policy_path.append(art_eval)
+                article_result = art_eval
 
-        if covered_matches:
-            decision = TriageDecision.LIKELY_COVERED
-            reason = f"Procedure '{procedure}' and diagnosis ({', '.join(covered_matches)}) match an active LCD/Article."
-            reason_codes.append("DIAGNOSIS_COVERED")
-        elif all_explicitly_noncovered:
-            decision = TriageDecision.LIKELY_NOT_COVERED
-            reason = f"All diagnosis codes ({', '.join(noncovered_matches)}) are explicitly non-covered under the applicable policy."
-            reason_codes.append("DIAGNOSIS_EXPLICITLY_NON_COVERED")
-        else:
-            if request.patient_age is not None and unknown_matches:
-                decision = TriageDecision.NURSE_REVIEW
-                reason = "Diagnosis codes are not explicitly covered or non-covered, but clinical context (age) requires manual nurse review."
-                reason_codes.append("CLINICAL_CONTEXT_REVIEW")
-            else:
-                decision = TriageDecision.MORE_INFORMATION_REQUIRED
-                reason = "Diagnosis codes could not be confirmed as covered or non-covered. Additional clinical documentation may be required."
-                reason_codes.append("DIAGNOSIS_NOT_EXPLICITLY_DEFINED")
-
-        if noncovered_matches:
-            warnings.append(f"Explicitly non-covered diagnosis codes: {', '.join(noncovered_matches)}")
-
-        matched_policies = [
-            MatchedPolicy(policy_type=p.policy_type, policy_id=p.policy_id, title=p.title, article_id=p.article_id)
-            for p in candidate_policies
-        ]
-
-        logger.info("Triage result: %s | evidence_score=%.2f | procedure=%s", decision.value, evidence_score, procedure)
-
-        return TriageResponse(
-            decision=decision,
-            evidence_score=evidence_score,
-            requires_prior_authorization=None,
-            reason=reason,
-            reason_codes=reason_codes,
-            policies=matched_policies,
-            matched_codes=MatchedCodes(procedure=procedure, diagnosis=covered_matches),
-            diagnosis_evaluation=diagnosis_evals,
+        # ── Final Decision ────────────────────────────────────────
+        return self._decision_engine.decide(
+            ncd_result=ncd_result,
+            lcd_result=lcd_result,
+            article_result=article_result,
+            policy_path=policy_path,
             evidence=evidence,
-            missing_information=missing,
             warnings=warnings,
+            procedure=procedure
         )
-

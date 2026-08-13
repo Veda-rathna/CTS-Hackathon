@@ -21,7 +21,6 @@ class ContractorSummary(BaseModel):
     id: str
     name: str | None = None
 
-
 class LCDResponse(BaseModel):
     """Full LCD record returned by GET /lcds/{lcd_id}."""
 
