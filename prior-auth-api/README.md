@@ -15,7 +15,7 @@ Frontend (React / Streamlit / etc.)
 FastAPI Router / API Layer          ← no SQL, no business logic
     │
     ▼
-Service / Business Logic Layer      ← no SQL, no SQLAlchemy imports
+Service / Business Logic Layer      ← Strict Cascade: NCD → LCD → Article
     │
     ▼
 Repository Interface (Protocol)     ← abstract contract
@@ -221,9 +221,10 @@ docker compose exec api alembic upgrade head
 
 | Decision | Meaning |
 |---|---|
-| `LIKELY_COVERED` | ≥1 diagnosis code matches covered list in an active, applicable policy |
-| `LIKELY_NOT_COVERED` | All diagnosis codes are explicitly non-covered |
-| `MORE_INFORMATION_REQUIRED` | Policy found but diagnosis codes not in covered or non-covered list |
+| `LIKELY_COVERED` | An NCD explicitly covers it, OR ≥1 diagnosis code matches covered list in an active LCD/Article |
+| `LIKELY_NOT_COVERED` | An NCD explicitly excludes it, OR all diagnosis codes are explicitly non-covered |
+| `MORE_INFORMATION_REQUIRED` | Policy found but diagnosis codes not in covered or non-covered list, and no clinical context supplied |
+| `NURSE_REVIEW` | Ambiguous diagnosis coding but clinical context (like patient age) is provided, requiring manual review |
 | `POLICY_NOT_FOUND` | No policy references this procedure code |
 | `OUTSIDE_JURISDICTION` | Policy found but submitted state is not in its jurisdiction |
 | `POLICY_EXPIRED` | All matching policies have expired |

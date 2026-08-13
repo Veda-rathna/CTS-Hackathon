@@ -23,6 +23,7 @@ class TriageDecision(str, Enum):
     POLICY_NOT_FOUND = "POLICY_NOT_FOUND"
     OUTSIDE_JURISDICTION = "OUTSIDE_JURISDICTION"
     POLICY_EXPIRED = "POLICY_EXPIRED"
+    NURSE_REVIEW = "NURSE_REVIEW"
 
 
 # ── Request ───────────────────────────────────────────────────────────────────

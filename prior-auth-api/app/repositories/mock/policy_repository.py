@@ -52,6 +52,26 @@ _POLICIES: list[PolicyMatch] = [
         jurisdiction_match=False,
         effective=False,
     ),
+    PolicyMatch(
+        policy_type="NCD",
+        policy_id="N111",
+        title="NCD for Covered Demo Procedure",
+        effective_date=date(2010, 1, 1),
+        procedure_match=False,
+        diagnosis_match=False,
+        jurisdiction_match=False,
+        effective=True,
+    ),
+    PolicyMatch(
+        policy_type="NCD",
+        policy_id="N222",
+        title="NCD for Excluded Demo Procedure",
+        effective_date=date(2010, 1, 1),
+        procedure_match=False,
+        diagnosis_match=False,
+        jurisdiction_match=False,
+        effective=True,
+    ),
 ]
 
 # HCPCS → policy IDs
@@ -59,6 +79,8 @@ _HCPCS_TO_POLICY_IDX: dict[str, list[int]] = {
     "64483": [0, 1],
     "64484": [0],
     "62321": [0],
+    "11111": [2],
+    "22222": [3],
 }
 
 

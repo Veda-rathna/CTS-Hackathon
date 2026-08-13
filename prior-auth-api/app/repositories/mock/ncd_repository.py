@@ -15,12 +15,27 @@ _NCDS: dict[str, NCDResponse] = {
         title="Transcutaneous Electrical Nerve Stimulation (TENS) for Acute Pain",
         effective_date=date(2012, 3, 1),
         end_date=None,
-        description=(
-            "Medicare covers TENS for acute pain as a complement to other "
-            "therapeutic modalities for the relief of acute post-operative pain."
-        ),
+        description="Medicare covers TENS for acute pain...",
         manual_section="160.7.1",
         decision="COVERED_WITH_CONDITIONS",
+    ),
+    "N111": NCDResponse(
+        id="N111",
+        title="NCD for Covered Demo Procedure",
+        effective_date=date(2010, 1, 1),
+        end_date=None,
+        description="Demo NCD that explicitly covers a procedure.",
+        manual_section="100.1",
+        decision="COVERED",
+    ),
+    "N222": NCDResponse(
+        id="N222",
+        title="NCD for Excluded Demo Procedure",
+        effective_date=date(2010, 1, 1),
+        end_date=None,
+        description="Demo NCD that explicitly excludes a procedure.",
+        manual_section="100.2",
+        decision="EXCLUDED",
     ),
 }
 
