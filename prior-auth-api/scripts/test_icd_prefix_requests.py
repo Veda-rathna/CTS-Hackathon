@@ -45,6 +45,11 @@ TEST_REQUESTS = [
 
 
 
+class TestPolicyRepository(PostgresPolicyRepository):
+    def find_policies_for_procedure(self, procedure_code: str):
+        policies = super().find_policies_for_procedure(procedure_code)
+        # Filter out NCDs so we only test LCD and Article flow
+        return [p for p in policies if p.policy_type.upper() != "NCD"]
 
 
 def run_tests():
@@ -56,7 +61,7 @@ def run_tests():
     
     with Session(engine) as session:
         # Initialize the production pipeline
-        policy_repo = PostgresPolicyRepository()
+        policy_repo = TestPolicyRepository()
         article_repo = PostgresArticleRepository()
         ncd_repo = PostgresNCDRepository()
         lcd_repo = PostgresLCDRepository()

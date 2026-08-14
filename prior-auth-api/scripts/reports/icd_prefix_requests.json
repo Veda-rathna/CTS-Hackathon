@@ -6,85 +6,108 @@
             "diagnosis_codes": [
                 "M19.022"
             ],
-            "state": "IA",
+            "state": "FL",
             "patient_age": 72,
             "clinical_notes": "Patient presents with documented condition corresponding to the submitted diagnosis."
         },
         "error": "",
         "policy_path": {
             "ncd": {
-                "policy_id": "315",
-                "result": "EXCLUDED"
+                "policy_id": null,
+                "result": "NOT_ADDRESSED"
             },
             "jurisdiction": {
-                "state": "IA",
-                "result": "NOT_ADDRESSED"
+                "state": "FL",
+                "result": "MATCHED"
             },
             "lcd": {
-                "policy_id": null,
-                "result": "NOT_ADDRESSED"
+                "policy_id": "33942",
+                "result": "COVERED"
             },
             "article": {
-                "policy_id": null,
-                "result": "NOT_ADDRESSED"
+                "policy_id": "57311",
+                "result": "COVERED"
             }
         },
-        "policy_evidence": [],
-        "rag_evidence": [
+        "policy_evidence": [
             {
-                "policy_id": "315",
-                "policy_type": "NCD",
-                "policy_title": "Infrared Therapy Devices",
-                "section": "indications_limitations",
-                "chunk_id": "506",
-                "text": "B. Nationally Covered Indications N/A C. Nationally Non-Covered Indications Effective for services performed on and after October 24, 2006, the Centers for Medicare & Medicaid Services has determined that there is sufficient evidence to conclude the use of infrared therapy devices and any related accessories is not reasonable and necessary under section 1862(a)(1)(A) of the Social Security Act (the Act). The use of infrared and/or near-infrared light and/or heat, including monochromatic infrared energy, is non-covered for the treatment, including the symptoms such as pain arising from these conditions, of diabetic and/or non-diabetic peripheral sensory neuropathy, wounds and/or ulcers of the skin and/or subcutaneous tissues. D. Other N/A (This NCD was last reviewed November 2006)",
-                "similarity_score": 0.25692673834503355,
-                "source": "CMS"
+                "type": "JURISDICTION",
+                "identifier": "33942",
+                "code": null,
+                "state": "FL",
+                "result": "MATCHED",
+                "explanation": "State 'FL' matches jurisdiction of LCD 33942."
             }
         ],
+        "rag_evidence": [],
         "code_matching": [
             {
                 "type": "HCPCS",
-                "identifier": "315",
+                "identifier": "57311",
                 "code": "G0151",
                 "state": null,
-                "result": "EXCLUDED",
-                "explanation": "Explicit NCD exclusion."
+                "result": "MATCHED",
+                "explanation": "Procedure code 'G0151' is listed in article 57311."
+            },
+            {
+                "type": "ICD10",
+                "identifier": "57311",
+                "code": "M19.022",
+                "state": null,
+                "result": "COVERED",
+                "explanation": "Diagnosis 'M19.022' is covered."
             }
         ],
         "policy_evaluation": {
             "criteria": [
                 {
-                    "criterion_id": "NCD-315-HCPCS",
-                    "policy_type": "NCD",
-                    "policy_id": "315",
-                    "criterion": "The requested procedure must not be explicitly excluded by NCD 315.",
+                    "criterion_id": "ARTICLE-57311-HCPCS",
+                    "policy_type": "ARTICLE",
+                    "policy_id": "57311",
+                    "criterion": "The requested procedure must be an applicable service under the Article.",
                     "criterion_type": "STRUCTURED",
                     "evaluator": "SQL",
-                    "status": "NOT_SATISFIED",
+                    "status": "SATISFIED",
                     "patient_evidence": [
                         "Submitted HCPCS: G0151"
                     ],
                     "policy_evidence": [
-                        "NCD 315 explicitly excludes G0151."
+                        "Article 57311 contains HCPCS G0151 in its coverage list."
+                    ],
+                    "mandatory": true,
+                    "authoritative": true
+                },
+                {
+                    "criterion_id": "ARTICLE-57311-ICD10-M19.022",
+                    "policy_type": "ARTICLE",
+                    "policy_id": "57311",
+                    "criterion": "The patient's diagnosis must be an eligible diagnosis under the Article.",
+                    "criterion_type": "STRUCTURED",
+                    "evaluator": "SQL",
+                    "status": "SATISFIED",
+                    "patient_evidence": [
+                        "Submitted ICD-10: M19.022"
+                    ],
+                    "policy_evidence": [
+                        "Diagnosis M19.022 is present in the Article's covered ICD-10 data."
                     ],
                     "mandatory": true,
                     "authoritative": true
                 }
             ],
-            "overall_result": "EXCLUDED"
+            "overall_result": "COVERED"
         },
         "evidence_fusion": {
-            "satisfied": 0,
-            "not_satisfied": 1,
+            "satisfied": 2,
+            "not_satisfied": 0,
             "unknown": 0,
-            "result": "EXCLUDED"
+            "result": "COVERED"
         },
         "final_decision": {
-            "decision": "PEND",
-            "reason": "Decision Engine output: PEND. Reason codes: NCD_EXCLUDES_PROCEDURE",
+            "decision": "APPROVE",
+            "reason": "Decision Engine output: APPROVE. Reason codes: ARTICLE_CRITERIA_SATISFIED",
             "reason_codes": [
-                "NCD_EXCLUDES_PROCEDURE"
+                "ARTICLE_CRITERIA_SATISFIED"
             ]
         }
     }
