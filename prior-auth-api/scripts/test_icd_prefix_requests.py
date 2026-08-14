@@ -30,83 +30,17 @@ sys.stdout.reconfigure(encoding='utf-8')
 # ============================================================
 
 TEST_REQUESTS = [
-    # M PREFIX
-    {
-        "name": "M-prefix - Lumbar spondylosis with radiculopathy",
-        "procedure_code": "62321",
-        "diagnosis_codes": ["M47.22"],
-        "state": "TX",
-        "patient_age": 60,
-        "clinical_notes": "Patient presents with documented condition corresponding to the submitted diagnosis."
-    },
-    {
-        "name": "M-prefix - Intervertebral disc disorder",
-        "procedure_code": "64483",
-        "diagnosis_codes": ["M54.16"],
-        "state": "CO",
-        "patient_age": 65,
-        "clinical_notes": "Patient presents with documented condition corresponding to the submitted diagnosis."
-    },
-    {
-        "name": "M-prefix - SEMANTIC TEST CASE (Conservative Treatment)",
-        "procedure_code": "64483",
-        "diagnosis_codes": ["M54.16"],
-        "state": "TX",
-        "patient_age": 55,
-        "clinical_notes": "Patient completed physical therapy for seven months with persistent symptoms despite treatment."
-    },
-    
-    # E PREFIX
-    {
-        "name": "E-prefix - Diabetes mellitus with neurological complications",
-        "procedure_code": "95851",
-        "diagnosis_codes": ["E08.44"],
-        "state": "DE",
-        "patient_age": 70,
-        "clinical_notes": "Patient presents with documented condition corresponding to the submitted diagnosis."
-    },
-    {
-        "name": "E-prefix - Diabetes mellitus with peripheral angiopathy",
-        "procedure_code": "95851",
-        "diagnosis_codes": ["E08.52"],
-        "state": "FL",
-        "patient_age": 62,
-        "clinical_notes": "Patient presents with documented condition corresponding to the submitted diagnosis."
-    },
-    {
-        "name": "E-prefix - Drug/chemical diabetes mellitus",
-        "procedure_code": "95851",
-        "diagnosis_codes": ["E09.44"],
-        "state": "GA",
-        "patient_age": 68,
-        "clinical_notes": "Patient presents with documented condition corresponding to the submitted diagnosis."
-    },
 
     # J PREFIX
     {
-        "name": "J-prefix - Bronchopneumonia, unspecified",
-        "procedure_code": "95851",
-        "diagnosis_codes": ["J18.0"],
-        "state": "DE",
+        "name": "Primary osteoarthritis, left elbow",
+        "procedure_code": "G0151",
+        "diagnosis_codes": ["M19.022"],
+        "state": "IA",
         "patient_age": 72,
         "clinical_notes": "Patient presents with documented condition corresponding to the submitted diagnosis."
-    },
-    {
-        "name": "J-prefix - Lobar pneumonia, unspecified",
-        "procedure_code": "95851",
-        "diagnosis_codes": ["J18.1"],
-        "state": "FL",
-        "patient_age": 64,
-        "clinical_notes": "Patient presents with documented condition corresponding to the submitted diagnosis."
-    },
-    {
-        "name": "J-prefix - Hypostatic pneumonia, unspecified",
-        "procedure_code": "95851",
-        "diagnosis_codes": ["J18.2"],
-        "state": "GA",
-        "patient_age": 80,
-        "clinical_notes": "Patient presents with documented condition corresponding to the submitted diagnosis."
     }
+    
 ]
 
 
