@@ -1,2 +1,0 @@
-test_name,icd10_prefix,icd10,procedure_code,state,ncd_id,ncd_result,rag_used,lcd_id,lcd_result,article_id,article_result,llm_used,final_decision,reason_codes,error
-"Primary osteoarthritis, left elbow",M,M19.022,G0151,IA,,NOT_ADDRESSED,NO,,NOT_ADDRESSED,,NOT_ADDRESSED,NO,REQUEST_MORE_INFORMATION,MISSING_REQUIRED_INFORMATION,
