@@ -6,7 +6,7 @@
             "diagnosis_codes": [
                 "M19.022"
             ],
-            "state": "FL",
+            "state": "IA",
             "patient_age": 72,
             "clinical_notes": "Patient presents with documented condition corresponding to the submitted diagnosis."
         },
@@ -17,97 +17,45 @@
                 "result": "NOT_ADDRESSED"
             },
             "jurisdiction": {
-                "state": "FL",
-                "result": "MATCHED"
+                "state": "IA",
+                "result": "NOT_MATCHED"
             },
             "lcd": {
-                "policy_id": "33942",
-                "result": "COVERED"
+                "policy_id": null,
+                "result": "NOT_ADDRESSED"
             },
             "article": {
-                "policy_id": "57311",
-                "result": "COVERED"
+                "policy_id": null,
+                "result": "NOT_ADDRESSED"
             }
         },
         "policy_evidence": [
             {
                 "type": "JURISDICTION",
-                "identifier": "33942",
+                "identifier": "",
                 "code": null,
-                "state": "FL",
-                "result": "MATCHED",
-                "explanation": "State 'FL' matches jurisdiction of LCD 33942."
+                "state": "IA",
+                "result": "NOT_MATCHED",
+                "explanation": "State 'IA' is outside LCD jurisdictions."
             }
         ],
         "rag_evidence": [],
-        "code_matching": [
-            {
-                "type": "HCPCS",
-                "identifier": "57311",
-                "code": "G0151",
-                "state": null,
-                "result": "MATCHED",
-                "explanation": "Procedure code 'G0151' is listed in article 57311."
-            },
-            {
-                "type": "ICD10",
-                "identifier": "57311",
-                "code": "M19.022",
-                "state": null,
-                "result": "COVERED",
-                "explanation": "Diagnosis 'M19.022' is covered."
-            }
-        ],
+        "code_matching": [],
         "policy_evaluation": {
-            "criteria": [
-                {
-                    "criterion_id": "ARTICLE-57311-HCPCS",
-                    "policy_type": "ARTICLE",
-                    "policy_id": "57311",
-                    "criterion": "The requested procedure must be an applicable service under the Article.",
-                    "criterion_type": "STRUCTURED",
-                    "evaluator": "SQL",
-                    "status": "SATISFIED",
-                    "patient_evidence": [
-                        "Submitted HCPCS: G0151"
-                    ],
-                    "policy_evidence": [
-                        "Article 57311 contains HCPCS G0151 in its coverage list."
-                    ],
-                    "mandatory": true,
-                    "authoritative": true
-                },
-                {
-                    "criterion_id": "ARTICLE-57311-ICD10-M19.022",
-                    "policy_type": "ARTICLE",
-                    "policy_id": "57311",
-                    "criterion": "The patient's diagnosis must be an eligible diagnosis under the Article.",
-                    "criterion_type": "STRUCTURED",
-                    "evaluator": "SQL",
-                    "status": "SATISFIED",
-                    "patient_evidence": [
-                        "Submitted ICD-10: M19.022"
-                    ],
-                    "policy_evidence": [
-                        "Diagnosis M19.022 is present in the Article's covered ICD-10 data."
-                    ],
-                    "mandatory": true,
-                    "authoritative": true
-                }
-            ],
-            "overall_result": "COVERED"
+            "criteria": [],
+            "overall_result": "NOT_ADDRESSED"
         },
         "evidence_fusion": {
-            "satisfied": 2,
+            "satisfied": 0,
             "not_satisfied": 0,
             "unknown": 0,
-            "result": "COVERED"
+            "result": "NOT_ADDRESSED"
         },
         "final_decision": {
-            "decision": "APPROVE",
-            "reason": "Decision Engine output: APPROVE. Reason codes: ARTICLE_CRITERIA_SATISFIED",
+            "decision": "REQUEST_MORE_INFORMATION",
+            "reason": "Decision Engine output: REQUEST_MORE_INFORMATION. Reason codes: MISSING_REQUIRED_INFORMATION",
             "reason_codes": [
-                "ARTICLE_CRITERIA_SATISFIED"
+                "MISSING_REQUIRED_INFORMATION"
             ]
         }
     }
