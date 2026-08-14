@@ -61,20 +61,22 @@ class TriageRequest(BaseModel):
         description="Date of service. Used for policy effective date validation.",
     )
 
-    @field_validator("procedure_code")
+    @field_validator("procedure_code", mode="before")
     @classmethod
     def normalize_procedure_code(cls, v: str) -> str:
-        return v.strip().upper()
+        return v.strip().upper() if isinstance(v, str) else v
 
-    @field_validator("diagnosis_codes")
+    @field_validator("diagnosis_codes", mode="before")
     @classmethod
     def normalize_diagnosis_codes(cls, v: list[str]) -> list[str]:
-        return [c.strip().upper() for c in v if c.strip()]
+        if not isinstance(v, list):
+            return v
+        return [c.strip().upper() for c in v if isinstance(c, str) and c.strip()]
 
-    @field_validator("state")
+    @field_validator("state", mode="before")
     @classmethod
     def normalize_state(cls, v: str | None) -> str | None:
-        return v.strip().upper() if v else None
+        return v.strip().upper() if isinstance(v, str) and v.strip() else None
 
     model_config = {
         "json_schema_extra": {

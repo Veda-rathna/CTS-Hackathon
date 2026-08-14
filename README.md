@@ -1,6 +1,8 @@
 # Prior Authorization Triage & Policy Companion (CTS Hackathon)
 
-A production-ready solution addressing Use Case **UC02: Prior Authorization Triage and Policy Companion** under Utilization Management.
+> **Use Case UC02 — Utilization Management**
+
+A production-ready **FastAPI** backend solution that evaluates Medicare prior authorization requests against official CMS coverage policies using a hybrid adjudication architecture: **Deterministic SQL lookups**, **pgvector RAG vector search**, and **local LLM semantic criterion evaluation (Qwen3 via LM Studio)**.
 
 ---
 
@@ -11,104 +13,89 @@ A production-ready solution addressing Use Case **UC02: Prior Authorization Tria
 ### The Challenge
 Prior authorization decides whether a requested service meets a health plan's coverage and medical necessity rules before care is delivered. It is one of the most scrutinized payer-provider friction points today because **speed, accuracy, transparency, and experience** (member & provider) all matter simultaneously.
 
-### Data Scope
-- **Synthea synthetic patient records** (FHIR/CSV) for request context
-- **CMS Medicare Coverage Database** (National Coverage Determinations [NCD], Local Coverage Determinations [LCD], Local Coverage Articles [LCA])
-- **Publicly posted payer medical policy text**
+### Solution Requirements
+- **Fact Extraction**: Procedure code (HCPCS/CPT), diagnosis codes (ICD-10-CM), state (MAC jurisdiction), patient demographics, clinical notes.
+- **Coverage Rule Set**: CMS Medicare Coverage Database (National Coverage Determinations [NCD], Local Coverage Determinations [LCD], Billing/Coding Articles [LCA]).
+- **3-Tier Decision Engine**: Recommends `APPROVE`, `PEND` (for nurse review), or `REQUEST_MORE_INFORMATION`.
+- **Explainability & Transparency**: Complete evidence audit trace showing matched policies, RAG similarity scores, and LLM reasoning.
 
 ---
 
-## 🛠️ Our Solution & Architectural Approach
+## 🛠️ Hybrid Architecture & Adjudication Pipeline
 
-We built a modular, production-ready **FastAPI backend** designed to cleanly separate clinical rule evaluation from underlying database models.
+Our engine mirrors the official CMS adjudication hierarchy, enforced by a **deterministic + RAG + LLM cascade**:
 
 ```
-                  [ Prior Auth Request ]
-                             │
-                             ▼
-                   Extract Request Facts
-                   (HCPCS, ICD-10, Age, State)
-                             │
-                             ▼
-                 1. Evaluate NCD Policies
-                 ┌───────────┼───────────┐
-                 ▼           ▼           ▼
-              [COVERED]  [EXCLUDED]  [NOT ADDRESSED]
-                 │           │           │
-                 ▼           ▼           │
-              APPROVE       DENY         │
-                                         ▼
-                             2. Evaluate LCD Policies
-                             ┌───────────┼───────────┐
-                             ▼           ▼           ▼
-                          [COVERED]  [EXCLUDED]  [UNKNOWN/OUT JURISD.]
-                             │           │           │
-                             ▼           ▼           ▼
-                         To Article     DENY      OUTSIDE JURISD. /
-                                                  PEND (More Info)
-                                 │
-                                 ▼
-                     3. Evaluate LCA (Articles)
-                     ┌───────────┼───────────┐
-                     ▼           ▼           ▼
-                   [HCPCS]    [ICD-10]    [Other Coding]
-                     │           │           │
-                     └───────────┼───────────┘
-                                 ▼
-                          Final Decision
-                     ┌───────────┴───────────┐
-                     ▼                       ▼
-               [Match Found]          [Ambiguous Match]
-                     │                       │
-           ┌─────────┴─────────┐   ┌─────────┴─────────┐
-           ▼                   ▼   ▼                   ▼
-        APPROVE              DENY  NURSE REVIEW    PEND / MORE INFO
-                                  (Clinical Flags) (No Flags)
+                               ┌─────────────────────────┐
+                               │   Prior Auth Request    │
+                               │  CPT, ICD10, State, Notes│
+                               └────────────┬────────────┘
+                                            │
+                                            ▼
+                              ┌───────────────────────────┐
+                              │ 1. Policy Lookup (SQL)    │
+                              │    Find Candidate NCD/LCD │
+                              └─────────────┬─────────────┘
+                                            │
+                                            ▼
+                              ┌───────────────────────────┐
+                              │ 2. NCD Evaluation         │
+                              │    pgvector RAG + LLM     │
+                              └─────────────┬─────────────┘
+                                            │
+               ┌────────────────────────────┼────────────────────────────┐
+               │ COVERED                    │ EXCLUDED                   │ NOT_ADDRESSED
+               ▼                            ▼                            ▼
+        ┌──────────────┐             ┌──────────────┐        ┌───────────────────────┐
+        │   APPROVE    │             │     PEND     │        │ 3. Jurisdiction Check │
+        └──────────────┘             └──────────────┘        │    State in MAC Zone? │
+                                                             └───────────┬───────────┘
+                                                                         │ MATCHED
+                                                                         ▼
+                                                             ┌───────────────────────┐
+                                                             │ 4. LCD Evaluation     │
+                                                             │    RAG + LLM + SQL    │
+                                                             └───────────┬───────────┘
+                                                                         │ COVERED
+                                                                         ▼
+                                                             ┌───────────────────────┐
+                                                             │ 5. Article Evaluation │
+                                                             │    ICD-10 Code Matrix │
+                                                             └───────────┬───────────┘
+                                                                         │
+                                                                         ▼
+                                                             ┌───────────────────────┐
+                                                             │ 6. Decision Engine    │
+                                                             │    APPROVE / PEND /   │
+                                                             │    REQUEST_MORE_INFO  │
+                                                             └───────────────────────┘
 ```
 
 ### Key Technical Pillars
 
-1. **Deterministic Cascade Execution**:
-   - **NCD Evaluator (First Priority)**: Resolves policies at the national level. If an NCD covers or excludes the procedure, the request halts early.
-   - **LCD Evaluator (Second Priority)**: Runs localized administrative checks. Validates state codes against Regional Medicare Administrative Contractor (MAC) jurisdictions.
-   - **Article Evaluator (Third Priority)**: Validates granular coding lists (HCPCS/CPT and ICD-10 covered/non-covered associations).
+1. **CMS Adjudication Cascade**:
+   - **NCD Override (First Priority)**: National policies take precedence. If an NCD explicitly covers or excludes the procedure for the diagnosis, adjudication halts early.
+   - **MAC Jurisdiction Verification (Second Priority)**: Validates state abbreviations against regional Medicare Administrative Contractor (MAC) jurisdictions.
+   - **LCD Evaluation (Third Priority)**: RAG vector search over active Local Coverage Determinations.
+   - **Article ICD-10 Matrix (Fourth Priority)**: Deterministic SQL validation against `article_icd10_covered` and `article_icd10_noncovered` code lists.
 
-2. **Smart Fallbacks & Nurse Review**:
-   - Matches the flowchart's **Nurse Review** node. When diagnosis codes are not explicitly covered or denied, the engine evaluates available clinical flags (such as patient age or administrative details) to pend the request for human verification (`NURSE_REVIEW`) rather than rejecting it or outputting a generic error.
+2. **Authority Hierarchy in Evidence Fusion**:
+   $$\text{Structured (SQL)} > \text{Rule-based} > \text{Semantic (LLM)}$$
+   - Authoritative SQL code checks **always** override LLM outputs.
+   - LLM `UNKNOWN` results pass through to secondary policy layers without causing false rejections.
+   - Timeout circuit breaker (5s connect / 20s read) prevents server hangs if the LLM is offline.
 
-3. **Repository Pattern (Dual Mock/Postgres Backends)**:
-   - **Zero Code-Leakage**: The API layer, schemas, and business services have zero knowledge of database syntax, SQL, or SQLAlchemy.
-   - **Configurable Mode**: Toggle `USE_MOCK_REPOSITORIES=true` in `.env` to run the engine fully in memory on static mock records (ideal for rapid frontend prototyping and demo environments). Setting it to `false` automatically spins up real PostgreSQL querying.
-
----
-
-## 📂 Project Directory Structure
-
-```
-CTS-Hackathon/
-├── prior-auth-api/             # FastAPI Application Root
-│   ├── app/
-│   │   ├── api/v1/             # REST Endpoints (triage, policies, articles, LCDs, health)
-│   │   ├── schemas/            # Strict Pydantic API Data Models
-│   │   ├── services/           # Cascade triage engine and business rules
-│   │   ├── repositories/       # Data Access Interfaces (Mock & Postgres implementations)
-│   │   ├── models/             # SQLAlchemy ORM schemas
-│   │   └── dependencies/       # Dependency Injection wiring
-│   ├── tests/                  # Pytest suite (38 test cases passing)
-│   ├── alembic/                # Database migrations
-│   ├── docs/                   # Data contract integration guides
-│   ├── Dockerfile
-│   └── docker-compose.yml
-└── README.md                   # Workspace root details (this file)
-```
+3. **Repository Pattern (Mock & PostgreSQL Modes)**:
+   - Toggle `USE_MOCK_REPOSITORIES=true` for instant in-memory execution without a database.
+   - Toggle `USE_MOCK_REPOSITORIES=false` for full PostgreSQL + pgvector vector search.
 
 ---
 
 ## ⚡ Quick Start
 
-### 1. Run the Backend API (Mock Mode)
+### 1. Unified CLI Runner (`manage.py`)
 
-No database configuration is required to test the logic:
+Navigate to `prior-auth-api` and use `manage.py` for all tasks:
 
 ```bash
 cd prior-auth-api
@@ -123,16 +110,65 @@ source .venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Copy configuration
-cp .env.example .env
+# Start FastAPI dev server (port 8001)
+python manage.py serve
 
-# Run server
-uvicorn app.main:app --reload
-```
-Navigate to **[http://localhost:8000/docs](http://localhost:8000/docs)** to view the interactive Swagger OpenAPI specification.
+# Run Pytest suite
+python manage.py test
 
-### 2. Run Test Suite
-```bash
-pytest tests/ -v
+# Run Live API verification test suite
+python manage.py test-live
+
+# Full Database Setup (Init pgvector → Seed CMS data → Ingest RAG embeddings)
+python manage.py setup-db
 ```
-All 38 test suites covering the triage evaluation logic, NCD cascade, and Nurse Review routing must resolve to `PASSED`.
+
+### 2. Interactive Documentation & Endpoints
+
+- **Swagger UI**: http://localhost:8001/docs
+- **ReDoc**: http://localhost:8001/redoc
+- **API Health Check**: `GET http://localhost:8001/api/v1/health`
+- **Core Triage Endpoint**: `POST http://localhost:8001/api/v1/triage`
+
+---
+
+## 📂 Project Directory Structure
+
+```
+CTS-Hackathon/
+├── DOCUMENTATION.md            # MASTER TECHNICAL DOCUMENTATION (Architecture + Adjudication + Roadmap)
+├── README.md                   # Workspace root README (this file)
+└── prior-auth-api/             # FastAPI Application Root
+    ├── manage.py               # CENTRAL CLI RUNNER (serve, test, setup-db, test-live)
+    ├── app/
+    │   ├── api/v1/             # REST Endpoints (triage, policies, articles, lcds, ncds, health)
+    │   ├── schemas/            # Strict Pydantic Data Contracts (TriageRequest, TriageResponse)
+    │   ├── services/           # Adjudication Cascade, Decision Engine, Evidence Fusion
+    │   ├── repositories/       # Data Access Interfaces (Mock & Postgres implementations)
+    │   ├── models/             # SQLAlchemy ORM Data Models (NCD, LCD, Article, PolicyChunk)
+    │   ├── core/               # Pydantic BaseSettings & Logging configuration
+    │   └── db/                 # Database engine & session factory
+    ├── scripts/                # Utility & Test Scripts
+    │   ├── db_setup.py         # Unified DB Init + Seeding + pgvector Embedding Ingestion
+    │   └── test_live.py        # Unified Live API Verification Suite
+    ├── tests/                  # Streamlined Pytest Test Suite
+    │   ├── test_triage_engine.py # Master Adjudication Engine & Edge Case Tests (46 tests)
+    │   └── test_domain_routers.py # Master Domain Router Endpoint Tests (22 tests)
+    ├── Dockerfile
+    ├── docker-compose.yml
+    └── requirements.txt
+```
+
+---
+
+## 📖 Master Documentation Reference
+
+For detailed technical explanations, refer to **[`prior-auth-api/DOCUMENTATION.md`](prior-auth-api/DOCUMENTATION.md)**:
+- **System Architecture**: High-level module diagrams, repository pattern, and service graph.
+- **Engine Deep Dive**: Detailed breakdown of the 6-step CMS coverage cascade.
+- **Data Integration Contract**: Entity-relationship schema (Contractor → Jurisdiction → LCD → Article).
+- **UC02 Gaps & Production Roadmap**: Gap matrix (Synthea FHIR ingestion, longitudinal prior claims, HITL nurse review queue, 50-state MAC scaling) and 3-phase enterprise deployment roadmap.
+
+---
+
+*CTS Hackathon — Use Case UC02 Utilization Management Solution*

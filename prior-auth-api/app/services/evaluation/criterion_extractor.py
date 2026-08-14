@@ -57,9 +57,8 @@ class CriterionExtractor:
                         "source_text": chunk.chunk_text,
                     })
         
-        # If no explicit bullets or phrases found, fallback to the chunk as a whole if it's short,
-        # or split into sentences.
-        if not criteria and len(text) < 500:
+        # If no explicit bullets or phrases found, fallback to the chunk as a whole.
+        if not criteria:
             criteria.append({
                 "criterion_id": f"{chunk.policy_type}-{chunk.policy_id}-C{uuid.uuid4().hex[:6]}",
                 "criterion": text,

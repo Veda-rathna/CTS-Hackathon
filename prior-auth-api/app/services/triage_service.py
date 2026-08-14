@@ -169,7 +169,7 @@ class TriageService:
                 policy_type="NCD",
                 candidate_policy_ids=ncd_ids,
                 top_k=5,
-                threshold=0.8
+                threshold=0.6  # Lower threshold ensures diagnosis-specific NCD chunks are retrieved
             ) if query_embedding else []
             
             # If no semantic chunks, fall back to explicit NCD decisions (e.g. from SQL)
@@ -253,7 +253,7 @@ class TriageService:
                                 authoritative=True
                             ))
                             break
-                            
+            
             policy_path["ncd"] = {"policy_id": ncd_ids[0] if ncd_ids else ncd_candidates[0].policy_id, "result": ncd_result}
         # ── Jurisdiction & LCD (Phase 9 & 10) ─────────────────────────────────
         if ncd_result == "NOT_ADDRESSED":

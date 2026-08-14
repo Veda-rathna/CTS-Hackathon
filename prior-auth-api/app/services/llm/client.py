@@ -51,7 +51,9 @@ class LLMClient:
         )
 
         try:
-            with httpx.Client(timeout=30.0) as client:
+            # Split timeout: 5s to connect, 20s to read — prevents hanging on unavailable LLM
+            timeout = httpx.Timeout(connect=5.0, read=20.0, write=5.0, pool=5.0)
+            with httpx.Client(timeout=timeout) as client:
                 response = client.post(
                     f"{self.base_url}/chat/completions",
                     json={
@@ -83,10 +85,23 @@ class LLMClient:
                     status=status,
                     patient_evidence=parsed.get("patient_evidence", [])
                 )
-                
+
+        except httpx.ConnectError as e:
+            logger.warning("LLM unreachable (ConnectError) — falling back to UNKNOWN. Error: %s", e)
+            return LLMResponse(
+                status="UNKNOWN",
+                patient_evidence=["LLM service unreachable. Deterministic rules will apply."]
+            )
+        except httpx.TimeoutException as e:
+            logger.warning("LLM timed out — falling back to UNKNOWN. Error: %s", e)
+            return LLMResponse(
+                status="UNKNOWN",
+                patient_evidence=["LLM evaluation timed out. Deterministic rules will apply."]
+            )
         except Exception as e:
             logger.error("LLM evaluation failed: %s", e)
             return LLMResponse(
                 status="UNKNOWN", 
                 patient_evidence=[f"LLM API error: {str(e)}"]
             )
+
