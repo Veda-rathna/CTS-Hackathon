@@ -13,17 +13,12 @@ from pydantic import BaseModel, Field, field_validator
 class TriageDecision(str, Enum):
     """Deterministic triage outcome values.
 
-    These values describe the policy-matching result only.
-    They are NOT clinical decisions and must not be interpreted as such.
+    These values describe the final decision result.
     """
 
-    LIKELY_COVERED = "LIKELY_COVERED"
-    LIKELY_NOT_COVERED = "LIKELY_NOT_COVERED"
-    MORE_INFORMATION_REQUIRED = "MORE_INFORMATION_REQUIRED"
-    POLICY_NOT_FOUND = "POLICY_NOT_FOUND"
-    OUTSIDE_JURISDICTION = "OUTSIDE_JURISDICTION"
-    POLICY_EXPIRED = "POLICY_EXPIRED"
-    NURSE_REVIEW = "NURSE_REVIEW"
+    APPROVE = "APPROVE"
+    PEND = "PEND"
+    REQUEST_MORE_INFORMATION = "REQUEST_MORE_INFORMATION"
 
 
 # ── Request ───────────────────────────────────────────────────────────────────
@@ -57,21 +52,31 @@ class TriageRequest(BaseModel):
         ge=0,
         description="Patient age in years (≥ 0). Optional context for policy checks.",
     )
+    clinical_notes: str | None = Field(
+        default=None,
+        description="Patient clinical notes for semantic evaluation.",
+    )
+    service_date: str | None = Field(
+        default=None,
+        description="Date of service. Used for policy effective date validation.",
+    )
 
-    @field_validator("procedure_code")
+    @field_validator("procedure_code", mode="before")
     @classmethod
     def normalize_procedure_code(cls, v: str) -> str:
-        return v.strip().upper()
+        return v.strip().upper() if isinstance(v, str) else v
 
-    @field_validator("diagnosis_codes")
+    @field_validator("diagnosis_codes", mode="before")
     @classmethod
     def normalize_diagnosis_codes(cls, v: list[str]) -> list[str]:
-        return [c.strip().upper() for c in v if c.strip()]
+        if not isinstance(v, list):
+            return v
+        return [c.strip().upper() for c in v if isinstance(c, str) and c.strip()]
 
-    @field_validator("state")
+    @field_validator("state", mode="before")
     @classmethod
     def normalize_state(cls, v: str | None) -> str | None:
-        return v.strip().upper() if v else None
+        return v.strip().upper() if isinstance(v, str) and v.strip() else None
 
     model_config = {
         "json_schema_extra": {
@@ -140,7 +145,20 @@ class Evidence(BaseModel):
     """Human-readable explanation of why this evidence was generated."""
 
 
+class RagEvidence(BaseModel):
+    """Detailed evidence from RAG chunk retrieval."""
+    policy_id: str
+    policy_type: str
+    policy_title: str | None = None
+    section: str | None = None
+    chunk_id: str
+    text: str
+    similarity_score: float | None = None
+    source: str | None = None
+
+
 # ── Top-level response ────────────────────────────────────────────────────────
+from app.schemas.evaluation import EvaluatedCriterion
 
 
 class TriageResponse(BaseModel):
@@ -176,9 +194,12 @@ class TriageResponse(BaseModel):
     reason: str
     reason_codes: list[str] = []
     policies: list[MatchedPolicy] = []
+    policy_path: dict | None = None
     matched_codes: MatchedCodes | None = None
     diagnosis_evaluation: list[DiagnosisEvaluation] = []
     evidence: list[Evidence] = []
+    rag_evidence: list[RagEvidence] = []
+    criteria: list[EvaluatedCriterion] = []
     missing_information: list[str] = []
     warnings: list[str] = []
 
@@ -186,7 +207,7 @@ class TriageResponse(BaseModel):
         "json_schema_extra": {
             "examples": [
                 {
-                    "decision": "LIKELY_COVERED",
+                    "decision": "APPROVE",
                     "evidence_score": 0.9,
                     "requires_prior_authorization": None,
                     "reason": "The procedure and diagnosis match an active applicable policy.",

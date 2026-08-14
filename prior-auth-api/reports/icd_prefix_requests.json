@@ -1,0 +1,814 @@
+[
+    {
+        "request": {
+            "name": "M-prefix - Lumbar spondylosis with radiculopathy",
+            "procedure_code": "62321",
+            "diagnosis_codes": [
+                "M47.22"
+            ],
+            "state": "TX",
+            "patient_age": 60,
+            "clinical_notes": "Patient presents with documented condition corresponding to the submitted diagnosis."
+        },
+        "error": "",
+        "policy_path": {
+            "ncd": {
+                "policy_id": null,
+                "result": "NOT_ADDRESSED"
+            },
+            "jurisdiction": {
+                "state": "TX",
+                "result": "MATCHED"
+            },
+            "lcd": {
+                "policy_id": "33906",
+                "result": "COVERED"
+            },
+            "article": {
+                "policy_id": "56651",
+                "result": "COVERED"
+            }
+        },
+        "policy_evidence": [
+            {
+                "type": "JURISDICTION",
+                "identifier": "33906",
+                "code": null,
+                "state": "TX",
+                "result": "MATCHED",
+                "explanation": "State 'TX' matches jurisdiction of LCD 33906."
+            }
+        ],
+        "code_matching": [
+            {
+                "type": "HCPCS",
+                "identifier": "56651",
+                "code": "62321",
+                "state": null,
+                "result": "MATCHED",
+                "explanation": "Procedure code '62321' is listed in article 56651."
+            },
+            {
+                "type": "ICD10",
+                "identifier": "56651",
+                "code": "M47.22",
+                "state": null,
+                "result": "COVERED",
+                "explanation": "Diagnosis 'M47.22' is covered."
+            }
+        ],
+        "policy_evaluation": {
+            "criteria": [
+                {
+                    "criterion_id": "ARTICLE-56651-HCPCS",
+                    "policy_type": "ARTICLE",
+                    "policy_id": "56651",
+                    "criterion": "The requested procedure must be an applicable service under the Article.",
+                    "criterion_type": "STRUCTURED",
+                    "evaluator": "SQL",
+                    "status": "SATISFIED",
+                    "patient_evidence": [
+                        "Submitted HCPCS: 62321"
+                    ],
+                    "policy_evidence": [
+                        "Article 56651 contains HCPCS 62321 in its coverage list."
+                    ],
+                    "mandatory": true,
+                    "authoritative": true
+                },
+                {
+                    "criterion_id": "ARTICLE-56651-ICD10-M47.22",
+                    "policy_type": "ARTICLE",
+                    "policy_id": "56651",
+                    "criterion": "The patient's diagnosis must be an eligible diagnosis under the Article.",
+                    "criterion_type": "STRUCTURED",
+                    "evaluator": "SQL",
+                    "status": "SATISFIED",
+                    "patient_evidence": [
+                        "Submitted ICD-10: M47.22"
+                    ],
+                    "policy_evidence": [
+                        "Diagnosis M47.22 is present in the Article's covered ICD-10 data."
+                    ],
+                    "mandatory": true,
+                    "authoritative": true
+                }
+            ],
+            "overall_result": "COVERED"
+        },
+        "evidence_fusion": {
+            "satisfied": 2,
+            "not_satisfied": 0,
+            "unknown": 0,
+            "result": "COVERED"
+        },
+        "final_decision": {
+            "decision": "APPROVE",
+            "reason": "Decision Engine output: APPROVE. Reason codes: ARTICLE_CRITERIA_SATISFIED",
+            "reason_codes": [
+                "ARTICLE_CRITERIA_SATISFIED"
+            ]
+        }
+    },
+    {
+        "request": {
+            "name": "M-prefix - Intervertebral disc disorder",
+            "procedure_code": "64483",
+            "diagnosis_codes": [
+                "M54.16"
+            ],
+            "state": "CO",
+            "patient_age": 65,
+            "clinical_notes": "Patient presents with documented condition corresponding to the submitted diagnosis."
+        },
+        "error": "",
+        "policy_path": {
+            "ncd": {
+                "policy_id": null,
+                "result": "NOT_ADDRESSED"
+            },
+            "jurisdiction": {
+                "state": "CO",
+                "result": "MATCHED"
+            },
+            "lcd": {
+                "policy_id": "33906",
+                "result": "COVERED"
+            },
+            "article": {
+                "policy_id": "56651",
+                "result": "COVERED"
+            }
+        },
+        "policy_evidence": [
+            {
+                "type": "JURISDICTION",
+                "identifier": "33906",
+                "code": null,
+                "state": "CO",
+                "result": "MATCHED",
+                "explanation": "State 'CO' matches jurisdiction of LCD 33906."
+            }
+        ],
+        "code_matching": [
+            {
+                "type": "HCPCS",
+                "identifier": "56651",
+                "code": "64483",
+                "state": null,
+                "result": "MATCHED",
+                "explanation": "Procedure code '64483' is listed in article 56651."
+            },
+            {
+                "type": "ICD10",
+                "identifier": "56651",
+                "code": "M54.16",
+                "state": null,
+                "result": "COVERED",
+                "explanation": "Diagnosis 'M54.16' is covered."
+            }
+        ],
+        "policy_evaluation": {
+            "criteria": [
+                {
+                    "criterion_id": "ARTICLE-56651-HCPCS",
+                    "policy_type": "ARTICLE",
+                    "policy_id": "56651",
+                    "criterion": "The requested procedure must be an applicable service under the Article.",
+                    "criterion_type": "STRUCTURED",
+                    "evaluator": "SQL",
+                    "status": "SATISFIED",
+                    "patient_evidence": [
+                        "Submitted HCPCS: 64483"
+                    ],
+                    "policy_evidence": [
+                        "Article 56651 contains HCPCS 64483 in its coverage list."
+                    ],
+                    "mandatory": true,
+                    "authoritative": true
+                },
+                {
+                    "criterion_id": "ARTICLE-56651-ICD10-M54.16",
+                    "policy_type": "ARTICLE",
+                    "policy_id": "56651",
+                    "criterion": "The patient's diagnosis must be an eligible diagnosis under the Article.",
+                    "criterion_type": "STRUCTURED",
+                    "evaluator": "SQL",
+                    "status": "SATISFIED",
+                    "patient_evidence": [
+                        "Submitted ICD-10: M54.16"
+                    ],
+                    "policy_evidence": [
+                        "Diagnosis M54.16 is present in the Article's covered ICD-10 data."
+                    ],
+                    "mandatory": true,
+                    "authoritative": true
+                }
+            ],
+            "overall_result": "COVERED"
+        },
+        "evidence_fusion": {
+            "satisfied": 2,
+            "not_satisfied": 0,
+            "unknown": 0,
+            "result": "COVERED"
+        },
+        "final_decision": {
+            "decision": "APPROVE",
+            "reason": "Decision Engine output: APPROVE. Reason codes: ARTICLE_CRITERIA_SATISFIED",
+            "reason_codes": [
+                "ARTICLE_CRITERIA_SATISFIED"
+            ]
+        }
+    },
+    {
+        "request": {
+            "name": "M-prefix - SEMANTIC TEST CASE (Conservative Treatment)",
+            "procedure_code": "64483",
+            "diagnosis_codes": [
+                "M54.16"
+            ],
+            "state": "TX",
+            "patient_age": 55,
+            "clinical_notes": "Patient completed physical therapy for seven months with persistent symptoms despite treatment."
+        },
+        "error": "",
+        "policy_path": {
+            "ncd": {
+                "policy_id": null,
+                "result": "NOT_ADDRESSED"
+            },
+            "jurisdiction": {
+                "state": "TX",
+                "result": "MATCHED"
+            },
+            "lcd": {
+                "policy_id": "33906",
+                "result": "COVERED"
+            },
+            "article": {
+                "policy_id": "56651",
+                "result": "COVERED"
+            }
+        },
+        "policy_evidence": [
+            {
+                "type": "JURISDICTION",
+                "identifier": "33906",
+                "code": null,
+                "state": "TX",
+                "result": "MATCHED",
+                "explanation": "State 'TX' matches jurisdiction of LCD 33906."
+            }
+        ],
+        "code_matching": [
+            {
+                "type": "HCPCS",
+                "identifier": "56651",
+                "code": "64483",
+                "state": null,
+                "result": "MATCHED",
+                "explanation": "Procedure code '64483' is listed in article 56651."
+            },
+            {
+                "type": "ICD10",
+                "identifier": "56651",
+                "code": "M54.16",
+                "state": null,
+                "result": "COVERED",
+                "explanation": "Diagnosis 'M54.16' is covered."
+            }
+        ],
+        "policy_evaluation": {
+            "criteria": [
+                {
+                    "criterion_id": "LCD-33906-Ce9e96a",
+                    "policy_type": "LCD",
+                    "policy_id": "33906",
+                    "criterion": "Documentation must demonstrate failure of conservative treatment",
+                    "criterion_type": "SEMANTIC",
+                    "evaluator": "LLM",
+                    "status": "SATISFIED",
+                    "patient_evidence": [
+                        "Patient completed physical therapy for seven months with persistent symptoms despite treatment."
+                    ],
+                    "policy_evidence": [
+                        "Documentation must demonstrate failure of conservative treatment"
+                    ],
+                    "mandatory": true,
+                    "authoritative": false
+                },
+                {
+                    "criterion_id": "ARTICLE-56651-HCPCS",
+                    "policy_type": "ARTICLE",
+                    "policy_id": "56651",
+                    "criterion": "The requested procedure must be an applicable service under the Article.",
+                    "criterion_type": "STRUCTURED",
+                    "evaluator": "SQL",
+                    "status": "SATISFIED",
+                    "patient_evidence": [
+                        "Submitted HCPCS: 64483"
+                    ],
+                    "policy_evidence": [
+                        "Article 56651 contains HCPCS 64483 in its coverage list."
+                    ],
+                    "mandatory": true,
+                    "authoritative": true
+                },
+                {
+                    "criterion_id": "ARTICLE-56651-ICD10-M54.16",
+                    "policy_type": "ARTICLE",
+                    "policy_id": "56651",
+                    "criterion": "The patient's diagnosis must be an eligible diagnosis under the Article.",
+                    "criterion_type": "STRUCTURED",
+                    "evaluator": "SQL",
+                    "status": "SATISFIED",
+                    "patient_evidence": [
+                        "Submitted ICD-10: M54.16"
+                    ],
+                    "policy_evidence": [
+                        "Diagnosis M54.16 is present in the Article's covered ICD-10 data."
+                    ],
+                    "mandatory": true,
+                    "authoritative": true
+                }
+            ],
+            "overall_result": "COVERED"
+        },
+        "evidence_fusion": {
+            "satisfied": 3,
+            "not_satisfied": 0,
+            "unknown": 0,
+            "result": "COVERED"
+        },
+        "final_decision": {
+            "decision": "APPROVE",
+            "reason": "Decision Engine output: APPROVE. Reason codes: ARTICLE_CRITERIA_SATISFIED",
+            "reason_codes": [
+                "ARTICLE_CRITERIA_SATISFIED"
+            ]
+        }
+    },
+    {
+        "request": {
+            "name": "E-prefix - Diabetes mellitus with neurological complications",
+            "procedure_code": "95851",
+            "diagnosis_codes": [
+                "E08.44"
+            ],
+            "state": "DE",
+            "patient_age": 70,
+            "clinical_notes": "Patient presents with documented condition corresponding to the submitted diagnosis."
+        },
+        "error": "",
+        "policy_path": {
+            "ncd": {
+                "policy_id": "124",
+                "result": "EXCLUDED"
+            },
+            "jurisdiction": {
+                "state": "DE",
+                "result": "NOT_ADDRESSED"
+            },
+            "lcd": {
+                "policy_id": null,
+                "result": "NOT_ADDRESSED"
+            },
+            "article": {
+                "policy_id": null,
+                "result": "NOT_ADDRESSED"
+            }
+        },
+        "policy_evidence": [],
+        "code_matching": [
+            {
+                "type": "HCPCS",
+                "identifier": "124",
+                "code": "95851",
+                "state": null,
+                "result": "EXCLUDED",
+                "explanation": "Explicit NCD exclusion."
+            }
+        ],
+        "policy_evaluation": {
+            "criteria": [
+                {
+                    "criterion_id": "NCD-124-HCPCS",
+                    "policy_type": "NCD",
+                    "policy_id": "124",
+                    "criterion": "The requested procedure must not be explicitly excluded by NCD 124.",
+                    "criterion_type": "STRUCTURED",
+                    "evaluator": "SQL",
+                    "status": "NOT_SATISFIED",
+                    "patient_evidence": [
+                        "Submitted HCPCS: 95851"
+                    ],
+                    "policy_evidence": [
+                        "NCD 124 explicitly excludes 95851."
+                    ],
+                    "mandatory": true,
+                    "authoritative": true
+                }
+            ],
+            "overall_result": "EXCLUDED"
+        },
+        "evidence_fusion": {
+            "satisfied": 0,
+            "not_satisfied": 1,
+            "unknown": 0,
+            "result": "EXCLUDED"
+        },
+        "final_decision": {
+            "decision": "PEND",
+            "reason": "Decision Engine output: PEND. Reason codes: NCD_EXCLUDES_PROCEDURE",
+            "reason_codes": [
+                "NCD_EXCLUDES_PROCEDURE"
+            ]
+        }
+    },
+    {
+        "request": {
+            "name": "E-prefix - Diabetes mellitus with peripheral angiopathy",
+            "procedure_code": "95851",
+            "diagnosis_codes": [
+                "E08.52"
+            ],
+            "state": "FL",
+            "patient_age": 62,
+            "clinical_notes": "Patient presents with documented condition corresponding to the submitted diagnosis."
+        },
+        "error": "",
+        "policy_path": {
+            "ncd": {
+                "policy_id": "124",
+                "result": "EXCLUDED"
+            },
+            "jurisdiction": {
+                "state": "FL",
+                "result": "NOT_ADDRESSED"
+            },
+            "lcd": {
+                "policy_id": null,
+                "result": "NOT_ADDRESSED"
+            },
+            "article": {
+                "policy_id": null,
+                "result": "NOT_ADDRESSED"
+            }
+        },
+        "policy_evidence": [],
+        "code_matching": [
+            {
+                "type": "HCPCS",
+                "identifier": "124",
+                "code": "95851",
+                "state": null,
+                "result": "EXCLUDED",
+                "explanation": "Explicit NCD exclusion."
+            }
+        ],
+        "policy_evaluation": {
+            "criteria": [
+                {
+                    "criterion_id": "NCD-124-HCPCS",
+                    "policy_type": "NCD",
+                    "policy_id": "124",
+                    "criterion": "The requested procedure must not be explicitly excluded by NCD 124.",
+                    "criterion_type": "STRUCTURED",
+                    "evaluator": "SQL",
+                    "status": "NOT_SATISFIED",
+                    "patient_evidence": [
+                        "Submitted HCPCS: 95851"
+                    ],
+                    "policy_evidence": [
+                        "NCD 124 explicitly excludes 95851."
+                    ],
+                    "mandatory": true,
+                    "authoritative": true
+                }
+            ],
+            "overall_result": "EXCLUDED"
+        },
+        "evidence_fusion": {
+            "satisfied": 0,
+            "not_satisfied": 1,
+            "unknown": 0,
+            "result": "EXCLUDED"
+        },
+        "final_decision": {
+            "decision": "PEND",
+            "reason": "Decision Engine output: PEND. Reason codes: NCD_EXCLUDES_PROCEDURE",
+            "reason_codes": [
+                "NCD_EXCLUDES_PROCEDURE"
+            ]
+        }
+    },
+    {
+        "request": {
+            "name": "E-prefix - Drug/chemical diabetes mellitus",
+            "procedure_code": "95851",
+            "diagnosis_codes": [
+                "E09.44"
+            ],
+            "state": "GA",
+            "patient_age": 68,
+            "clinical_notes": "Patient presents with documented condition corresponding to the submitted diagnosis."
+        },
+        "error": "",
+        "policy_path": {
+            "ncd": {
+                "policy_id": "124",
+                "result": "EXCLUDED"
+            },
+            "jurisdiction": {
+                "state": "GA",
+                "result": "NOT_ADDRESSED"
+            },
+            "lcd": {
+                "policy_id": null,
+                "result": "NOT_ADDRESSED"
+            },
+            "article": {
+                "policy_id": null,
+                "result": "NOT_ADDRESSED"
+            }
+        },
+        "policy_evidence": [],
+        "code_matching": [
+            {
+                "type": "HCPCS",
+                "identifier": "124",
+                "code": "95851",
+                "state": null,
+                "result": "EXCLUDED",
+                "explanation": "Explicit NCD exclusion."
+            }
+        ],
+        "policy_evaluation": {
+            "criteria": [
+                {
+                    "criterion_id": "NCD-124-HCPCS",
+                    "policy_type": "NCD",
+                    "policy_id": "124",
+                    "criterion": "The requested procedure must not be explicitly excluded by NCD 124.",
+                    "criterion_type": "STRUCTURED",
+                    "evaluator": "SQL",
+                    "status": "NOT_SATISFIED",
+                    "patient_evidence": [
+                        "Submitted HCPCS: 95851"
+                    ],
+                    "policy_evidence": [
+                        "NCD 124 explicitly excludes 95851."
+                    ],
+                    "mandatory": true,
+                    "authoritative": true
+                }
+            ],
+            "overall_result": "EXCLUDED"
+        },
+        "evidence_fusion": {
+            "satisfied": 0,
+            "not_satisfied": 1,
+            "unknown": 0,
+            "result": "EXCLUDED"
+        },
+        "final_decision": {
+            "decision": "PEND",
+            "reason": "Decision Engine output: PEND. Reason codes: NCD_EXCLUDES_PROCEDURE",
+            "reason_codes": [
+                "NCD_EXCLUDES_PROCEDURE"
+            ]
+        }
+    },
+    {
+        "request": {
+            "name": "J-prefix - Bronchopneumonia, unspecified",
+            "procedure_code": "95851",
+            "diagnosis_codes": [
+                "J18.0"
+            ],
+            "state": "DE",
+            "patient_age": 72,
+            "clinical_notes": "Patient presents with documented condition corresponding to the submitted diagnosis."
+        },
+        "error": "",
+        "policy_path": {
+            "ncd": {
+                "policy_id": "124",
+                "result": "EXCLUDED"
+            },
+            "jurisdiction": {
+                "state": "DE",
+                "result": "NOT_ADDRESSED"
+            },
+            "lcd": {
+                "policy_id": null,
+                "result": "NOT_ADDRESSED"
+            },
+            "article": {
+                "policy_id": null,
+                "result": "NOT_ADDRESSED"
+            }
+        },
+        "policy_evidence": [],
+        "code_matching": [
+            {
+                "type": "HCPCS",
+                "identifier": "124",
+                "code": "95851",
+                "state": null,
+                "result": "EXCLUDED",
+                "explanation": "Explicit NCD exclusion."
+            }
+        ],
+        "policy_evaluation": {
+            "criteria": [
+                {
+                    "criterion_id": "NCD-124-HCPCS",
+                    "policy_type": "NCD",
+                    "policy_id": "124",
+                    "criterion": "The requested procedure must not be explicitly excluded by NCD 124.",
+                    "criterion_type": "STRUCTURED",
+                    "evaluator": "SQL",
+                    "status": "NOT_SATISFIED",
+                    "patient_evidence": [
+                        "Submitted HCPCS: 95851"
+                    ],
+                    "policy_evidence": [
+                        "NCD 124 explicitly excludes 95851."
+                    ],
+                    "mandatory": true,
+                    "authoritative": true
+                }
+            ],
+            "overall_result": "EXCLUDED"
+        },
+        "evidence_fusion": {
+            "satisfied": 0,
+            "not_satisfied": 1,
+            "unknown": 0,
+            "result": "EXCLUDED"
+        },
+        "final_decision": {
+            "decision": "PEND",
+            "reason": "Decision Engine output: PEND. Reason codes: NCD_EXCLUDES_PROCEDURE",
+            "reason_codes": [
+                "NCD_EXCLUDES_PROCEDURE"
+            ]
+        }
+    },
+    {
+        "request": {
+            "name": "J-prefix - Lobar pneumonia, unspecified",
+            "procedure_code": "95851",
+            "diagnosis_codes": [
+                "J18.1"
+            ],
+            "state": "FL",
+            "patient_age": 64,
+            "clinical_notes": "Patient presents with documented condition corresponding to the submitted diagnosis."
+        },
+        "error": "",
+        "policy_path": {
+            "ncd": {
+                "policy_id": "124",
+                "result": "EXCLUDED"
+            },
+            "jurisdiction": {
+                "state": "FL",
+                "result": "NOT_ADDRESSED"
+            },
+            "lcd": {
+                "policy_id": null,
+                "result": "NOT_ADDRESSED"
+            },
+            "article": {
+                "policy_id": null,
+                "result": "NOT_ADDRESSED"
+            }
+        },
+        "policy_evidence": [],
+        "code_matching": [
+            {
+                "type": "HCPCS",
+                "identifier": "124",
+                "code": "95851",
+                "state": null,
+                "result": "EXCLUDED",
+                "explanation": "Explicit NCD exclusion."
+            }
+        ],
+        "policy_evaluation": {
+            "criteria": [
+                {
+                    "criterion_id": "NCD-124-HCPCS",
+                    "policy_type": "NCD",
+                    "policy_id": "124",
+                    "criterion": "The requested procedure must not be explicitly excluded by NCD 124.",
+                    "criterion_type": "STRUCTURED",
+                    "evaluator": "SQL",
+                    "status": "NOT_SATISFIED",
+                    "patient_evidence": [
+                        "Submitted HCPCS: 95851"
+                    ],
+                    "policy_evidence": [
+                        "NCD 124 explicitly excludes 95851."
+                    ],
+                    "mandatory": true,
+                    "authoritative": true
+                }
+            ],
+            "overall_result": "EXCLUDED"
+        },
+        "evidence_fusion": {
+            "satisfied": 0,
+            "not_satisfied": 1,
+            "unknown": 0,
+            "result": "EXCLUDED"
+        },
+        "final_decision": {
+            "decision": "PEND",
+            "reason": "Decision Engine output: PEND. Reason codes: NCD_EXCLUDES_PROCEDURE",
+            "reason_codes": [
+                "NCD_EXCLUDES_PROCEDURE"
+            ]
+        }
+    },
+    {
+        "request": {
+            "name": "J-prefix - Hypostatic pneumonia, unspecified",
+            "procedure_code": "95851",
+            "diagnosis_codes": [
+                "J18.2"
+            ],
+            "state": "GA",
+            "patient_age": 80,
+            "clinical_notes": "Patient presents with documented condition corresponding to the submitted diagnosis."
+        },
+        "error": "",
+        "policy_path": {
+            "ncd": {
+                "policy_id": "124",
+                "result": "EXCLUDED"
+            },
+            "jurisdiction": {
+                "state": "GA",
+                "result": "NOT_ADDRESSED"
+            },
+            "lcd": {
+                "policy_id": null,
+                "result": "NOT_ADDRESSED"
+            },
+            "article": {
+                "policy_id": null,
+                "result": "NOT_ADDRESSED"
+            }
+        },
+        "policy_evidence": [],
+        "code_matching": [
+            {
+                "type": "HCPCS",
+                "identifier": "124",
+                "code": "95851",
+                "state": null,
+                "result": "EXCLUDED",
+                "explanation": "Explicit NCD exclusion."
+            }
+        ],
+        "policy_evaluation": {
+            "criteria": [
+                {
+                    "criterion_id": "NCD-124-HCPCS",
+                    "policy_type": "NCD",
+                    "policy_id": "124",
+                    "criterion": "The requested procedure must not be explicitly excluded by NCD 124.",
+                    "criterion_type": "STRUCTURED",
+                    "evaluator": "SQL",
+                    "status": "NOT_SATISFIED",
+                    "patient_evidence": [
+                        "Submitted HCPCS: 95851"
+                    ],
+                    "policy_evidence": [
+                        "NCD 124 explicitly excludes 95851."
+                    ],
+                    "mandatory": true,
+                    "authoritative": true
+                }
+            ],
+            "overall_result": "EXCLUDED"
+        },
+        "evidence_fusion": {
+            "satisfied": 0,
+            "not_satisfied": 1,
+            "unknown": 0,
+            "result": "EXCLUDED"
+        },
+        "final_decision": {
+            "decision": "PEND",
+            "reason": "Decision Engine output: PEND. Reason codes: NCD_EXCLUDES_PROCEDURE",
+            "reason_codes": [
+                "NCD_EXCLUDES_PROCEDURE"
+            ]
+        }
+    }
+]
