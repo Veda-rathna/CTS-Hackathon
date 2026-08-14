@@ -19,6 +19,7 @@ class TriageDecision(str, Enum):
     APPROVE = "APPROVE"
     PEND = "PEND"
     REQUEST_MORE_INFORMATION = "REQUEST_MORE_INFORMATION"
+    POLICY_EXPIRED = "POLICY_EXPIRED"  # All matching policies have expired
 
 
 # ── Request ───────────────────────────────────────────────────────────────────

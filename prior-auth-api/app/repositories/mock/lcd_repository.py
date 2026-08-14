@@ -74,3 +74,19 @@ class MockLCDRepository:
 
     def get_by_id(self, lcd_id: str) -> LCDResponse | None:
         return _LCDS.get(lcd_id.upper())
+
+    def get_hcpcs(self, lcd_id: str) -> list:
+        """Return HCPCS codes for the given LCD."""
+        lcd = _LCDS.get(lcd_id.upper())
+        return lcd.hcpcs_codes if lcd else []
+
+    def get_icd10_covered(self, lcd_id: str) -> list:
+        """Return covered ICD-10 codes for the given LCD."""
+        lcd = _LCDS.get(lcd_id.upper())
+        return lcd.icd10_covered if lcd else []
+
+    def get_icd10_noncovered(self, lcd_id: str) -> list:
+        """Return non-covered ICD-10 codes for the given LCD."""
+        lcd = _LCDS.get(lcd_id.upper())
+        return lcd.icd10_noncovered if lcd else []
+

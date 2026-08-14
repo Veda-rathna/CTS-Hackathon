@@ -171,19 +171,58 @@ class TriageService:
             ncd_ids = [p.policy_id for p in ncd_candidates]
             
             # Phase 4: Constrained Vector Search
+            # NOTE: query_embedding may be [] in mock/no-LLM mode.
+            # MockPolicyChunkRepository handles this gracefully by ignoring
+            # the embedding and matching by policy_id alone.
             ncd_chunks = self._chunk_repo.search_similar(
                 query_embedding=query_embedding,
                 policy_type="NCD",
                 candidate_policy_ids=ncd_ids,
                 top_k=5,
-                threshold=0.6  # Lower threshold ensures diagnosis-specific NCD chunks are retrieved
-            ) if query_embedding else []
+                threshold=0.6
+            )
             
-            # If no semantic chunks, fall back to explicit NCD decisions (e.g. from SQL)
-            # as an MVP strategy, if we have chunks, we evaluate them.
             ncd_criteria = []
             
-            # Phase 5: Criterion Extraction & Classification
+            # Phase 4b: Deterministic HCPCS check for each candidate NCD
+            # This runs ALWAYS (regardless of RAG) as the authoritative structured layer.
+            # Even if RAG returns semantic/unknown criteria, a positive HCPCS match
+            # provides a SATISFIED structured criterion so EvidenceFusion → COVERED.
+            for p in ncd_candidates:
+                ncd_hcpcs_codes = {c.code for c in self._ncd_repo.get_hcpcs(p.policy_id)}
+                if ncd_hcpcs_codes:
+                    hcpcs_matched = procedure in ncd_hcpcs_codes
+                    ncd_criteria.append(EvaluatedCriterion(
+                        criterion_id=f"NCD-{p.policy_id}-HCPCS",
+                        policy_type="NCD",
+                        policy_id=p.policy_id,
+                        criterion=f"The requested procedure must be an applicable service under NCD {p.policy_id}.",
+                        criterion_type=CriterionType.STRUCTURED,
+                        evaluator=EvaluatorType.SQL,
+                        status=EvaluationStatus.SATISFIED if hcpcs_matched else EvaluationStatus.NOT_SATISFIED,
+                        patient_evidence=[f"Submitted HCPCS: {procedure}"],
+                        policy_evidence=[
+                            f"NCD {p.policy_id} {'contains' if hcpcs_matched else 'does not contain'} "
+                            f"HCPCS {procedure} in its covered-procedure list."
+                        ],
+                        mandatory=True,
+                        authoritative=True,
+                        explanation=(
+                            f"{'Procedure ' + procedure + ' is listed in NCD ' + p.policy_id + ' covered HCPCS codes. Criterion SATISFIED by deterministic SQL check.'}"
+                            if hcpcs_matched else
+                            f"Procedure {procedure} is not found in NCD {p.policy_id} covered HCPCS codes. Criterion NOT_SATISFIED by deterministic SQL check."
+                        )
+                    ))
+                    if hcpcs_matched:
+                        matched_policies.append(MatchedPolicy(policy_type="NCD", policy_id=p.policy_id, title=p.title))
+                        all_evidence.append(Evidence(
+                            type="HCPCS", identifier=p.policy_id, code=procedure,
+                            result="MATCHED",
+                            explanation=f"Procedure code '{procedure}' is listed in NCD {p.policy_id} covered codes."
+                        ))
+                        break  # First match is sufficient for NCD coverage
+            
+            # Phase 5: Criterion Extraction & Classification from RAG chunks
             for chunk_tuple in ncd_chunks:
                 chunk, distance = chunk_tuple
                 all_rag_evidence.append(
@@ -211,15 +250,8 @@ class TriageService:
                 ncd_matrix = EvidenceFusion.fuse(ncd_criteria)
                 all_criteria.extend(ncd_matrix.criteria)
                 ncd_result = EvidenceFusion.resolve_decision(ncd_matrix)
-                
-                # Add evidence log
-                all_evidence.append(
-                    Evidence(type="HCPCS", identifier=ncd_ids[0], code=procedure, result=ncd_result, 
-                             explanation=f"NCD RAG evaluation resulted in {ncd_result}")
-                )
-                matched_policies.append(MatchedPolicy(policy_type="NCD", policy_id=ncd_ids[0], title=ncd_candidates[0].title))
             else:
-                # Deterministic fallback if RAG yielded nothing
+                # Deterministic fallback if neither RAG nor HCPCS list yielded criteria
                 for p in ncd_candidates:
                     ncd_details = self._ncd_repo.get_by_id(p.policy_id)
                     if ncd_details and ncd_details.decision:
@@ -262,6 +294,7 @@ class TriageService:
                             break
             
             policy_path["ncd"] = {"policy_id": ncd_ids[0] if ncd_ids else ncd_candidates[0].policy_id, "result": ncd_result}
+
         # ── Jurisdiction & LCD (Phase 9 & 10) ─────────────────────────────────
         if ncd_result == "NOT_ADDRESSED":
             if not lcd_candidates:
@@ -300,40 +333,41 @@ class TriageService:
                 matched_policies.append(MatchedPolicy(policy_type=active_lcd.policy_type, policy_id=active_lcd.policy_id, title=active_lcd.title, article_id=active_lcd.article_id))
 
             # LCD Evaluation (Deterministic/Narrative)
+            # NOTE: query_embedding may be [] in mock/no-LLM mode.
+            # MockPolicyChunkRepository handles this gracefully.
             lcd_criteria = []
-            if query_embedding:
-                lcd_chunks = self._chunk_repo.search_similar(
-                    query_embedding=query_embedding,
-                    policy_type="LCD",
-                    candidate_policy_ids=[active_lcd.policy_id],
-                    top_k=5,
-                    threshold=0.8
-                )
-                for chunk_tuple in lcd_chunks:
-                    chunk, distance = chunk_tuple
-                    all_rag_evidence.append(
-                        RagEvidence(
-                            policy_id=chunk.policy_id,
-                            policy_type=chunk.policy_type,
-                            policy_title=active_lcd.title if active_lcd else None,
-                            section=chunk.section,
-                            chunk_id=str(chunk.id),
-                            text=chunk.chunk_text,
-                            similarity_score=max(0.0, 1.0 - distance),
-                            source="CMS"
-                        )
+            lcd_chunks = self._chunk_repo.search_similar(
+                query_embedding=query_embedding,
+                policy_type="LCD",
+                candidate_policy_ids=[active_lcd.policy_id],
+                top_k=5,
+                threshold=0.8
+            )
+            for chunk_tuple in lcd_chunks:
+                chunk, distance = chunk_tuple
+                all_rag_evidence.append(
+                    RagEvidence(
+                        policy_id=chunk.policy_id,
+                        policy_type=chunk.policy_type,
+                        policy_title=active_lcd.title if active_lcd else None,
+                        section=chunk.section,
+                        chunk_id=str(chunk.id),
+                        text=chunk.chunk_text,
+                        similarity_score=max(0.0, 1.0 - distance),
+                        source="CMS"
                     )
-                    raw_criteria = CriterionExtractor.extract_from_chunk(chunk)
-                    for rc in raw_criteria:
-                        classified_criterion = CriterionClassifier.classify(rc)
-                        lcd_criteria.append(self._evaluator.evaluate(classified_criterion, request))
+                )
+                raw_criteria = CriterionExtractor.extract_from_chunk(chunk)
+                for rc in raw_criteria:
+                    classified_criterion = CriterionClassifier.classify(rc)
+                    lcd_criteria.append(self._evaluator.evaluate(classified_criterion, request))
             
             if lcd_criteria:
                 lcd_matrix = EvidenceFusion.fuse(lcd_criteria)
                 all_criteria.extend(lcd_matrix.criteria)
                 lcd_result = EvidenceFusion.resolve_decision(lcd_matrix)
             else:
-                lcd_result = "COVERED" # Assuming LCD permits Article check
+                lcd_result = "COVERED"  # No RAG criteria extracted → permit Article check
                 
             policy_path["lcd"] = {"policy_id": active_lcd.policy_id, "result": lcd_result}
 

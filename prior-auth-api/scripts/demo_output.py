@@ -35,7 +35,7 @@ from app.core.config import get_settings
 
 DEMOS = [
     {
-        "name": "APPROVE — Covered dx + J5 state (TX)",
+        "name": "APPROVE — Covered dx + J5 state (TX) [LCD Path]",
         "procedure_code": "64483",
         "diagnosis_codes": ["M54.16"],
         "state": "TX",
@@ -43,7 +43,7 @@ DEMOS = [
         "clinical_notes": "Patient presents with lumbar radiculopathy confirmed on MRI.",
     },
     {
-        "name": "PEND — Explicitly non-covered diagnosis",
+        "name": "PEND — Explicitly non-covered diagnosis [LCD Path]",
         "procedure_code": "64483",
         "diagnosis_codes": ["Z00.00"],
         "state": "TX",
@@ -51,7 +51,30 @@ DEMOS = [
         "clinical_notes": "Routine general examination.",
     },
     {
-        "name": "REQUEST_MORE_INFORMATION — Outside jurisdiction (CA)",
+        "name": "APPROVE — Stem Cell Transplant covered by NCD 110.23 [NCD RAG Path]",
+        "procedure_code": "38240",
+        "diagnosis_codes": ["C91.10"],
+        "state": "TX",
+        "patient_age": 52,
+        "clinical_notes": (
+            "Patient diagnosed with chronic lymphocytic leukemia (CLL), relapsed after "
+            "first-line therapy. Allogeneic hematopoietic stem cell transplantation "
+            "recommended as curative intent option."
+        ),
+    },
+    {
+        "name": "APPROVE — AFP lab test covered by NCD 190.25 [NCD RAG Path]",
+        "procedure_code": "82105",
+        "diagnosis_codes": ["C22.0"],
+        "state": "CA",
+        "patient_age": 67,
+        "clinical_notes": (
+            "Hepatocellular carcinoma in high-risk patient with alcoholic cirrhosis. "
+            "AFP serum test ordered to monitor response to treatment."
+        ),
+    },
+    {
+        "name": "REQUEST_MORE_INFORMATION — Outside jurisdiction (CA) [LCD Path]",
         "procedure_code": "64483",
         "diagnosis_codes": ["M54.17"],
         "state": "CA",
