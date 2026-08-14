@@ -7,6 +7,9 @@ from typing import List
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+import os
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 class Settings(BaseSettings):
     """All application settings.
 
@@ -15,7 +18,7 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=os.path.join(PROJECT_ROOT, ".env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -51,6 +54,13 @@ class Settings(BaseSettings):
 
     # ── Logging ───────────────────────────────────────────────────────────
     log_level: str = "INFO"
+
+    # ── LLM Configuration ─────────────────────────────────────────────────
+    llm_enabled: bool = True
+    llm_provider: str = "lmstudio"
+    llm_base_url: str = "http://127.0.0.1:1234/v1"
+    llm_model: str = "qwen/qwen3-4b-2507"
+    llm_temperature: float = 0.0
 
 
     @property

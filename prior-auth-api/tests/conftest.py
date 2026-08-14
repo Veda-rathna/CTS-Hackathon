@@ -20,4 +20,9 @@ def client() -> TestClient:
     """Return a TestClient using the FastAPI app in mock mode."""
     # Import here so env vars are already set
     from app.main import app
+    from app.db.session import get_db
+    
+    # Override get_db to prevent database connection attempts
+    app.dependency_overrides[get_db] = lambda: None
+    
     return TestClient(app)
