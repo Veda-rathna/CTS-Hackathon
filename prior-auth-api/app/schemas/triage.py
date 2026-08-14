@@ -202,6 +202,21 @@ class TriageResponse(BaseModel):
     criteria: list[EvaluatedCriterion] = []
     missing_information: list[str] = []
     warnings: list[str] = []
+    evidence_fusion_result: str | None = Field(
+        default=None,
+        description=(
+            "The intermediate policy coverage result produced by EvidenceFusion "
+            "before the DecisionEngine maps it to a public decision. "
+            "One of: COVERED, EXCLUDED, UNKNOWN, NOT_ADDRESSED."
+        ),
+    )
+    decision_basis: str = Field(
+        default="",
+        description=(
+            "Human-readable narrative explaining how the EvidenceFusion result "
+            "led to the final public decision."
+        ),
+    )
 
     model_config = {
         "json_schema_extra": {

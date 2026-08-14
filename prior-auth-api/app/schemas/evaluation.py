@@ -47,6 +47,9 @@ class EvaluatedCriterion(BaseModel):
     status: EvaluationStatus
     patient_evidence: list[str] = []
     policy_evidence: list[str] = []
+    explanation: str = ""
+    """Human-readable explanation of WHY this criterion received its status.
+    Synthesized by the evaluator — never fabricated by a downstream consumer."""
     mandatory: bool = True
     authoritative: bool = True
 
