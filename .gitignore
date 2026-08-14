@@ -3,6 +3,7 @@ Filtered_Data/
 
 # Ignore virtual environments and standard dev files
 .venv/
+venv/
 .env
 *.env
 __pycache__/
