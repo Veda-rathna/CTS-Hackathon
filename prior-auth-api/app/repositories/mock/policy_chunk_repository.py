@@ -139,6 +139,36 @@ _CHUNKS: list[MockPolicyChunk] = [
             "retroperitoneum, and mediastinum."
         ),
     ),
+
+    # ── NCD N123 (160.7.1) — TENS for Acute & Chronic Pain ──────────────────
+    MockPolicyChunk(
+        id=8,
+        policy_type="NCD",
+        policy_id="N123",
+        policy_version=1,
+        section="Coverage Indications",
+        chunk_text=(
+            "Transcutaneous Electrical Nerve Stimulation (TENS) (HCPCS 64550) is covered "
+            "for acute post-operative pain and chronic intractable pain when conservative "
+            "therapy has been tried and failed. Documentation must support that the patient "
+            "has a diagnosis of chronic pain requiring neurostimulation therapy and that "
+            "conventional pharmacological treatment has been inadequate or contraindicated."
+        ),
+    ),
+    MockPolicyChunk(
+        id=9,
+        policy_type="NCD",
+        policy_id="N123",
+        policy_version=1,
+        section="Limitations",
+        chunk_text=(
+            "TENS is not covered as initial therapy for acute pain; conservative measures "
+            "must be attempted first. TENS for chronic non-cancer pain requires documented "
+            "failure of conventional pharmacological treatment. Not covered for patients "
+            "with implanted cardiac pacemakers due to electromagnetic interference risk. "
+            "Patient must have failed conservative therapy for >= 6 weeks."
+        ),
+    ),
 ]
 
 # ── Index: (policy_type.upper(), policy_id.upper()) → list of chunk ids ───────

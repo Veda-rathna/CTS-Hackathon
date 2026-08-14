@@ -118,6 +118,20 @@ _POLICIES: list[PolicyMatch] = [
         jurisdiction_match=False,
         effective=True,
     ),
+    # 6 — NCD N123 (160.7.1) TENS for Acute Pain
+    PolicyMatch(
+        policy_type="NCD",
+        policy_id="N123",
+        title="Transcutaneous Electrical Nerve Stimulation (TENS) for Acute Pain",
+        article_id=None,
+        jurisdiction_id=None,
+        effective_date=date(2012, 3, 1),
+        end_date=None,
+        procedure_match=False,
+        diagnosis_match=False,
+        jurisdiction_match=False,
+        effective=True,
+    ),
 ]
 
 # ── HCPCS → policy index mapping ──────────────────────────────────────────────
@@ -138,6 +152,8 @@ _HCPCS_TO_POLICY_IDX: dict[str, list[int]] = {
     "64483": [0, 1],
     "64484": [0],
     "62321": [0],
+    # TENS neurostimulator — NCD N123 (160.7.1) path (index 6)
+    "64550": [6],
     # Stem Cell Transplantation — NCD path (index 4 = NCD-110.23)
     "38240": [4],
     "38241": [4],

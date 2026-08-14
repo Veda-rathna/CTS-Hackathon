@@ -9,11 +9,32 @@ Run from the prior-auth-api directory:
 """
 import os
 import sys
+import httpx
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ["USE_MOCK_REPOSITORIES"] = "true"
 os.environ["DATABASE_URL"] = "postgresql+psycopg://test:test@localhost:5432/test"
-os.environ["LLM_ENABLED"] = "false"
+
+# ── LLM Auto-Detection ──────────────────────────────────────────────────────────
+# Try to reach LM Studio at the default address. If it's running and has a model
+# loaded, enable the LLM so semantic criteria (QWEN) return SATISFIED/NOT_SATISFIED
+# instead of UNKNOWN. If not reachable, fall back gracefully.
+_LLM_AVAILABLE = False
+try:
+    _probe = httpx.get("http://127.0.0.1:1234/v1/models", timeout=2.0)
+    if _probe.status_code == 200:
+        _models = _probe.json().get("data", [])
+        if _models:
+            _LLM_AVAILABLE = True
+except Exception:
+    pass
+
+if _LLM_AVAILABLE:
+    os.environ["LLM_ENABLED"] = "true"
+    _llm_mode = "LIVE — Qwen via LM Studio"
+else:
+    os.environ["LLM_ENABLED"] = "false"
+    _llm_mode = "OFFLINE — LM Studio not detected (start it to enable semantic evaluation)"
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -40,7 +61,7 @@ DEMOS = [
         "diagnosis_codes": ["M54.16"],
         "state": "TX",
         "patient_age": 55,
-        "clinical_notes": "Patient presents with lumbar radiculopathy confirmed on MRI.",
+        "clinical_notes": "Patient presents with lumbar radiculopathy confirmed on MRI. Conservative therapy was tried for 8 weeks without relief.",
     },
     {
         "name": "PEND — Explicitly non-covered diagnosis [LCD Path]",
@@ -48,7 +69,7 @@ DEMOS = [
         "diagnosis_codes": ["Z00.00"],
         "state": "TX",
         "patient_age": 40,
-        "clinical_notes": "Routine general examination.",
+        "clinical_notes": "Routine general examination. No structural pathology identified.",
     },
     {
         "name": "APPROVE — Stem Cell Transplant covered by NCD 110.23 [NCD RAG Path]",
@@ -59,7 +80,8 @@ DEMOS = [
         "clinical_notes": (
             "Patient diagnosed with chronic lymphocytic leukemia (CLL), relapsed after "
             "first-line therapy. Allogeneic hematopoietic stem cell transplantation "
-            "recommended as curative intent option."
+            "recommended as curative intent option. Patient has good performance status "
+            "and adequate cardiopulmonary function documented."
         ),
     },
     {
@@ -71,6 +93,23 @@ DEMOS = [
         "clinical_notes": (
             "Hepatocellular carcinoma in high-risk patient with alcoholic cirrhosis. "
             "AFP serum test ordered to monitor response to treatment."
+        ),
+    },
+    {
+        # NCD N123 (160.7.1) — TENS for Acute Post-Operative Pain
+        # Data source: CMS NCD 160.7.1 — TENS is covered for acute pain as a
+        # transcutaneous surface neurostimulator when conservative therapy fails.
+        # HCPCS 64550 is the applicable code.
+        "name": "APPROVE — TENS covered by NCD 160.7.1 [NCD RAG + NCD Decision Path]",
+        "procedure_code": "64550",
+        "diagnosis_codes": ["G89.29"],  # Chronic pain, not elsewhere classified
+        "state": "TX",
+        "patient_age": 48,
+        "clinical_notes": (
+            "Patient presents with chronic pain syndrome following lumbar surgery. "
+            "Conservative pharmacological therapy has been tried for over 6 weeks without "
+            "satisfactory relief. TENS (transcutaneous electrical nerve stimulation) "
+            "requested as adjunct pain management."
         ),
     },
     {
@@ -220,6 +259,7 @@ def main():
     print(f"\n{SEP}")
     print("  PRIOR AUTHORIZATION TRIAGE & POLICY COMPANION")
     print("  Output Explainability Demo  (mock mode)")
+    print(f"  LLM Mode       : {_llm_mode}")
     print(SEP)
 
     for demo in DEMOS:
