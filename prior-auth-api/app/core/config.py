@@ -80,6 +80,14 @@ class Settings(BaseSettings):
     #   Prevents very large policy chunks from blowing out LLM context.
     agent_source_text_max_chars: int = 2000
 
+    # ── CMS Coverage API ──────────────────────────────────────────────────
+    cms_coverage_api_enabled: bool = False
+    cms_coverage_api_base_url: str = "https://api.coverage.cms.gov"
+    cms_coverage_api_timeout: float = 10.0
+    cms_coverage_api_max_retries: int = 2
+    cms_coverage_api_key: str = ""
+
+
 
 
     @property

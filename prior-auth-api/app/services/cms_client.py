@@ -19,10 +19,10 @@ class CMSCoverageClient:
 
     def __init__(self) -> None:
         self.settings = get_settings()
-        self.base_url = self.settings.cms_coverage_api_base_url
-        self.timeout = self.settings.cms_coverage_api_timeout
-        self.max_retries = self.settings.cms_coverage_api_max_retries
-        self.enabled = self.settings.cms_coverage_api_enabled
+        self.base_url = getattr(self.settings, "cms_coverage_api_base_url", "https://api.coverage.cms.gov")
+        self.timeout = getattr(self.settings, "cms_coverage_api_timeout", 10.0)
+        self.max_retries = getattr(self.settings, "cms_coverage_api_max_retries", 2)
+        self.enabled = getattr(self.settings, "cms_coverage_api_enabled", False)
         self._token: str | None = None
 
         self.headers = {"Accept": "application/json"}
