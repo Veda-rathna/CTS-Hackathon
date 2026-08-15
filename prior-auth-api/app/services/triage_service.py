@@ -121,7 +121,8 @@ class TriageService:
             return TriageResponse(
                 decision=TriageDecision.REQUEST_MORE_INFORMATION,
                 evidence_score=0.0,
-                reason=f"No policy was found for procedure code '{procedure}'.",
+                reason=f"No coverage policy was found that references procedure code '{procedure}'. "
+                       f"Prior authorization cannot be evaluated without an applicable policy.",
                 reason_codes=["POLICY_NOT_FOUND"],
                 missing_information=[f"No coverage policy references procedure code '{procedure}'."],
                 policies=[],
@@ -130,7 +131,13 @@ class TriageService:
                 diagnosis_evaluation=[],
                 evidence=[],
                 criteria=[],
-                warnings=[]
+                warnings=[],
+                evidence_fusion_result="NOT_ADDRESSED",
+                decision_basis=(
+                    f"No applicable policy was found for procedure '{procedure}'. "
+                    f"Evidence Fusion: NOT_ADDRESSED. "
+                    f"DecisionEngine: NOT_ADDRESSED → REQUEST_MORE_INFORMATION."
+                )
             )
 
         active_policies = _filter_latest_effective_policies(all_policies)
@@ -164,19 +171,58 @@ class TriageService:
             ncd_ids = [p.policy_id for p in ncd_candidates]
             
             # Phase 4: Constrained Vector Search
+            # NOTE: query_embedding may be [] in mock/no-LLM mode.
+            # MockPolicyChunkRepository handles this gracefully by ignoring
+            # the embedding and matching by policy_id alone.
             ncd_chunks = self._chunk_repo.search_similar(
                 query_embedding=query_embedding,
                 policy_type="NCD",
                 candidate_policy_ids=ncd_ids,
                 top_k=5,
-                threshold=0.6  # Lower threshold ensures diagnosis-specific NCD chunks are retrieved
-            ) if query_embedding else []
+                threshold=0.6
+            )
             
-            # If no semantic chunks, fall back to explicit NCD decisions (e.g. from SQL)
-            # as an MVP strategy, if we have chunks, we evaluate them.
             ncd_criteria = []
             
-            # Phase 5: Criterion Extraction & Classification
+            # Phase 4b: Deterministic HCPCS check for each candidate NCD
+            # This runs ALWAYS (regardless of RAG) as the authoritative structured layer.
+            # Even if RAG returns semantic/unknown criteria, a positive HCPCS match
+            # provides a SATISFIED structured criterion so EvidenceFusion → COVERED.
+            for p in ncd_candidates:
+                ncd_hcpcs_codes = {c.code for c in self._ncd_repo.get_hcpcs(p.policy_id)}
+                if ncd_hcpcs_codes:
+                    hcpcs_matched = procedure in ncd_hcpcs_codes
+                    ncd_criteria.append(EvaluatedCriterion(
+                        criterion_id=f"NCD-{p.policy_id}-HCPCS",
+                        policy_type="NCD",
+                        policy_id=p.policy_id,
+                        criterion=f"The requested procedure must be an applicable service under NCD {p.policy_id}.",
+                        criterion_type=CriterionType.STRUCTURED,
+                        evaluator=EvaluatorType.SQL,
+                        status=EvaluationStatus.SATISFIED if hcpcs_matched else EvaluationStatus.NOT_SATISFIED,
+                        patient_evidence=[f"Submitted HCPCS: {procedure}"],
+                        policy_evidence=[
+                            f"NCD {p.policy_id} {'contains' if hcpcs_matched else 'does not contain'} "
+                            f"HCPCS {procedure} in its covered-procedure list."
+                        ],
+                        mandatory=True,
+                        authoritative=True,
+                        explanation=(
+                            f"{'Procedure ' + procedure + ' is listed in NCD ' + p.policy_id + ' covered HCPCS codes. Criterion SATISFIED by deterministic SQL check.'}"
+                            if hcpcs_matched else
+                            f"Procedure {procedure} is not found in NCD {p.policy_id} covered HCPCS codes. Criterion NOT_SATISFIED by deterministic SQL check."
+                        )
+                    ))
+                    if hcpcs_matched:
+                        matched_policies.append(MatchedPolicy(policy_type="NCD", policy_id=p.policy_id, title=p.title))
+                        all_evidence.append(Evidence(
+                            type="HCPCS", identifier=p.policy_id, code=procedure,
+                            result="MATCHED",
+                            explanation=f"Procedure code '{procedure}' is listed in NCD {p.policy_id} covered codes."
+                        ))
+                        break  # First match is sufficient for NCD coverage
+            
+            # Phase 5: Criterion Extraction & Classification from RAG chunks
             for chunk_tuple in ncd_chunks:
                 chunk, distance = chunk_tuple
                 all_rag_evidence.append(
@@ -204,15 +250,8 @@ class TriageService:
                 ncd_matrix = EvidenceFusion.fuse(ncd_criteria)
                 all_criteria.extend(ncd_matrix.criteria)
                 ncd_result = EvidenceFusion.resolve_decision(ncd_matrix)
-                
-                # Add evidence log
-                all_evidence.append(
-                    Evidence(type="HCPCS", identifier=ncd_ids[0], code=procedure, result=ncd_result, 
-                             explanation=f"NCD RAG evaluation resulted in {ncd_result}")
-                )
-                matched_policies.append(MatchedPolicy(policy_type="NCD", policy_id=ncd_ids[0], title=ncd_candidates[0].title))
             else:
-                # Deterministic fallback if RAG yielded nothing
+                # Deterministic fallback if neither RAG nor HCPCS list yielded criteria
                 for p in ncd_candidates:
                     ncd_details = self._ncd_repo.get_by_id(p.policy_id)
                     if ncd_details and ncd_details.decision:
@@ -255,12 +294,18 @@ class TriageService:
                             break
             
             policy_path["ncd"] = {"policy_id": ncd_ids[0] if ncd_ids else ncd_candidates[0].policy_id, "result": ncd_result}
+
         # ── Jurisdiction & LCD (Phase 9 & 10) ─────────────────────────────────
         if ncd_result == "NOT_ADDRESSED":
             if not lcd_candidates:
                 missing.append("Missing specific LCD or Article for evaluation.")
                 final_decision, decision_reasons, decision_warnings = DecisionEngine.map_to_final(ncd_result, lcd_result, article_result, missing)
-                return self._build_response(final_decision, decision_reasons, matched_policies, policy_path, procedure, diagnoses, all_evidence, all_rag_evidence, all_criteria, missing, warnings + decision_warnings)
+                return self._build_response(
+                    final_decision, decision_reasons, matched_policies, policy_path,
+                    procedure, diagnoses, all_evidence, all_rag_evidence, all_criteria,
+                    missing, warnings + decision_warnings,
+                    ncd_result=ncd_result, lcd_result=lcd_result, article_result=article_result
+                )
 
             if state:
                 jurisdiction_matching = [
@@ -271,7 +316,12 @@ class TriageService:
                     policy_path["jurisdiction"]["result"] = "NOT_MATCHED"
                     missing.append("State outside jurisdiction.")
                     final_decision, decision_reasons, decision_warnings = DecisionEngine.map_to_final(ncd_result, lcd_result, article_result, missing)
-                    return self._build_response(final_decision, decision_reasons, matched_policies, policy_path, procedure, diagnoses, all_evidence, all_rag_evidence, all_criteria, missing, warnings + decision_warnings)
+                    return self._build_response(
+                        final_decision, decision_reasons, matched_policies, policy_path,
+                        procedure, diagnoses, all_evidence, all_rag_evidence, all_criteria,
+                        missing, warnings + decision_warnings,
+                        ncd_result=ncd_result, lcd_result=lcd_result, article_result=article_result
+                    )
                 
                 active_lcd = jurisdiction_matching[0]
                 matched_policies.append(MatchedPolicy(policy_type=active_lcd.policy_type, policy_id=active_lcd.policy_id, title=active_lcd.title, article_id=active_lcd.article_id))
@@ -283,40 +333,41 @@ class TriageService:
                 matched_policies.append(MatchedPolicy(policy_type=active_lcd.policy_type, policy_id=active_lcd.policy_id, title=active_lcd.title, article_id=active_lcd.article_id))
 
             # LCD Evaluation (Deterministic/Narrative)
+            # NOTE: query_embedding may be [] in mock/no-LLM mode.
+            # MockPolicyChunkRepository handles this gracefully.
             lcd_criteria = []
-            if query_embedding:
-                lcd_chunks = self._chunk_repo.search_similar(
-                    query_embedding=query_embedding,
-                    policy_type="LCD",
-                    candidate_policy_ids=[active_lcd.policy_id],
-                    top_k=5,
-                    threshold=0.8
-                )
-                for chunk_tuple in lcd_chunks:
-                    chunk, distance = chunk_tuple
-                    all_rag_evidence.append(
-                        RagEvidence(
-                            policy_id=chunk.policy_id,
-                            policy_type=chunk.policy_type,
-                            policy_title=active_lcd.title if active_lcd else None,
-                            section=chunk.section,
-                            chunk_id=str(chunk.id),
-                            text=chunk.chunk_text,
-                            similarity_score=max(0.0, 1.0 - distance),
-                            source="CMS"
-                        )
+            lcd_chunks = self._chunk_repo.search_similar(
+                query_embedding=query_embedding,
+                policy_type="LCD",
+                candidate_policy_ids=[active_lcd.policy_id],
+                top_k=5,
+                threshold=0.8
+            )
+            for chunk_tuple in lcd_chunks:
+                chunk, distance = chunk_tuple
+                all_rag_evidence.append(
+                    RagEvidence(
+                        policy_id=chunk.policy_id,
+                        policy_type=chunk.policy_type,
+                        policy_title=active_lcd.title if active_lcd else None,
+                        section=chunk.section,
+                        chunk_id=str(chunk.id),
+                        text=chunk.chunk_text,
+                        similarity_score=max(0.0, 1.0 - distance),
+                        source="CMS"
                     )
-                    raw_criteria = CriterionExtractor.extract_from_chunk(chunk)
-                    for rc in raw_criteria:
-                        classified_criterion = CriterionClassifier.classify(rc)
-                        lcd_criteria.append(self._evaluator.evaluate(classified_criterion, request))
+                )
+                raw_criteria = CriterionExtractor.extract_from_chunk(chunk)
+                for rc in raw_criteria:
+                    classified_criterion = CriterionClassifier.classify(rc)
+                    lcd_criteria.append(self._evaluator.evaluate(classified_criterion, request))
             
             if lcd_criteria:
                 lcd_matrix = EvidenceFusion.fuse(lcd_criteria)
                 all_criteria.extend(lcd_matrix.criteria)
                 lcd_result = EvidenceFusion.resolve_decision(lcd_matrix)
             else:
-                lcd_result = "COVERED" # Assuming LCD permits Article check
+                lcd_result = "COVERED"  # No RAG criteria extracted → permit Article check
                 
             policy_path["lcd"] = {"policy_id": active_lcd.policy_id, "result": lcd_result}
 
@@ -400,31 +451,57 @@ class TriageService:
                 policy_path["article"] = {"policy_id": active_lcd.article_id, "result": article_result}
 
         final_decision, decision_reasons, decision_warnings = DecisionEngine.map_to_final(ncd_result, lcd_result, article_result, missing)
-        return self._build_response(final_decision, decision_reasons, matched_policies, policy_path, procedure, diagnoses, all_evidence, all_rag_evidence, all_criteria, missing, warnings + decision_warnings)
+        return self._build_response(
+            final_decision, decision_reasons, matched_policies, policy_path,
+            procedure, diagnoses, all_evidence, all_rag_evidence, all_criteria,
+            missing, warnings + decision_warnings,
+            ncd_result=ncd_result, lcd_result=lcd_result, article_result=article_result
+        )
 
     def _build_response(
-        self, 
-        decision: TriageDecision, 
-        reason_codes: List[str], 
-        policies: List[MatchedPolicy], 
+        self,
+        decision: TriageDecision,
+        reason_codes: List[str],
+        policies: List[MatchedPolicy],
         policy_path: dict,
         procedure: str,
         diagnoses: List[str],
         evidence: List[Evidence],
         rag_evidence: List[RagEvidence],
         criteria: List[EvaluatedCriterion],
-        missing: List[str], 
-        warnings: List[str]
+        missing: List[str],
+        warnings: List[str],
+        ncd_result: str = "NOT_ADDRESSED",
+        lcd_result: str = "NOT_ADDRESSED",
+        article_result: str = "NOT_ADDRESSED",
     ) -> TriageResponse:
-        
+
+        # Compute evidence_fusion_result: the intermediate coverage resolution
+        # before DecisionEngine maps it to the public decision.
+        # Priority: article > lcd > ncd (most specific wins)
+        if article_result not in ("NOT_ADDRESSED", ""):
+            fusion_result = article_result
+        elif lcd_result not in ("NOT_ADDRESSED", ""):
+            fusion_result = lcd_result
+        elif ncd_result not in ("NOT_ADDRESSED", ""):
+            fusion_result = ncd_result
+        else:
+            fusion_result = "NOT_ADDRESSED"
+
+        # Build human-readable reason string
+        reason = _build_reason_narrative(decision, reason_codes, ncd_result, lcd_result, article_result, missing)
+
+        # Build decision_basis narrative
+        decision_basis = _build_decision_basis(
+            decision, reason_codes, fusion_result, criteria
+        )
+
         # Calculate naive deterministic score for backward compatibility
         score = 0.5 if decision != TriageDecision.PEND else 0.0
         if decision == TriageDecision.APPROVE:
             score = 0.9
-            
+
         dx_evals = [DiagnosisEvaluation(code=d, status="COVERED") for d in diagnoses]
-        
-        reason = f"Decision Engine output: {decision.value}. Reason codes: {', '.join(reason_codes)}"
 
         return TriageResponse(
             decision=decision,
@@ -441,4 +518,135 @@ class TriageService:
             criteria=criteria,
             missing_information=missing,
             warnings=warnings,
+            evidence_fusion_result=fusion_result,
+            decision_basis=decision_basis,
         )
+
+
+def _build_reason_narrative(
+    decision: TriageDecision,
+    reason_codes: List[str],
+    ncd_result: str,
+    lcd_result: str,
+    article_result: str,
+    missing: List[str],
+) -> str:
+    """Build a human-readable reason string for the triage decision.
+
+    The primary reason code is embedded in parentheses so that automated
+    checks on d["reason"] continue to work.
+    """
+    primary_code = reason_codes[0] if reason_codes else ""
+
+    if decision == TriageDecision.APPROVE:
+        if "ARTICLE_CRITERIA_SATISFIED" in reason_codes:
+            text = (
+                "All applicable policy criteria were satisfied. "
+                "The submitted procedure and diagnosis codes are covered under the applicable Article."
+            )
+        elif "LCD_CRITERIA_SATISFIED" in reason_codes:
+            text = (
+                "All applicable policy criteria were satisfied. "
+                "The submitted procedure meets the Local Coverage Determination criteria."
+            )
+        elif "NCD_CRITERIA_SATISFIED" in reason_codes:
+            text = (
+                "All applicable policy criteria were satisfied. "
+                "The submitted procedure meets the National Coverage Determination criteria."
+            )
+        else:
+            text = "All applicable policy criteria were satisfied. The request is approved."
+        return f"{text} [{primary_code}]" if primary_code else text
+
+    if decision == TriageDecision.PEND:
+        if "NCD_EXCLUDES_PROCEDURE" in reason_codes:
+            text = (
+                "The submitted procedure is explicitly excluded by an applicable "
+                "National Coverage Determination (NCD). The request is pended for manual review."
+            )
+            return f"{text} [NCD_EXCLUDES_PROCEDURE]"
+        if "LCD_EXCLUDES_PROCEDURE" in reason_codes:
+            text = (
+                "The submitted procedure is explicitly excluded by the applicable "
+                "Local Coverage Determination (LCD). The request is pended for manual review."
+            )
+            return f"{text} [LCD_EXCLUDES_PROCEDURE]"
+        if "ARTICLE_EXCLUDES_PROCEDURE" in reason_codes:
+            text = (
+                "The submitted diagnosis is explicitly listed as non-covered in the applicable "
+                "Billing and Coding Article. The request is pended for manual review."
+            )
+            return f"{text} [ARTICLE_EXCLUDES_PROCEDURE]"
+        if "AMBIGUOUS_EVIDENCE_REQUIRES_REVIEW" in reason_codes:
+            text = (
+                "Policy evidence was ambiguous or conflicting. "
+                "Manual clinical review is required to determine coverage."
+            )
+            return f"{text} [AMBIGUOUS_EVIDENCE_REQUIRES_REVIEW]"
+        text = (
+            "The request could not be automatically approved based on available policy data. "
+            "Manual review is required."
+        )
+        return f"{text} [{primary_code}]" if primary_code else text
+
+    # REQUEST_MORE_INFORMATION
+    if "POLICY_NOT_FOUND" in reason_codes:
+        text = (
+            "No applicable coverage policy was found for the submitted procedure code. "
+            "Additional information is required."
+        )
+        return f"{text} [POLICY_NOT_FOUND]"
+    if "MISSING_REQUIRED_INFORMATION" in reason_codes and missing:
+        text = (
+            f"The request is missing required information: {'; '.join(missing)}. "
+            f"Additional information must be provided before a coverage determination can be made."
+        )
+        return f"{text} [MISSING_REQUIRED_INFORMATION]"
+    text = (
+        "Insufficient information is available to determine coverage. "
+        "Additional clinical or administrative information is required."
+    )
+    return f"{text} [{primary_code}]" if primary_code else text
+
+
+
+def _build_decision_basis(
+    decision: TriageDecision,
+    reason_codes: List[str],
+    fusion_result: str,
+    criteria: List[EvaluatedCriterion],
+) -> str:
+    """Build a human-readable decision_basis narrative.
+
+    Shows the evidence fusion result, criterion summary, and how the
+    DecisionEngine mapped it to the final public decision.
+    """
+    lines = []
+
+    if decision == TriageDecision.APPROVE:
+        lines.append("All mandatory policy criteria were satisfied.")
+    elif decision == TriageDecision.PEND:
+        lines.append("The request was pended because one or more mandatory policy criteria "
+                     "were not satisfied or evidence was ambiguous.")
+    else:
+        lines.append("Additional information is required to determine coverage.")
+
+    # Criterion bullets
+    if criteria:
+        for c in criteria:
+            evaluator_label = c.evaluator.value
+            if evaluator_label == "LLM":
+                evaluator_label = "Qwen"
+            # Short criterion label from criterion_id
+            c_id = c.criterion_id
+            status_str = c.status.value
+            suffix = f" by {evaluator_label}" if evaluator_label == "Qwen" else ""
+            lines.append(f"  • {c_id}: {status_str}{suffix}")
+    else:
+        lines.append("  • No formal criteria were evaluated (deterministic code matching applied).")
+
+    lines.append(f"Evidence Fusion: {fusion_result}")
+    lines.append(f"DecisionEngine: {fusion_result} → {decision.value}")
+
+    return "\n".join(lines)
+
