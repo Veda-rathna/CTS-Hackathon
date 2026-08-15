@@ -112,33 +112,48 @@ class TriageService:
         notes = getattr(request, "clinical_notes", "")
         query_text = f"Procedure {procedure}. Diagnoses {', '.join(diagnoses)}. {notes}".strip()
         query_embedding = self._embedding_service.embed_text(query_text) if query_text else []
-
-        # ── Find Candidate Policies ─────────────────────────────────────────
-        all_policies = self._policy_repo.find_policies_for_procedure(procedure)
-        if not all_policies:
-            # Create a fallback DecisionEngine input for when no policies are found
-            # This generally maps to REQUEST_MORE_INFORMATION or PEND because we have no coverage basis
+        # ── Find Candidate Policies (via Evidence Resolver) ───────────────
+        from app.services.policy_evidence_resolver import PolicyEvidenceResolver
+        
+        # Instantiate resolver (could be injected via DI in a larger refactor)
+        resolver = PolicyEvidenceResolver(
+            self._policy_repo, 
+            self._article_repo, 
+            self._ncd_repo
+        )
+        
+        evidence_result = resolver.resolve_evidence(procedure, diagnoses, state)
+        
+        if evidence_result["status"] in ("NOT_FOUND", "UNAVAILABLE") or not evidence_result.get("policies"):
+            reason_msg = f"No coverage policy references procedure '{procedure}'."
+            if evidence_result["status"] == "UNAVAILABLE":
+                reason_msg = f"Policy evidence is currently unavailable (CMS API error). Manual review required."
+                decision = TriageDecision.PEND
+            else:
+                decision = TriageDecision.REQUEST_MORE_INFORMATION
+                
             return TriageResponse(
-                decision=TriageDecision.REQUEST_MORE_INFORMATION,
+                decision=decision,
                 evidence_score=0.0,
-                reason=f"No coverage policy was found that references procedure code '{procedure}'. "
-                       f"Prior authorization cannot be evaluated without an applicable policy.",
-                reason_codes=["POLICY_NOT_FOUND"],
-                missing_information=[f"No coverage policy references procedure code '{procedure}'."],
+                reason=reason_msg,
+                reason_codes=["POLICY_NOT_FOUND" if evidence_result["status"] == "NOT_FOUND" else "EVIDENCE_UNAVAILABLE"],
+                missing_information=[reason_msg],
                 policies=[],
                 policy_path=None,
                 matched_codes=MatchedCodes(procedure=procedure, diagnosis=[]),
                 diagnosis_evaluation=[],
                 evidence=[],
                 criteria=[],
-                warnings=[],
+                warnings=["CMS Coverage API Fallback was attempted but returned no valid evidence." if evidence_result["status"] == "NOT_FOUND" else "CMS Coverage API Fallback failed."],
                 evidence_fusion_result="NOT_ADDRESSED",
                 decision_basis=(
-                    f"No applicable policy was found for procedure '{procedure}'. "
+                    f"{reason_msg} "
                     f"Evidence Fusion: NOT_ADDRESSED. "
-                    f"DecisionEngine: NOT_ADDRESSED → REQUEST_MORE_INFORMATION."
+                    f"DecisionEngine: NOT_ADDRESSED → {decision.value}."
                 )
             )
+
+        all_policies = evidence_result["policies"]
 
         active_policies = _filter_latest_effective_policies(all_policies)
         if not active_policies:

@@ -256,3 +256,13 @@ class MockPolicyRepository:
             results.append(p)
 
         return results
+
+    def upsert_policy(self, policy: PolicyMatch, source: str = "CMS_MCD") -> None:
+        """Upsert a normalized policy match into the mock repository."""
+        # Find if it exists
+        for i, existing in enumerate(_POLICIES):
+            if existing.policy_id == policy.policy_id and existing.policy_type == policy.policy_type:
+                _POLICIES[i] = policy
+                return
+        # If not found, append
+        _POLICIES.append(policy)
