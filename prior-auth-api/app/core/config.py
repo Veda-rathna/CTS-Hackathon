@@ -62,6 +62,25 @@ class Settings(BaseSettings):
     llm_model: str = "qwen/qwen3-4b-2507"
     llm_temperature: float = 0.0
 
+    # ── Agentic Semantic Evaluation Configuration ──────────────────────────────
+    # Controls the 4-agent pipeline: PolicyAgent → ClinicalEvidenceAgent →
+    # EvaluationAgent → Qwen → CriticAgent
+    #
+    # agent_read_timeout_secs: Per-agent LLM call timeout (seconds).
+    #   Increase for slower hardware / larger models.
+    #   Default 30s covers Qwen3-4B on CPU.
+    agent_read_timeout_secs: float = 30.0
+
+    # agent_hallucination_threshold: Minimum fraction of key words from a cited
+    #   evidence string that must appear in the original clinical text.
+    #   0.0 = disable hallucination guard, 1.0 = exact match required.
+    agent_hallucination_threshold: float = 0.35
+
+    # agent_source_text_max_chars: Max chars of source_text passed to PolicyAgent.
+    #   Prevents very large policy chunks from blowing out LLM context.
+    agent_source_text_max_chars: int = 2000
+
+
 
     @property
     def database_url_normalized(self) -> str:

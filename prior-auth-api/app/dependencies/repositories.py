@@ -100,8 +100,11 @@ def get_policy_repository(
 
 # ── Service factories (depend on repository factories) ────────────────────────
 
-def get_llm_client() -> LLMClient:
-    return LLMClient()
+def get_llm_client(settings: Annotated[Settings, Depends(get_settings)]) -> LLMClient:
+    client = LLMClient()
+    if settings.use_mock_repositories:
+        client.enabled = False
+    return client
 
 def get_multi_evaluator(
     llm_client: Annotated[LLMClient, Depends(get_llm_client)],

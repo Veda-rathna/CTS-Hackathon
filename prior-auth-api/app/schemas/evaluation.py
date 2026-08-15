@@ -17,6 +17,7 @@ class EvaluatorType(str, Enum):
     SQL = "SQL"
     RULES = "RULES"
     LLM = "LLM"
+    AGENTIC_QWEN = "AGENTIC_QWEN"  # Four-agent orchestrated semantic evaluation
 
 
 class EvaluationStatus(str, Enum):

@@ -97,27 +97,39 @@ class StructuredEvaluator:
         # 2. ICD-10 Evaluation
         elif re.search(r'\b(icd-?10|diagnosis|dx)\b', text):
             matched_any = False
+            has_covered = False
+            has_noncovered = False
+            covered_dxs = []
+            noncovered_dxs = []
+            
             for dx in request.diagnosis_codes:
                 if dx in covered_icd10:
-                    status = EvaluationStatus.SATISFIED
-                    patient_evidence.append(f"Submitted ICD-10: {dx}")
-                    policy_evidence.append(f"{ptype} {pid} → ICD-10 covered: {dx}")
-                    explanation = (
-                        f"The submitted diagnosis code {dx} is present in the "
-                        f"{ptype} {pid} covered ICD-10 data. "
-                        f"The diagnosis requirement is satisfied."
-                    )
+                    has_covered = True
+                    covered_dxs.append(dx)
                     matched_any = True
                 elif dx in noncovered_icd10:
-                    status = EvaluationStatus.NOT_SATISFIED
-                    patient_evidence.append(f"Submitted ICD-10: {dx}")
-                    policy_evidence.append(f"{ptype} {pid} → ICD-10 non-covered: {dx}")
-                    explanation = (
-                        f"The submitted diagnosis code {dx} is explicitly listed in the "
-                        f"{ptype} {pid} non-covered ICD-10 data. "
-                        f"The diagnosis requirement is not satisfied."
-                    )
+                    has_noncovered = True
+                    noncovered_dxs.append(dx)
                     matched_any = True
+
+            if has_covered:
+                status = EvaluationStatus.SATISFIED
+                patient_evidence.append(f"Submitted ICD-10: {', '.join(covered_dxs)}")
+                policy_evidence.append(f"{ptype} {pid} → ICD-10 covered: {', '.join(covered_dxs)}")
+                explanation = (
+                    f"The submitted diagnosis code(s) {', '.join(covered_dxs)} are present in the "
+                    f"{ptype} {pid} covered ICD-10 data. "
+                    f"The diagnosis requirement is satisfied."
+                )
+            elif has_noncovered:
+                status = EvaluationStatus.NOT_SATISFIED
+                patient_evidence.append(f"Submitted ICD-10: {', '.join(noncovered_dxs)}")
+                policy_evidence.append(f"{ptype} {pid} → ICD-10 non-covered: {', '.join(noncovered_dxs)}")
+                explanation = (
+                    f"The submitted diagnosis code(s) {', '.join(noncovered_dxs)} are explicitly listed in the "
+                    f"{ptype} {pid} non-covered ICD-10 data. "
+                    f"The diagnosis requirement is not satisfied."
+                )
 
             if not matched_any:
                 # Text fallback
@@ -133,7 +145,7 @@ class StructuredEvaluator:
                         break
 
                 if not matched_any:
-                    status = EvaluationStatus.NOT_SATISFIED
+                    status = EvaluationStatus.UNKNOWN
                     patient_evidence.append(
                         f"Submitted diagnosis codes: {', '.join(request.diagnosis_codes)}"
                     )
@@ -141,15 +153,14 @@ class StructuredEvaluator:
                         f"None of the submitted diagnosis codes "
                         f"({', '.join(request.diagnosis_codes)}) were found in the "
                         f"{ptype} {pid} structured code data. "
-                        f"The diagnosis requirement is not satisfied."
+                        f"The diagnosis requirement cannot be deterministically evaluated."
                     )
 
         if status == EvaluationStatus.UNKNOWN:
-            status = EvaluationStatus.NOT_SATISFIED
             patient_evidence.append("Could not match any requested codes to this structured requirement.")
             explanation = (
                 "The structured requirement could not be matched to any submitted codes. "
-                "The requirement is not satisfied."
+                "The requirement cannot be deterministically evaluated."
             )
 
         return EvaluatedCriterion(

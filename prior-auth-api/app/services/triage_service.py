@@ -189,31 +189,51 @@ class TriageService:
             # Even if RAG returns semantic/unknown criteria, a positive HCPCS match
             # provides a SATISFIED structured criterion so EvidenceFusion → COVERED.
             for p in ncd_candidates:
+                ncd_details = self._ncd_repo.get_by_id(p.policy_id)
                 ncd_hcpcs_codes = {c.code for c in self._ncd_repo.get_hcpcs(p.policy_id)}
                 if ncd_hcpcs_codes:
                     hcpcs_matched = procedure in ncd_hcpcs_codes
-                    ncd_criteria.append(EvaluatedCriterion(
-                        criterion_id=f"NCD-{p.policy_id}-HCPCS",
-                        policy_type="NCD",
-                        policy_id=p.policy_id,
-                        criterion=f"The requested procedure must be an applicable service under NCD {p.policy_id}.",
-                        criterion_type=CriterionType.STRUCTURED,
-                        evaluator=EvaluatorType.SQL,
-                        status=EvaluationStatus.SATISFIED if hcpcs_matched else EvaluationStatus.NOT_SATISFIED,
-                        patient_evidence=[f"Submitted HCPCS: {procedure}"],
-                        policy_evidence=[
-                            f"NCD {p.policy_id} {'contains' if hcpcs_matched else 'does not contain'} "
-                            f"HCPCS {procedure} in its covered-procedure list."
-                        ],
-                        mandatory=True,
-                        authoritative=True,
-                        explanation=(
-                            f"{'Procedure ' + procedure + ' is listed in NCD ' + p.policy_id + ' covered HCPCS codes. Criterion SATISFIED by deterministic SQL check.'}"
-                            if hcpcs_matched else
-                            f"Procedure {procedure} is not found in NCD {p.policy_id} covered HCPCS codes. Criterion NOT_SATISFIED by deterministic SQL check."
-                        )
-                    ))
-                    if hcpcs_matched:
+                    is_excluded = ncd_details and ncd_details.decision and "EXCLUDED" in ncd_details.decision.upper()
+
+                    if is_excluded and hcpcs_matched:
+                        ncd_criteria.append(EvaluatedCriterion(
+                            criterion_id=f"NCD-{p.policy_id}-HCPCS",
+                            policy_type="NCD",
+                            policy_id=p.policy_id,
+                            criterion=f"The requested procedure must not be explicitly excluded by NCD {p.policy_id}.",
+                            criterion_type=CriterionType.STRUCTURED,
+                            evaluator=EvaluatorType.SQL,
+                            status=EvaluationStatus.NOT_SATISFIED,
+                            patient_evidence=[f"Submitted HCPCS: {procedure}"],
+                            policy_evidence=[f"NCD {p.policy_id} explicitly excludes HCPCS {procedure}."],
+                            mandatory=True,
+                            authoritative=True,
+                            explanation=f"Procedure {procedure} is listed in NCD {p.policy_id} which EXCLUDES coverage. Criterion NOT_SATISFIED by deterministic SQL check."
+                        ))
+                    else:
+                        ncd_criteria.append(EvaluatedCriterion(
+                            criterion_id=f"NCD-{p.policy_id}-HCPCS",
+                            policy_type="NCD",
+                            policy_id=p.policy_id,
+                            criterion=f"The requested procedure must be an applicable service under NCD {p.policy_id}.",
+                            criterion_type=CriterionType.STRUCTURED,
+                            evaluator=EvaluatorType.SQL,
+                            status=EvaluationStatus.SATISFIED if hcpcs_matched else EvaluationStatus.NOT_SATISFIED,
+                            patient_evidence=[f"Submitted HCPCS: {procedure}"],
+                            policy_evidence=[
+                                f"NCD {p.policy_id} {'contains' if hcpcs_matched else 'does not contain'} "
+                                f"HCPCS {procedure} in its covered-procedure list."
+                            ],
+                            mandatory=True,
+                            authoritative=True,
+                            explanation=(
+                                f"{'Procedure ' + procedure + ' is listed in NCD ' + p.policy_id + ' covered HCPCS codes. Criterion SATISFIED by deterministic SQL check.'}"
+                                if hcpcs_matched else
+                                f"Procedure {procedure} is not found in NCD {p.policy_id} covered HCPCS codes. Criterion NOT_SATISFIED by deterministic SQL check."
+                            )
+                        ))
+
+                    if hcpcs_matched and not is_excluded:
                         matched_policies.append(MatchedPolicy(policy_type="NCD", policy_id=p.policy_id, title=p.title))
                         all_evidence.append(Evidence(
                             type="HCPCS", identifier=p.policy_id, code=procedure,
@@ -450,6 +470,10 @@ class TriageService:
                     missing.append("Missing explicitly covered diagnosis codes.")
                 policy_path["article"] = {"policy_id": active_lcd.article_id, "result": article_result}
 
+        if lcd_result == "UNKNOWN" or article_result == "UNKNOWN":
+            if "Clinical documentation required to verify ambiguous criteria." not in missing:
+                missing.append("Clinical documentation required to verify ambiguous criteria.")
+
         final_decision, decision_reasons, decision_warnings = DecisionEngine.map_to_final(ncd_result, lcd_result, article_result, missing)
         return self._build_response(
             final_decision, decision_reasons, matched_policies, policy_path,
@@ -639,6 +663,8 @@ def _build_decision_basis(
             evaluator_label = c.evaluator.value
             if evaluator_label == "LLM":
                 evaluator_label = "Qwen"
+            elif evaluator_label == "AGENTIC_QWEN":
+                evaluator_label = "Agentic-Qwen"
             # Short criterion label from criterion_id
             c_id = c.criterion_id
             status_str = c.status.value

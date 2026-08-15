@@ -1,62 +1,121 @@
-"""Semantic Evaluator."""
+"""Semantic Evaluator — enhanced with Agentic Semantic Evaluation pipeline.
+
+This evaluator handles SEMANTIC policy criteria by routing them through
+the AgentOrchestrator (4-agent pipeline: PolicyAgent → ClinicalEvidenceAgent
+→ EvaluationAgent → Qwen → CriticAgent).
+
+External interface UNCHANGED:
+    evaluate(criterion: PolicyCriterion, request: TriageRequest) → EvaluatedCriterion
+
+The MultiEvaluator and TriageService require zero modification.
+EvidenceFusion and DecisionEngine remain the sole authority over coverage decisions.
+
+Authority:
+    - agentic_semantic result is NEVER authoritative (authoritative=False)
+    - SQL / Rule-Based results can always override it in EvidenceFusion
+    - DecisionEngine remains the only component producing APPROVE/PEND/RMI
+
+Failure Safety:
+    - AgentOrchestrator failure → UNKNOWN
+    - Propagates correctly through EvidenceFusion → NOT_ADDRESSED
+    - Never crashes the authorization request
+"""
 from __future__ import annotations
 
-from app.schemas.evaluation import EvaluatedCriterion, EvaluationStatus, EvaluatorType, PolicyCriterion
+import logging
+
+from app.schemas.evaluation import (
+    EvaluatedCriterion,
+    EvaluationStatus,
+    EvaluatorType,
+    PolicyCriterion,
+)
 from app.schemas.triage import TriageRequest
 from app.services.llm.client import LLMClient
+from app.services.agents.agent_orchestrator import AgentOrchestrator
+from app.services.agents.schemas import SemanticResult
+
+logger = logging.getLogger(__name__)
+
 
 class SemanticEvaluator:
-    """Evaluates SEMANTIC criteria using an LLM."""
-    
-    def __init__(self, llm_client: LLMClient):
-        self._client = llm_client
-    
-    def evaluate(self, criterion: PolicyCriterion, request: TriageRequest) -> EvaluatedCriterion:
-        # Note: TriageRequest doesn't explicitly have clinical_notes in the base schema
-        # but the prompt requires clinical facts.
-        # We will attempt to get clinical_notes if it exists, otherwise empty.
-        clinical_notes = getattr(request, "clinical_notes", "")
+    """Evaluates SEMANTIC criteria using the Agentic Semantic Evaluation pipeline.
 
-        # Call LLM
-        response = self._client.evaluate_criterion(
-            criterion_text=criterion.criterion,
-            clinical_notes=clinical_notes
+    Replaces the flat LLM call with a controlled 4-agent orchestration:
+
+        PolicyAgent → ClinicalEvidenceAgent → EvaluationAgent → Qwen → CriticAgent
+
+    The external interface is unchanged — MultiEvaluator calls evaluate() identically.
+    """
+
+    def __init__(self, llm_client: LLMClient) -> None:
+        self._client = llm_client
+        self._orchestrator = AgentOrchestrator(llm_client)
+
+    def evaluate(
+        self,
+        criterion: PolicyCriterion,
+        request: TriageRequest,
+    ) -> EvaluatedCriterion:
+        """Route SEMANTIC criterion through the agentic pipeline.
+
+        Returns an EvaluatedCriterion with:
+          - evaluator = AGENTIC_QWEN
+          - authoritative = False  (LLM never overrides deterministic evidence)
+          - status from {SATISFIED, NOT_SATISFIED, UNKNOWN}
+          - structured patient_evidence and policy_evidence lists
+          - human-readable explanation with agent trace summary
+
+        This method never raises — all failures produce UNKNOWN.
+        """
+        logger.info(
+            "SemanticEvaluator | criterion=%s | policy=%s/%s",
+            criterion.criterion_id,
+            criterion.policy_type,
+            criterion.policy_id,
         )
 
+        # Run the agentic pipeline
+        orchestration = self._orchestrator.run(criterion, request)
+
+        # Map semantic result to EvaluationStatus
         status_map = {
-            "SATISFIED": EvaluationStatus.SATISFIED,
-            "NOT_SATISFIED": EvaluationStatus.NOT_SATISFIED,
-            "UNKNOWN": EvaluationStatus.UNKNOWN,
+            SemanticResult.SATISFIED: EvaluationStatus.SATISFIED,
+            SemanticResult.NOT_SATISFIED: EvaluationStatus.NOT_SATISFIED,
+            SemanticResult.UNKNOWN: EvaluationStatus.UNKNOWN,
         }
+        status = status_map.get(orchestration.final_result, EvaluationStatus.UNKNOWN)
 
-        status = status_map.get(response.status, EvaluationStatus.UNKNOWN)
+        # Build agent trace summary for the explanation (no raw prompts)
+        trace_summary = "\n".join(
+            f"  [{t.agent}] {t.status.value}: {t.output_summary}"
+            for t in orchestration.agent_trace
+        )
 
-        # Synthesize a human-readable explanation from the LLM result.
-        # Do NOT expose chain-of-thought — only the result and key supporting evidence.
-        if status == EvaluationStatus.SATISFIED:
-            evidence_summary = "; ".join(response.patient_evidence[:2]) if response.patient_evidence else "patient documentation reviewed"
-            explanation = (
-                f"The submitted clinical documentation was reviewed against this semantic requirement. "
-                f"Supporting evidence identified: {evidence_summary}. "
-                f"The requirement is satisfied (evaluated by Qwen)."
-            )
-        elif status == EvaluationStatus.NOT_SATISFIED:
-            explanation = (
-                f"The submitted clinical documentation was reviewed against this semantic requirement. "
-                f"The available patient evidence does not satisfy the requirement "
-                f"(evaluated by Qwen)."
-            )
-        else:
-            # UNKNOWN — LLM offline, timed out, or insufficient evidence
-            llm_note = response.patient_evidence[0] if response.patient_evidence else "Insufficient evidence to evaluate."
-            explanation = (
-                f"The semantic requirement could not be evaluated. "
-                f"Reason: {llm_note} "
-                f"Deterministic rules will take precedence in the final decision."
-            )
+        # Full explanation includes agent trace
+        full_explanation = orchestration.explanation
+        if trace_summary:
+            full_explanation += f"\n\nAgent Trace:\n{trace_summary}"
 
-        # For a purely semantic criterion, the LLM result is authoritative over itself (no SQL layer).
-        # But in Evidence Fusion, it will have lower priority than deterministic layers.
+        # Policy evidence = source policy text + required evidence categories
+        policy_evidence_items = []
+        if criterion.source_text:
+            policy_evidence_items.append(criterion.source_text[:500])  # Truncate for safety
+        if orchestration.required_evidence:
+            policy_evidence_items.extend(
+                [f"Required: {r}" for r in orchestration.required_evidence[:5]]
+            )
+        if not policy_evidence_items:
+            policy_evidence_items = [criterion.criterion]
+
+        logger.info(
+            "SemanticEvaluator | criterion=%s | final_status=%s | "
+            "qwen=%s | critic=%s",
+            criterion.criterion_id,
+            status.value,
+            orchestration.qwen_result.value,
+            orchestration.critic_result.value,
+        )
 
         return EvaluatedCriterion(
             criterion_id=criterion.criterion_id,
@@ -64,12 +123,11 @@ class SemanticEvaluator:
             policy_id=criterion.policy_id,
             criterion=criterion.criterion,
             criterion_type=criterion.type,
-            evaluator=EvaluatorType.LLM,
+            evaluator=EvaluatorType.AGENTIC_QWEN,
             status=status,
-            patient_evidence=response.patient_evidence,
-            policy_evidence=[criterion.source_text] if criterion.source_text else [criterion.criterion],
-            explanation=explanation,
-            authoritative=False,  # LLM is never authoritative over explicit logic
-            mandatory=criterion.mandatory
+            patient_evidence=orchestration.patient_evidence,
+            policy_evidence=policy_evidence_items,
+            explanation=full_explanation,
+            authoritative=False,   # LLM/agents are NEVER authoritative over deterministic evidence
+            mandatory=criterion.mandatory,
         )
-

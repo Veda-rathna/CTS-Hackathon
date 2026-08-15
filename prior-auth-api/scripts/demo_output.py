@@ -36,6 +36,10 @@ else:
     os.environ["LLM_ENABLED"] = "false"
     _llm_mode = "OFFLINE — LM Studio not detected (start it to enable semantic evaluation)"
 
+import logging
+logging.getLogger("app").setLevel(logging.ERROR)
+logging.getLogger("httpx").setLevel(logging.ERROR)
+
 sys.stdout.reconfigure(encoding="utf-8")
 
 from app.schemas.triage import TriageRequest
@@ -256,6 +260,40 @@ def print_report(name, req, resp):
 
 def main():
     service = build_service()
+    
+    # Initialize PDF
+    from fpdf import FPDF
+    import builtins
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("helvetica", size=9)
+    
+    _original_print = builtins.print
+    def custom_print(*args, **kwargs):
+        _original_print(*args, **kwargs)
+        text_str = " ".join(str(a) for a in args)
+        text_str = text_str.replace("✅", "[APPROVE]").replace("⚠️", "[PEND]").replace("ℹ️", "[INFO]").replace("❌", "[ERROR]")
+        text_str = text_str.replace("→", "->").replace("•", "*").replace("—", "-")
+        
+        # aggressively strip any other non-latin1 characters so FPDF doesn't crash and corrupt its state
+        text_str = text_str.encode('latin-1', 'ignore').decode('latin-1')
+        
+        for line in text_str.split("\n"):
+            line = line.replace("\r", "")
+            if line.startswith("====") or line.startswith("----"):
+                # draw a line manually instead of string of equals
+                pdf.ln(2)
+                pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
+                pdf.ln(2)
+                continue
+            
+            try:
+                pdf.write(5, text=line + "\n")
+            except Exception:
+                pass
+    
+    builtins.print = custom_print
+
     print(f"\n{SEP}")
     print("  PRIOR AUTHORIZATION TRIAGE & POLICY COMPANION")
     print("  Output Explainability Demo  (mock mode)")
@@ -274,6 +312,10 @@ def main():
             import traceback; traceback.print_exc()
 
     print(f"\n{SEP}\n  END OF DEMO\n{SEP}\n")
+    
+    # Save PDF
+    pdf.output("demo_output_report.pdf")
+    _original_print("\nPDF Report successfully generated at: demo_output_report.pdf")
 
 
 if __name__ == "__main__":
