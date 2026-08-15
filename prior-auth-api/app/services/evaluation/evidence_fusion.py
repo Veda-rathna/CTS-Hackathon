@@ -40,20 +40,27 @@ class EvidenceFusion:
         Helper to resolve the coverage decision from an EvidenceMatrix.
         Returns COVERED, EXCLUDED, UNKNOWN, or NOT_ADDRESSED.
 
-        Authority ladder:
-          NOT_SATISFIED (mandatory + authoritative) → EXCLUDED
-          NOT_SATISFIED (mandatory, non-auth) alone → EXCLUDED
-          UNKNOWN (mandatory)                       → UNKNOWN
-          SATISFIED (any)                           → COVERED
-          UNKNOWN (all)                             → NOT_ADDRESSED
-          empty                                     → NOT_ADDRESSED
+        Authority ladder (deterministic overrides LLM):
+          NOT_SATISFIED (mandatory + authoritative)              → EXCLUDED
+          NOT_SATISFIED (mandatory, non-auth, no satisfied)      → EXCLUDED
+          UNKNOWN (mandatory + authoritative)                    → UNKNOWN (blocking)
+          UNKNOWN (mandatory, non-auth only, auth SATISFIED)     → ignored (abstain)
+          UNKNOWN (mandatory, non-auth only, no auth SATISFIED)  → UNKNOWN
+          SATISFIED (authoritative, any)                         → COVERED
+          empty / all NOT_ADDRESSED                              → NOT_ADDRESSED
+
+        Key fix for Bug 5:
+            Non-authoritative (LLM/agent) mandatory UNKNOWN criteria do NOT
+            block a COVERED decision when at least one authoritative criterion
+            is SATISFIED. They simply abstain.
         """
         if not matrix.criteria:
             return "NOT_ADDRESSED"
 
-        has_unknown = False
-        has_mandatory_unknown = False
-        has_satisfied = False
+        has_authoritative_mandatory_unknown = False
+        has_nonauth_mandatory_unknown = False
+        has_authoritative_satisfied = False
+        has_any_satisfied = False
         has_authoritative_not_satisfied = False
         has_nonauth_not_satisfied = False
 
@@ -63,29 +70,40 @@ class EvidenceFusion:
                     has_authoritative_not_satisfied = True
                 else:
                     has_nonauth_not_satisfied = True
-            elif c.status == EvaluationStatus.UNKNOWN:
-                has_unknown = True
-                if c.mandatory:
-                    has_mandatory_unknown = True
+            elif c.status == EvaluationStatus.UNKNOWN and c.mandatory:
+                if c.authoritative:
+                    has_authoritative_mandatory_unknown = True
+                else:
+                    has_nonauth_mandatory_unknown = True
             elif c.status == EvaluationStatus.SATISFIED:
-                has_satisfied = True
+                has_any_satisfied = True
+                if c.authoritative:
+                    has_authoritative_satisfied = True
 
+        # 1. Authoritative explicit exclusion always wins
         if has_authoritative_not_satisfied:
             return "EXCLUDED"
-            
-        if has_nonauth_not_satisfied and not has_satisfied:
+
+        # 2. Non-authoritative not-satisfied without any satisfied → EXCLUDED
+        if has_nonauth_not_satisfied and not has_any_satisfied:
             return "EXCLUDED"
-            
-        if has_mandatory_unknown:
+
+        # 3. Authoritative mandatory UNKNOWN → block (cannot approve without deterministic clarity)
+        if has_authoritative_mandatory_unknown:
             return "UNKNOWN"
-            
-        if has_unknown and not has_satisfied:
-            return "UNKNOWN"
-            
-        if has_satisfied and not has_nonauth_not_satisfied:
+
+        # 4. If we have satisfied evidence and no authoritative exclusion/unknown:
+        #    Non-authoritative UNKNOWN criteria abstain — they do not block COVERED.
+        if has_any_satisfied and not has_authoritative_not_satisfied and not has_authoritative_mandatory_unknown:
+            if has_nonauth_not_satisfied:
+                # Mixed: some non-auth criteria unsatisfied alongside satisfied ones
+                return "NOT_ADDRESSED"
             return "COVERED"
-            
-        if has_satisfied and has_nonauth_not_satisfied:
-            return "NOT_ADDRESSED"
-            
+
+        # 5. Non-authoritative mandatory UNKNOWN with no satisfied criteria → UNKNOWN
+        if has_nonauth_mandatory_unknown and not has_any_satisfied:
+            return "UNKNOWN"
+
+        # 6. Nothing satisfied and no exclusions
         return "NOT_ADDRESSED"
+
