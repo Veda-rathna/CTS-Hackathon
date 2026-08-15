@@ -597,8 +597,10 @@ def _build_reason_narrative(
         )
         return f"{text} [POLICY_NOT_FOUND]"
     if "MISSING_REQUIRED_INFORMATION" in reason_codes and missing:
+        # Strip trailing periods from each item so we don't produce "Item.." double-period.
+        items = "; ".join(m.rstrip(".") for m in missing)
         text = (
-            f"The request is missing required information: {'; '.join(missing)}. "
+            f"The request is missing required information: {items}. "
             f"Additional information must be provided before a coverage determination can be made."
         )
         return f"{text} [MISSING_REQUIRED_INFORMATION]"

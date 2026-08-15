@@ -70,6 +70,6 @@ class SemanticEvaluator:
             policy_evidence=[criterion.source_text] if criterion.source_text else [criterion.criterion],
             explanation=explanation,
             authoritative=False,  # LLM is never authoritative over explicit logic
-            mandatory=True
+            mandatory=criterion.mandatory
         )
 

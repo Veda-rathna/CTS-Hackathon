@@ -100,6 +100,9 @@ _CHUNKS: list[MockPolicyChunk] = [
         policy_id="NCD-110.23",
         policy_version=1,
         section="Coverage with Evidence Development",
+        # optional=True: this is an alternative OR-branch (CED trial path for conditions
+        # NOT in the standard covered list). It must NOT block a standard-coverage request.
+        chunk_metadata={"optional": True},
         chunk_text=(
             "Allo-HSCT is covered for Medicare beneficiaries with the following "
             "indications ONLY when participating in approved prospective clinical studies "

@@ -17,6 +17,10 @@ class CriterionExtractor:
         """
         criteria = []
         text = chunk.chunk_text
+        # Determine if this chunk is an alternative/optional branch (e.g. CED trial path).
+        # Criteria extracted from optional chunks are non-mandatory: failing them does
+        # not block an otherwise valid coverage determination.
+        is_optional = bool(getattr(chunk, "chunk_metadata", None) and chunk.chunk_metadata.get("optional", False))
         
         # Very simple heuristic: extract bullet points or sentences that denote rules.
         # In a real-world scenario, you might use a lightweight NLP model or regex.
@@ -34,6 +38,7 @@ class CriterionExtractor:
                         "policy_type": chunk.policy_type,
                         "policy_id": chunk.policy_id,
                         "source_text": chunk.chunk_text,
+                        "mandatory": not is_optional,
                     })
         
         # Also look for explicit requirement phrases
@@ -55,6 +60,7 @@ class CriterionExtractor:
                         "policy_type": chunk.policy_type,
                         "policy_id": chunk.policy_id,
                         "source_text": chunk.chunk_text,
+                        "mandatory": not is_optional,
                     })
         
         # If no explicit bullets or phrases found, fallback to the chunk as a whole.
@@ -65,6 +71,7 @@ class CriterionExtractor:
                 "policy_type": chunk.policy_type,
                 "policy_id": chunk.policy_id,
                 "source_text": chunk.chunk_text,
+                "mandatory": not is_optional,
             })
             
         # Deduplicate by criterion text
