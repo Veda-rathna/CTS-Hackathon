@@ -62,6 +62,13 @@ class Settings(BaseSettings):
     llm_model: str = "qwen/qwen3-4b-2507"
     llm_temperature: float = 0.0
 
+    # ── CMS Coverage API ──────────────────────────────────────────────────
+    cms_coverage_api_enabled: bool = True
+    cms_coverage_api_base_url: str = "https://api.coverage.cms.gov"
+    cms_coverage_api_timeout: int = 10
+    cms_coverage_api_max_retries: int = 2
+    cms_coverage_api_key: str | None = None
+
 
     @property
     def database_url_normalized(self) -> str:

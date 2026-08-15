@@ -14,6 +14,7 @@ from app.models.jurisdiction import Jurisdiction
 from app.models.ncd import NCD, LCDNCDAssociation, NCDHCPCSCode
 from app.models.state import State
 from app.schemas.policy import PolicyMatch
+from typing import Any
 
 
 def _is_effective(effective_date: date | None, end_date: date | None, as_of: date | None) -> bool:
@@ -200,3 +201,28 @@ class PostgresPolicyRepository:
                 results.append(p)
 
         return results
+
+    def upsert_policy(self, normalized_data: dict[str, Any]) -> None:
+        """Upsert a normalized policy (LCD or Article) into the database transactionally."""
+        with self._session() as db:
+            try:
+                # 1. Merge the main policy entity
+                policy_obj = normalized_data["policy"]
+                db.merge(policy_obj)
+                
+                # 2. Merge related HCPCS codes
+                for h in normalized_data.get("hcpcs", []):
+                    db.merge(h)
+                    
+                # 3. Merge related ICD-10 covered codes
+                for icd in normalized_data.get("icd10_covered", []):
+                    db.merge(icd)
+                    
+                # 4. Merge related ICD-10 non-covered codes
+                for icd in normalized_data.get("icd10_noncovered", []):
+                    db.merge(icd)
+                    
+                db.commit()
+            except Exception as e:
+                db.rollback()
+                raise e
