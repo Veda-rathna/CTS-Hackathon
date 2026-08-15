@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     # ── Repository strategy ───────────────────────────────────────────────
     # When True the application runs entirely on in-memory mock data so that
     # the API and services can be exercised without a live PostgreSQL database.
-    use_mock_repositories: bool = False
+    use_mock_repositories: bool = True
 
     # ── API ───────────────────────────────────────────────────────────────
     api_v1_prefix: str = "/api/v1"
@@ -79,6 +79,14 @@ class Settings(BaseSettings):
     # agent_source_text_max_chars: Max chars of source_text passed to PolicyAgent.
     #   Prevents very large policy chunks from blowing out LLM context.
     agent_source_text_max_chars: int = 2000
+
+    # ── CMS Coverage API Configuration ─────────────────────────────────────
+    cms_coverage_api_base_url: str = "https://api.coverage.cms.gov"
+    cms_coverage_api_timeout: float = 10.0
+    cms_coverage_api_max_retries: int = 3
+    cms_coverage_api_enabled: bool = True
+    cms_coverage_api_key: str | None = None
+
 
 
 

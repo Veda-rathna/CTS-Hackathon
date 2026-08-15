@@ -76,18 +76,19 @@ class PolicyEvidenceResolver:
         # We no longer fabricate a search_by_hcpcs method.
         # If the local lookup fails, and we don't have an explicit document ID to fetch,
         # we return UNAVAILABLE to safely PEND the request.
-        logger.warning(f"HCPCS {procedure_code} missing locally. Returning UNAVAILABLE for safe PEND fallback.")
+        logger.warning(f"HCPCS {procedure_code} missing locally. Returning NOT_FOUND.")
         self._log_fallback_event(
             procedure_code, 
             local_result="NOT_FOUND", 
             cms_result="NOT_ATTEMPTED_NO_DOCUMENT_ID"
         )
         return {
-            "status": "UNAVAILABLE",
+            "status": "NOT_FOUND",
             "source": None,
-            "reason": "CMS_API_UNAVAILABLE",
+            "reason": "POLICY_NOT_FOUND",
             "policies": []
         }
+
 
     def _log_fallback_event(self, hcpcs: str, local_result: str, cms_result: str) -> None:
         """Log the fallback event."""
