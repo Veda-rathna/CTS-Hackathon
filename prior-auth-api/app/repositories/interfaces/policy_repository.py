@@ -6,7 +6,7 @@ triage engine can query all relevant policy types through a single interface.
 from __future__ import annotations
 
 from datetime import date
-from typing import Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable, Any
 
 from app.schemas.policy import PolicyMatch
 
@@ -37,4 +37,8 @@ class PolicyRepository(Protocol):
 
     def is_state_in_jurisdiction(self, state: str, policy: PolicyMatch) -> bool:
         """Check if a state falls within the policy's jurisdiction."""
+        ...
+
+    def upsert_policy(self, normalized_data: dict[str, Any]) -> None:
+        """Upsert normalized policy data (LCD, Article, etc.) into the repository."""
         ...
