@@ -17,8 +17,10 @@ class RuleEvaluator:
 
         text = criterion.criterion.lower()
         
-        # 1. Age Rules
-        if re.search(r'\b(age|years old)\b', text):
+        # 1. Age Rules — only trigger when a numeric comparator is present alongside
+        #    the keyword, so narrative prose ("...contextual information such as age..."
+        #    does not false-positive as an actionable age rule.
+        if re.search(r'\b(age|years old)\b', text) and re.search(r'\d+', text):
             if request.patient_age is None:
                 status = EvaluationStatus.UNKNOWN
                 patient_evidence.append("Patient age is unknown.")
@@ -135,5 +137,5 @@ class RuleEvaluator:
             policy_evidence=policy_evidence,
             explanation=explanation,
             authoritative=True,
-            mandatory=True
+            mandatory=criterion.mandatory
         )

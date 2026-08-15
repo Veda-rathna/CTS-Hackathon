@@ -135,7 +135,7 @@ DEMOS = [
 def build_service():
     settings = get_settings()
     settings.use_mock_repositories = True
-    settings.llm_enabled = False
+    settings.llm_enabled = True
 
     class _MockEmbed:
         def embed_text(self, text): return []

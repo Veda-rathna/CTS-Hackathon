@@ -34,6 +34,9 @@ class PolicyCriterion(BaseModel):
     policy_type: str
     policy_id: str
     source_text: str | None = None
+    mandatory: bool = True
+    """If False, a NOT_SATISFIED result does not hard-block the coverage decision.
+    Used for alternative OR-branch sections (e.g. CED trial path in NCD 110.23)."""
 
 
 class EvaluatedCriterion(BaseModel):
