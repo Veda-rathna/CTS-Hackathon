@@ -15,36 +15,56 @@ os.environ["USE_MOCK_REPOSITORIES"] = "true"
 os.environ["DATABASE_URL"] = "postgresql+psycopg://test:test@localhost:5432/test"
 
 
+import pytest
+from fastapi.testclient import TestClient
+
+from app.services.agents.agent_orchestrator import AgentOrchestrator
+from app.services.agents.schemas import AgentOrchestrationResult, CriticVerdict, SemanticResult
+
+_REAL_AGENT_ORCHESTRATOR_RUN = AgentOrchestrator.run
+
+
+@pytest.fixture(autouse=True)
+def mock_semantic_evaluator_for_engine(request):
+    """Mock semantic evaluator for structural unit tests to focus on SQL/rules."""
+    if "test_agentic_semantic" not in request.node.nodeid:
+        def mock_run(self, criterion, req):
+            return AgentOrchestrationResult(
+                criterion_id=criterion.criterion_id,
+                criterion=criterion.criterion,
+                policy_id=criterion.policy_id,
+                policy_type=criterion.policy_type,
+                qwen_result=SemanticResult.SATISFIED,
+                critic_verdict=CriticVerdict.VALIDATED,
+                final_result=SemanticResult.SATISFIED,
+                explanation="Mocked as SATISFIED for structural unit tests",
+                confidence=1.0,
+                latency_ms=0,
+            )
+
+        AgentOrchestrator.run = mock_run
+        try:
+            yield
+        finally:
+            AgentOrchestrator.run = _REAL_AGENT_ORCHESTRATOR_RUN
+    else:
+        AgentOrchestrator.run = _REAL_AGENT_ORCHESTRATOR_RUN
+        yield
+
+
+
+
+
 @pytest.fixture(scope="session")
 def client() -> TestClient:
     """Return a TestClient using the FastAPI app in mock mode."""
-    # Import here so env vars are already set
     from app.main import app
     from app.db.session import get_db
     
     # Override get_db to prevent database connection attempts
     app.dependency_overrides[get_db] = lambda: None
     
-    # Force the semantic evaluator to return SATISFIED for all tests
-    # so that the tests can focus on deterministic structural evaluation
-    # without failing due to missing clinical notes in test payloads.
-    from app.services.evaluation.semantic_evaluator import SemanticEvaluator
-    from app.schemas.evaluation import EvaluatedCriterion, EvaluationStatus, EvaluatorType
-    def mock_semantic_evaluate(self, criterion, request):
-        return EvaluatedCriterion(
-            criterion_id=criterion.criterion_id,
-            policy_type=criterion.policy_type,
-            policy_id=criterion.policy_id,
-            criterion=criterion.criterion,
-            criterion_type=criterion.type,
-            evaluator=EvaluatorType.AGENTIC_QWEN,
-            status=EvaluationStatus.SATISFIED,
-            patient_evidence=[],
-            policy_evidence=[],
-            explanation="Mocked as SATISFIED for unit tests",
-            authoritative=False,
-            mandatory=criterion.mandatory,
-        )
-    SemanticEvaluator.evaluate = mock_semantic_evaluate
-    
     return TestClient(app)
+
+
+

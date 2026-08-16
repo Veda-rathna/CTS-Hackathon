@@ -17,9 +17,8 @@ class TriageDecision(str, Enum):
     """
 
     APPROVE = "APPROVE"
-    PEND = "PEND"
-    REQUEST_MORE_INFORMATION = "REQUEST_MORE_INFORMATION"
-    POLICY_EXPIRED = "POLICY_EXPIRED"  # All matching policies have expired
+    DENY = "DENY"
+    NEED_MORE_INFORMATION = "NEED_MORE_INFORMATION"
 
 
 # ── Request ───────────────────────────────────────────────────────────────────
@@ -172,12 +171,6 @@ class TriageResponse(BaseModel):
     IMPORTANT: This response reflects policy-matching results only.
     It is NOT a clinical decision and does NOT constitute medical advice
     or a guarantee of insurance coverage or reimbursement.
-
-    ``decision`` and ``requires_prior_authorization`` are separate concepts:
-    - ``decision`` indicates whether the submitted codes match an active policy.
-    - ``requires_prior_authorization`` reflects whether the matched policy
-      explicitly indicates that prior authorization is required.  When the
-      available data is insufficient to determine this, the value is ``null``.
     """
 
     decision: TriageDecision
@@ -199,6 +192,10 @@ class TriageResponse(BaseModel):
     reason: str
     reason_codes: list[str] = []
     policies: list[MatchedPolicy] = []
+    policy: dict | None = None
+    policy_requirements: list[EvaluatedCriterion] = []
+    summary: dict[str, int] = {}
+    decision_explanation: str = ""
     policy_path: dict | None = None
     matched_codes: MatchedCodes | None = None
     diagnosis_evaluation: list[DiagnosisEvaluation] = []
@@ -222,6 +219,25 @@ class TriageResponse(BaseModel):
             "led to the final public decision."
         ),
     )
+
+    def model_post_init(self, __context: Any) -> None:
+        if not self.policy_requirements and self.criteria:
+            self.policy_requirements = self.criteria
+        if not self.policy and self.policies:
+            p0 = self.policies[0]
+            self.policy = {
+                "id": p0.policy_id,
+                "title": p0.title or f"{p0.policy_type} {p0.policy_id}",
+                "type": p0.policy_type,
+            }
+        if not self.summary and self.criteria:
+            sat = sum(1 for c in self.criteria if c.status == "SATISFIED")
+            not_sat = sum(1 for c in self.criteria if c.status == "NOT_SATISFIED")
+            unk = sum(1 for c in self.criteria if c.status == "UNKNOWN")
+            self.summary = {"satisfied": sat, "not_satisfied": not_sat, "unknown": unk}
+        if not self.decision_explanation:
+            self.decision_explanation = self.reason
+
 
     model_config = {
         "json_schema_extra": {

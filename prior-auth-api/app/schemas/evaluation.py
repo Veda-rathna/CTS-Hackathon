@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import Any
 from pydantic import BaseModel, Field
+
 
 
 class CriterionType(str, Enum):
@@ -46,18 +48,30 @@ class EvaluatedCriterion(BaseModel):
     policy_type: str
     policy_id: str
     criterion: str
+    requirement: str | None = None
     criterion_type: CriterionType
     evaluator: EvaluatorType
     status: EvaluationStatus
     patient_evidence: list[str] = []
     policy_evidence: list[str] = []
+    evidence: list[dict[str, Any]] = []
     explanation: str = ""
     """Human-readable explanation of WHY this criterion received its status.
-    Synthesized by the evaluator — never fabricated by a downstream consumer."""
+    Synthesized by the evaluator — clean, provider/nurse-friendly narrative."""
     mandatory: bool = True
     authoritative: bool = True
+
+    def model_post_init(self, __context: Any) -> None:
+        if not self.requirement:
+            self.requirement = self.criterion
+        if not self.evidence and self.patient_evidence:
+            self.evidence = [
+                {"source": "Patient Clinical Record", "date": "Service Date / Active Record", "text": str(pe)}
+                for pe in self.patient_evidence
+            ]
 
 
 class EvidenceMatrix(BaseModel):
     """Consolidated evidence from all evaluation paths."""
     criteria: list[EvaluatedCriterion] = []
+

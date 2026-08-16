@@ -118,15 +118,49 @@ _POLICIES: list[PolicyMatch] = [
         jurisdiction_match=False,
         effective=True,
     ),
-    # 6 — NCD N123 (160.7.1) TENS for Acute Pain
+    # 6 — NCD 160.7.1 TENS for Acute Pain (index 6)
     PolicyMatch(
         policy_type="NCD",
         policy_id="N123",
         title="Transcutaneous Electrical Nerve Stimulation (TENS) for Acute Pain",
-        article_id=None,
-        jurisdiction_id=None,
         effective_date=date(2012, 3, 1),
-        end_date=None,
+        procedure_match=False,
+        diagnosis_match=False,
+        jurisdiction_match=False,
+        effective=True,
+    ),
+    # 7 — LCD L39529 Intraarticular Knee Injections
+    PolicyMatch(
+        policy_type="LCD",
+        policy_id="L39529",
+        title="Intraarticular Knee Injections of Hyaluronan",
+        article_id="A56157",
+        jurisdiction_id="J5",
+        effective_date=date(2023, 1, 1),
+        procedure_match=False,
+        diagnosis_match=False,
+        jurisdiction_match=False,
+        effective=True,
+    ),
+    # 8 — LCD L39662 Trigger Point Injections
+    PolicyMatch(
+        policy_type="LCD",
+        policy_id="L39662",
+        title="Trigger Point Injections (TPI)",
+        article_id="A59487",
+        jurisdiction_id="J5",
+        effective_date=date(2023, 1, 1),
+        procedure_match=False,
+        diagnosis_match=False,
+        jurisdiction_match=False,
+        effective=True,
+    ),
+    # 9 — NCD 373 Trigger Point / Acupuncture Exclusion
+    PolicyMatch(
+        policy_type="NCD",
+        policy_id="373",
+        title="Acupuncture for Chronic Lower Back Pain (cLBP)",
+        effective_date=date(2020, 1, 21),
         procedure_match=False,
         diagnosis_match=False,
         jurisdiction_match=False,
@@ -152,6 +186,11 @@ _HCPCS_TO_POLICY_IDX: dict[str, list[int]] = {
     "64483": [0, 1],
     "64484": [0],
     "62321": [0],
+    # Knee Injections — LCD L39529
+    "20610": [7],
+    # Trigger Point Injections — LCD L39662 + NCD 373
+    "20552": [8, 9],
+    "20553": [8, 9],
     # TENS neurostimulator — NCD N123 (160.7.1) path (index 6)
     "64550": [6],
     # Stem Cell Transplantation — NCD path (index 4 = NCD-110.23)

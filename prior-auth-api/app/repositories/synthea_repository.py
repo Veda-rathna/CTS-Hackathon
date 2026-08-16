@@ -23,6 +23,8 @@ class SyntheaRepository:
         to provide comprehensive evidence for AI evaluation while preventing context overload.
         """
         logger.info("SyntheaRepository | Fetching history for patient_id=%s", patient_id)
+        if not self._session:
+            return f"[System: No prior Synthea medical history found for patient {patient_id}]"
 
         try:
             conditions = self._session.query(SyntheaCondition).filter_by(patient_id=patient_id).all()
@@ -72,7 +74,7 @@ class SyntheaRepository:
 
     def crosswalk_code(self, source_code: str, target_system: str = None) -> str:
         """Translate a SNOMED code to CPT/ICD-10 if a mapping exists."""
-        if not source_code:
+        if not source_code or not self._session:
             return source_code
         
         query = self._session.query(SyntheaCrosswalk).filter_by(source_code=source_code.strip())
@@ -85,3 +87,4 @@ class SyntheaRepository:
             return mapping.target_code
             
         return source_code
+

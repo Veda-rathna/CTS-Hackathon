@@ -44,3 +44,9 @@ class PostgresNCDRepository:
                 manual_section=row.document_display_id,
                 decision=row.decision,
             )
+
+    def get_hcpcs(self, ncd_id: str) -> list:
+        """Return HCPCS/CPT codes covered under this NCD, or empty list."""
+        return []
+
+

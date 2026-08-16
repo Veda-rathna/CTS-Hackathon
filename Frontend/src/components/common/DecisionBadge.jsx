@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, Clock, HelpCircle, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, XCircle, HelpCircle, Clock, AlertTriangle } from 'lucide-react';
 
 export default function DecisionBadge({ decision, size = 'md' }) {
   const norm = (decision || '').toUpperCase().trim();
@@ -15,11 +15,27 @@ export default function DecisionBadge({ decision, size = 'md' }) {
 
   if (norm === 'APPROVE' || norm === 'APPROVED') {
     config = {
-      label: 'Approved',
+      label: 'APPROVE',
       bg: 'bg-emerald-50',
       border: 'border-emerald-200',
       text: 'text-emerald-700',
       icon: CheckCircle2,
+    };
+  } else if (norm === 'DENY' || norm === 'DENIED') {
+    config = {
+      label: 'DENY',
+      bg: 'bg-rose-50',
+      border: 'border-rose-200',
+      text: 'text-rose-700',
+      icon: XCircle,
+    };
+  } else if (norm === 'NEED_MORE_INFORMATION' || norm === 'REQUEST_MORE_INFORMATION') {
+    config = {
+      label: 'NEED MORE INFORMATION',
+      bg: 'bg-sky-50',
+      border: 'border-sky-200',
+      text: 'text-sky-700',
+      icon: HelpCircle,
     };
   } else if (norm === 'PEND' || norm === 'PENDED') {
     config = {
@@ -29,20 +45,12 @@ export default function DecisionBadge({ decision, size = 'md' }) {
       text: 'text-amber-700',
       icon: Clock,
     };
-  } else if (norm === 'REQUEST_MORE_INFORMATION') {
-    config = {
-      label: 'Additional Information Required',
-      bg: 'bg-sky-50',
-      border: 'border-sky-200',
-      text: 'text-sky-700',
-      icon: HelpCircle,
-    };
   } else if (norm === 'POLICY_EXPIRED') {
     config = {
-      label: 'Policy Expired',
-      bg: 'bg-slate-100',
-      border: 'border-slate-300',
-      text: 'text-slate-600',
+      label: 'DENY (Policy Expired)',
+      bg: 'bg-rose-50',
+      border: 'border-rose-200',
+      text: 'text-rose-700',
       icon: AlertTriangle,
     };
   }
@@ -65,4 +73,5 @@ export default function DecisionBadge({ decision, size = 'md' }) {
     </span>
   );
 }
+
 

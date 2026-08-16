@@ -86,16 +86,16 @@ class SemanticEvaluator:
         }
         status = status_map.get(orchestration.final_result, EvaluationStatus.UNKNOWN)
 
-        # Build agent trace summary for the explanation (no raw prompts)
-        trace_summary = "\n".join(
-            f"  [{t.agent}] {t.status.value}: {t.output_summary}"
-            for t in orchestration.agent_trace
-        )
+        # Clean nurse/provider-facing explanation (no raw traces or internal tags)
+        full_explanation = orchestration.explanation.strip()
+        if not full_explanation:
+            if status == EvaluationStatus.SATISFIED:
+                full_explanation = "Clinical documentation satisfies the semantic policy requirements."
+            elif status == EvaluationStatus.NOT_SATISFIED:
+                full_explanation = "Clinical documentation does not meet the necessary criteria described in the policy."
+            else:
+                full_explanation = "Clinical documentation is insufficient or missing to confirm this requirement."
 
-        # Full explanation includes agent trace
-        full_explanation = orchestration.explanation
-        if trace_summary:
-            full_explanation += f"\n\nAgent Trace:\n{trace_summary}"
 
         # Policy evidence = source policy text + required evidence categories
         policy_evidence_items = []

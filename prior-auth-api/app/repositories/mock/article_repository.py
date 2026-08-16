@@ -44,6 +44,28 @@ _ARTICLES: dict[str, ArticleResponse] = {
         description="Demonstration expired article.",
         status="RETIRED",
     ),
+    "A56157": ArticleResponse(
+        id="A56157",
+        version="1",
+        display_id="A56157",
+        title="Billing and Coding: Intraarticular Knee Injections of Hyaluronan",
+        publication_number="100-3",
+        effective_date=date(2023, 1, 1),
+        end_date=None,
+        description="Coverage article for hyaluronan knee injections.",
+        status="ACTIVE",
+    ),
+    "A59487": ArticleResponse(
+        id="A59487",
+        version="1",
+        display_id="A59487",
+        title="Billing and Coding: Trigger Point Injections (TPI)",
+        publication_number="100-3",
+        effective_date=date(2023, 1, 1),
+        end_date=None,
+        description="Coverage article for trigger point injections.",
+        status="ACTIVE",
+    ),
 }
 
 _ICD10_COVERED: dict[str, list[CodeEntry]] = {
@@ -53,6 +75,18 @@ _ICD10_COVERED: dict[str, list[CodeEntry]] = {
         CodeEntry(code="M54.4", description="Lumbago with sciatica"),
         CodeEntry(code="M47.816", description="Spondylosis with radiculopathy, lumbar region"),
     ],
+    "A56157": [
+        CodeEntry(code="M17.0", description="Bilateral primary osteoarthritis of knee"),
+        CodeEntry(code="M17.11", description="Unilateral primary osteoarthritis, right knee"),
+        CodeEntry(code="M17.12", description="Unilateral primary osteoarthritis, left knee"),
+        CodeEntry(code="M17.2", description="Bilateral post-traumatic osteoarthritis of knee"),
+    ],
+    "A59487": [
+        CodeEntry(code="M79.10", description="Myalgia, unspecified site"),
+        CodeEntry(code="M79.11", description="Myalgia of mastication muscle"),
+        CodeEntry(code="M79.12", description="Myalgia of auxiliary muscles of head and neck"),
+        CodeEntry(code="M79.18", description="Myalgia, other site"),
+    ],
     "A99999": [],
 }
 
@@ -60,6 +94,12 @@ _ICD10_NONCOVERED: dict[str, list[CodeEntry]] = {
     "A12345": [
         CodeEntry(code="Z00.00", description="Encounter for general adult medical examination without abnormal findings"),
         CodeEntry(code="Z00.01", description="Encounter for general adult medical examination with abnormal findings"),
+    ],
+    "A56157": [],
+
+    "A59487": [
+        CodeEntry(code="M25.50", description="Pain in unspecified joint"),
+        CodeEntry(code="M25.511", description="Pain in right shoulder"),
     ],
     "A99999": [],
 }
@@ -79,8 +119,25 @@ _HCPCS: dict[str, list[CodeEntry]] = {
             description="Injection(s), of diagnostic or therapeutic substance(s) including anesthetic, antispasmodic, opioid, steroid, other solution; cervical or thoracic, interlaminar epidural or subarachnoid",
         ),
     ],
+    "A56157": [
+        CodeEntry(
+            code="20610",
+            description="Arthrocentesis, aspiration and/or injection, major joint or bursa",
+        ),
+    ],
+    "A59487": [
+        CodeEntry(
+            code="20552",
+            description="Injection(s), single or multiple trigger point(s), 1 or 2 muscle(s)",
+        ),
+        CodeEntry(
+            code="20553",
+            description="Injection(s), single or multiple trigger point(s), 3 or more muscle(s)",
+        ),
+    ],
     "A99999": [],
 }
+
 
 
 # ── Repository class ──────────────────────────────────────────────────────────

@@ -10,8 +10,9 @@ from app.services.cms_client import CMSCoverageClient
 from app.repositories.mock.policy_repository import MockPolicyRepository
 from app.schemas.policy import PolicyMatch
 
-def test_normalization():
+def run_normalization():
     print("Initializing CMS Coverage Client...")
+
     client = CMSCoverageClient()
     
     # Let's test with a valid Document ID: e.g., L39054
@@ -100,4 +101,5 @@ def test_normalization():
         print(f"Error during CMS API lookup: {e}")
 
 if __name__ == "__main__":
-    test_normalization()
+    run_normalization()
+

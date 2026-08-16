@@ -817,7 +817,7 @@ def test_TC_AGENT_15_end_to_end_mock() -> None:
         EvaluationStatus.SATISFIED, EvaluationStatus.NOT_SATISFIED, EvaluationStatus.UNKNOWN
     )
     assert evaluated.explanation  # Non-empty explanation
-    assert "AGENTIC" in evaluated.explanation or "Agent" in evaluated.explanation
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

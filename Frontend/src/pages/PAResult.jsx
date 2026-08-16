@@ -123,81 +123,116 @@ export default function PAResult() {
       </div>
 
       {/* 1. Primary Authorization Decision Card */}
-      <div className="bg-white/80 backdrop-blur-xl border-2 border-slate-200/80 shadow-lg rounded-3xl p-6 sm:p-8 space-y-6">
+      <div className="bg-white/90 backdrop-blur-xl border-2 border-slate-200/80 shadow-lg rounded-3xl p-6 sm:p-8 space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div className="space-y-1">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-              Coverage Decision
+              Prior Authorization Decision
             </span>
             <div className="flex items-center gap-3 pt-1">
               <DecisionBadge decision={decision} size="xl" />
             </div>
           </div>
 
-          {/* Evidence Score Indicator */}
-          {evidenceScore != null && (
-            <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200/80 shadow-sm">
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  AI Confidence Score
-                </span>
-                <span className="text-2xl font-extrabold text-slate-900">
-                  {Math.round(evidenceScore * 100)}%
-                </span>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-100 to-sky-50 flex items-center justify-center text-sky-600 font-bold border border-sky-200 shadow-inner">
-                <Sparkles className="w-6 h-6" />
-              </div>
+          {/* Criteria Evaluation Summary Badges */}
+          <div className="flex items-center gap-2.5">
+            <div className="px-3.5 py-2 rounded-2xl bg-emerald-50 border border-emerald-200 text-center">
+              <span className="block text-xs font-bold text-emerald-800">
+                {record.summary?.satisfied ?? (record.criteria?.filter(c => c.status === 'SATISFIED').length || 0)}
+              </span>
+              <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider">Satisfied</span>
             </div>
-          )}
+            <div className="px-3.5 py-2 rounded-2xl bg-rose-50 border border-rose-200 text-center">
+              <span className="block text-xs font-bold text-rose-800">
+                {record.summary?.not_satisfied ?? (record.criteria?.filter(c => c.status === 'NOT_SATISFIED').length || 0)}
+              </span>
+              <span className="text-[10px] font-semibold text-rose-600 uppercase tracking-wider">Not Satisfied</span>
+            </div>
+            <div className="px-3.5 py-2 rounded-2xl bg-amber-50 border border-amber-200 text-center">
+              <span className="block text-xs font-bold text-amber-800">
+                {record.summary?.unknown ?? (record.criteria?.filter(c => c.status === 'UNKNOWN').length || 0)}
+              </span>
+              <span className="text-[10px] font-semibold text-amber-600 uppercase tracking-wider">Unknown</span>
+            </div>
+          </div>
         </div>
 
-        {/* Missing Information Required */}
-        {record.missing_information && record.missing_information.length > 0 && (
-          <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200 shadow-sm space-y-2 animate-in fade-in">
+        {/* Actionable Callouts */}
+        {decision === 'APPROVE' && (
+          <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <span className="text-xs font-semibold text-emerald-900">
+              All mandatory policy criteria and documentation requirements have been satisfied.
+            </span>
+          </div>
+        )}
+
+        {decision === 'DENY' && (
+          <div className="p-4 rounded-2xl bg-rose-50/80 border border-rose-200 space-y-2">
+            <div className="flex items-center gap-2 text-rose-800 font-bold text-xs uppercase tracking-wider">
+              <AlertTriangle className="w-4 h-4 text-rose-600" />
+              <span>Failed Mandatory Requirements:</span>
+            </div>
+            <ul className="list-disc list-inside space-y-1 text-xs text-rose-900 font-medium ml-1">
+              {(record.criteria || [])
+                .filter(c => c.status === 'NOT_SATISFIED' && c.mandatory)
+                .map((c, i) => (
+                  <li key={i}>{c.requirement || c.criterion}</li>
+                ))}
+              {(!record.criteria || !record.criteria.some(c => c.status === 'NOT_SATISFIED')) && (
+                <li>{record.reason}</li>
+              )}
+            </ul>
+          </div>
+        )}
+
+        {(decision === 'NEED_MORE_INFORMATION' || (record.missing_information && record.missing_information.length > 0)) && (
+          <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 space-y-2">
             <div className="flex items-center gap-2 text-amber-800 font-bold text-xs uppercase tracking-wider">
               <AlertTriangle className="w-4 h-4 text-amber-600" />
-              <span>Missing Information Required:</span>
+              <span>Additional Documentation / Information Required:</span>
             </div>
             <ul className="list-disc list-inside space-y-1 text-xs text-amber-900 font-medium ml-1">
-              {record.missing_information.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
+              {record.missing_information && record.missing_information.length > 0 ? (
+                record.missing_information.map((item, i) => <li key={i}>{item}</li>)
+              ) : (
+                (record.criteria || [])
+                  .filter(c => c.status === 'UNKNOWN' && c.mandatory)
+                  .map((c, i) => <li key={i}>{c.requirement || c.criterion}</li>)
+              )}
             </ul>
           </div>
         )}
 
         {/* Reason / Narrative */}
-        <div className="space-y-4">
-          <div>
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-              Clinical Explanation Narrative
-            </h4>
-            <p className="text-sm font-medium text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-200/60 shadow-inner">
-              {narrativeText}
-            </p>
-          </div>
-          
-          {/* Key Justification Bullet Points */}
-          {record.evidence && record.evidence.length > 0 && (
-            <div>
-              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 mt-2">
-                Key Adjudication Factors
-              </h4>
-              <ul className="space-y-2">
-                {record.evidence.slice(0, 3).map((ev, idx) => (
-                  <li key={idx} className="flex items-start gap-3 text-sm text-slate-700 bg-sky-50/60 p-3.5 rounded-xl border border-sky-100">
-                    <CheckCircle2 className="w-4 h-4 text-sky-600 mt-0.5 flex-shrink-0" />
-                    <span className="font-medium">{ev.explanation}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+        <div className="space-y-2">
+          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            Clinical Explanation Narrative
+          </h4>
+          <p className="text-sm font-medium text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-200/60 shadow-inner">
+            {narrativeText}
+          </p>
         </div>
       </div>
 
-      {/* 2. Triage Request Summary Grid */}
+      {/* 2. Policy Requirements & Clinical Evidence */}
+      <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 shadow-sm rounded-3xl p-6 sm:p-8 space-y-5">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <FileCheck2 className="w-5 h-5 text-indigo-600" />
+            <h3 className="text-sm font-bold text-slate-800 tracking-tight">
+              Policy Requirements & Clinical Evidence Evaluation
+            </h3>
+          </div>
+          <span className="text-xs font-semibold text-slate-500">
+            {(record.criteria || record.policy_requirements || []).length} Criteria Evaluated
+          </span>
+        </div>
+
+        <CriteriaList criteria={record.criteria || record.policy_requirements} />
+      </div>
+
+      {/* 3. Submitted Request Summary Grid */}
       <div className="bg-white/80 backdrop-blur-xl border border-slate-200/80 shadow-sm rounded-3xl p-6 sm:p-8 space-y-5">
         <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
           <FileText className="w-5 h-5 text-indigo-600" />
@@ -259,7 +294,7 @@ export default function PAResult() {
         )}
       </div>
 
-      {/* 3. Advanced Technical AI Adjudication Details (Collapsible) */}
+      {/* 4. Advanced Technical AI Adjudication Details (Collapsible) */}
       <div className="mt-8 relative">
         <div className="absolute inset-0 bg-gradient-to-r from-sky-400 to-indigo-500 blur-xl opacity-15 rounded-3xl"></div>
         <div className="relative bg-white/90 backdrop-blur-xl border-2 border-indigo-100/80 shadow-xl shadow-indigo-900/5 rounded-3xl overflow-hidden transition-all duration-300">
@@ -273,10 +308,10 @@ export default function PAResult() {
               </div>
               <div className="text-left">
                 <h3 className="text-base sm:text-lg font-extrabold text-slate-800 group-hover:text-indigo-700 transition-colors">
-                  View Detailed AI Adjudication Logs
+                  View Detailed Technical Logs & Audit Trail
                 </h3>
                 <p className="text-[11px] sm:text-xs text-slate-500 mt-1 max-w-xl">
-                  Expand to see the full Evidence Fusion breakdown, RAG references, Semantic Rule criteria, and CMS Policy Hierarchies.
+                  Expand to see the full Evidence Fusion matrix, RAG references, and CMS Policy Hierarchy paths.
                 </p>
               </div>
             </div>
@@ -320,23 +355,11 @@ export default function PAResult() {
 
             {/* RAG Policy Passage References */}
             <RagEvidenceSection ragEvidence={record.rag_evidence} />
-
-            {/* Full Policy Criteria List */}
-            <div className="healthcare-card p-6 space-y-4 shadow-sm border border-slate-200/80">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-emerald-600" />
-                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                    All Evaluated Policy Criteria Rules ({record.criteria?.length || 0})
-                  </h3>
-                </div>
-              </div>
-              <CriteriaList criteria={record.criteria} />
-            </div>
           </div>
         )}
       </div>
       </div>
+
     </div>
   );
 }

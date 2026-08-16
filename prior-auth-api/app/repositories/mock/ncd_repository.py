@@ -58,21 +58,36 @@ _NCDS: dict[str, NCDResponse] = {
     # Demo: explicitly covered procedure NCD
     "N111": NCDResponse(
         id="N111",
-        title="NCD for Covered Demo Procedure",
+        title="Covered Demo NCD",
         effective_date=date(2010, 1, 1),
         end_date=None,
-        description="Demo NCD that explicitly covers a procedure.",
-        manual_section="100.1",
+        description="Explicitly covered demo procedure under NCD.",
         decision="COVERED",
     ),
     # Demo: explicitly excluded procedure NCD
     "N222": NCDResponse(
         id="N222",
-        title="NCD for Excluded Demo Procedure",
+        title="Excluded Demo NCD",
         effective_date=date(2010, 1, 1),
         end_date=None,
-        description="Demo NCD that explicitly excludes a procedure.",
-        manual_section="100.2",
+        description="Explicitly excluded demo procedure under NCD.",
+        decision="EXCLUDED",
+    ),
+    # NCD 373 — Acupuncture / Trigger Point Exclusion
+    "373": NCDResponse(
+        id="373",
+        title="Acupuncture for Chronic Lower Back Pain (cLBP)",
+        effective_date=date(2020, 1, 21),
+        end_date=None,
+        description="Acupuncture is explicitly non-covered for non-indicated procedures.",
+        decision="EXCLUDED",
+    ),
+    "NCD-373": NCDResponse(
+        id="NCD-373",
+        title="Acupuncture for Chronic Lower Back Pain (cLBP)",
+        effective_date=date(2020, 1, 21),
+        end_date=None,
+        description="Acupuncture is explicitly non-covered for non-indicated procedures.",
         decision="EXCLUDED",
     ),
 }
@@ -87,9 +102,9 @@ _NCD_HCPCS: dict[str, list[CodeEntry]] = {
         CodeEntry(code="64550", description="Application of surface (transcutaneous) neurostimulator"),
     ],
     "NCD-110.23": [
-        CodeEntry(code="38240", description="Hematopoietic progenitor cell (HPC); allogeneic transplantation"),
-        CodeEntry(code="38241", description="Hematopoietic progenitor cell; autologous transplantation"),
-        CodeEntry(code="38242", description="Allogeneic lymphocyte infusions"),
+        CodeEntry(code="38240", description="Allogeneic hematopoietic stem cell transplantation"),
+        CodeEntry(code="38241", description="Autologous hematopoietic stem cell transplantation"),
+        CodeEntry(code="38242", description="Allogeneic donor lymphocyte infusions"),
     ],
     "NCD-190.25": [
         CodeEntry(code="82105", description="Alpha-fetoprotein (AFP); serum"),
@@ -100,6 +115,14 @@ _NCD_HCPCS: dict[str, list[CodeEntry]] = {
     ],
     "N222": [
         CodeEntry(code="22222", description="Demo excluded procedure"),
+    ],
+    "373": [
+        CodeEntry(code="20552", description="Injection(s), single or multiple trigger point(s), 1 or 2 muscle(s)"),
+        CodeEntry(code="20553", description="Injection(s), single or multiple trigger point(s), 3 or more muscle(s)"),
+    ],
+    "NCD-373": [
+        CodeEntry(code="20552", description="Injection(s), single or multiple trigger point(s), 1 or 2 muscle(s)"),
+        CodeEntry(code="20553", description="Injection(s), single or multiple trigger point(s), 3 or more muscle(s)"),
     ],
 }
 

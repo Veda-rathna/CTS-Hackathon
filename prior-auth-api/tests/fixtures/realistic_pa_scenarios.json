@@ -1,0 +1,209 @@
+{
+  "description": "Realistic PA Request Scenarios discovered from existing Neon PostgreSQL database for demo and validation.",
+  "generated_date": "2026-08-16",
+  "scenarios": [
+    {
+      "scenario_category": "A",
+      "scenario_name": "APPROVE - Covered Knee Osteoarthritis Hyaluronan Injection",
+      "pa_request": {
+        "pa_request_id": "PA-REAL-001",
+        "patient": {
+          "patient_id": "fc2d1fb9-862d-a60c-581a-519f5470d866",
+          "age": 51,
+          "gender": "F",
+          "state": "Texas"
+        },
+        "coverage": {
+          "payer": "Medicare"
+        },
+        "service": {
+          "service_description": "Intraarticular knee injection of hyaluronan",
+          "procedure_code": "20610",
+          "start_date": "2026-08-20"
+        },
+        "diagnoses": [
+          {
+            "description": "Unilateral primary osteoarthritis, right knee",
+            "icd10_code": "M17.11"
+          }
+        ],
+        "clinical_notes": "Patient is a 51-year-old female presenting with chronic, progressive right knee pain documented since December 2023 due to primary osteoarthritis (M17.11). Patient has failed a 12-week course of conservative management including supervised physical therapy, daily oral meloxicam, and home quad-strengthening exercises. Weight-bearing radiograph confirms Kellgren-Lawrence Grade 2 osteoarthritis with medial joint space narrowing. Requesting intraarticular hyaluronan injection (20610) for symptom relief and joint preservation."
+      },
+      "policy_context": {
+        "policy_id": "39529",
+        "article_id": "56157",
+        "policy_type": "LCD",
+        "title": "Intraarticular Knee Injections of Hyaluronan"
+      }
+    },
+    {
+      "scenario_category": "A",
+      "scenario_name": "APPROVE - Covered Lumbar Radiculopathy Epidural Steroid Injection",
+      "pa_request": {
+        "pa_request_id": "PA-REAL-002",
+        "patient": {
+          "patient_id": "a1733070-046a-4506-bba6-47f32652e9d7",
+          "age": 47,
+          "gender": "M",
+          "state": "Texas"
+        },
+        "coverage": {
+          "payer": "Medicare"
+        },
+        "service": {
+          "service_description": "Epidural injection, lumbar or sacral",
+          "procedure_code": "64483",
+          "start_date": "2026-08-20"
+        },
+        "diagnoses": [
+          {
+            "description": "Radiculopathy, lumbar region",
+            "icd10_code": "M54.16"
+          }
+        ],
+        "clinical_notes": "Patient is a 47-year-old male with a documented history of chronic low back pain since 2014 presenting with acute-on-chronic right L5-S1 lumbar radiculopathy (M54.16) radiating below the knee with positive straight leg raise. Symptoms have persisted over 6 months despite completion of an 8-week physical therapy regimen, oral gabapentin, and NSAID therapy. Lumbar MRI demonstrates L5-S1 right paracentral disc herniation with nerve root compression. Transforaminal epidural steroid injection (64483) requested for targeted pain relief and functional improvement."
+      },
+      "policy_context": {
+        "policy_id": "36920",
+        "article_id": "56681",
+        "policy_type": "LCD",
+        "title": "Epidural Steroid Injections for Pain Management"
+      }
+    },
+    {
+      "scenario_category": "B",
+      "scenario_name": "DENY - Mandatory Requirement Failed (Non-Covered Joint Pain for Trigger Point Injection)",
+      "pa_request": {
+        "pa_request_id": "PA-REAL-003",
+        "patient": {
+          "patient_id": "ba234ff2-cefe-dfee-935a-8ea2378da8c2",
+          "age": 61,
+          "gender": "M",
+          "state": "Texas"
+        },
+        "coverage": {
+          "payer": "Medicare"
+        },
+        "service": {
+          "service_description": "Injection(s), single or multiple trigger point(s), 1 or 2 muscle(s)",
+          "procedure_code": "20552",
+          "start_date": "2026-08-20"
+        },
+        "diagnoses": [
+          {
+            "description": "Pain in unspecified joint",
+            "icd10_code": "M25.50"
+          }
+        ],
+        "clinical_notes": "Patient is a 61-year-old male presenting with acute, non-localized joint pain (M25.50) without documented myofascial trigger points or taut bands. Symptoms began 5 days ago. Patient has not undergone conservative physical therapy or trial of pharmacologic analgesics. Requesting trigger point injection (20552) for acute joint pain relief."
+      },
+      "policy_context": {
+        "policy_id": "373",
+        "article_id": "59487",
+        "policy_type": "NCD",
+        "title": "Trigger Point Injections / Acupuncture Exclusion"
+      }
+    },
+    {
+      "scenario_category": "C",
+      "scenario_name": "NEED_MORE_INFORMATION - Missing Required Clinical Documentation (Unlisted Headache for Epidural)",
+      "pa_request": {
+        "pa_request_id": "PA-REAL-004",
+        "patient": {
+          "patient_id": "d20a36fc-23ba-8462-bf39-864000fbf25f",
+          "age": 67,
+          "gender": "M",
+          "state": "Texas"
+        },
+        "coverage": {
+          "payer": "Medicare"
+        },
+        "service": {
+          "service_description": "Epidural injection, lumbar or sacral",
+          "procedure_code": "64483",
+          "start_date": "2026-08-20"
+        },
+        "diagnoses": [
+          {
+            "description": "Headache, unspecified",
+            "icd10_code": "R51.9"
+          }
+        ],
+        "clinical_notes": "Patient is a 67-year-old male presenting with diffuse headache symptoms (R51.9). Provider requested lumbar transforaminal epidural injection (64483). The submitted medical record contains no spinal physical examination, no documentation of lumbar radicular symptoms or conservative spinal therapy, and no spine imaging reports."
+      },
+      "policy_context": {
+        "policy_id": "36920",
+        "article_id": "56681",
+        "policy_type": "LCD",
+        "title": "Epidural Steroid Injections for Pain Management"
+      }
+    },
+    {
+      "scenario_category": "D",
+      "scenario_name": "DENY - Explicit Policy Exclusion under NCD 373",
+      "pa_request": {
+        "pa_request_id": "PA-REAL-005",
+        "patient": {
+          "patient_id": "80c747ab-dc05-2bca-dafa-e2aa58619442",
+          "age": 57,
+          "gender": "M",
+          "state": "Texas"
+        },
+        "coverage": {
+          "payer": "Medicare"
+        },
+        "service": {
+          "service_description": "Trigger point injection for acupuncture-related indications",
+          "procedure_code": "20552",
+          "start_date": "2026-08-20"
+        },
+        "diagnoses": [
+          {
+            "description": "Pain in unspecified joint",
+            "icd10_code": "M25.50"
+          }
+        ],
+        "clinical_notes": "Patient is a 57-year-old male with chronic non-specific low back pain since 2014 requesting trigger point injections for generalized joint discomfort (M25.50). The requested service falls under acupuncture-related dry needling/trigger point exclusions under NCD 373 for non-indicated axial spine symptoms."
+      },
+      "policy_context": {
+        "policy_id": "373",
+        "policy_type": "NCD",
+        "title": "Acupuncture for Chronic Lower Back Pain (cLBP)"
+      }
+    },
+    {
+      "scenario_category": "E",
+      "scenario_name": "NEED_MORE_INFORMATION - Unknown/Incomplete Diagnosis (Administrative Exam Code for Knee Injection)",
+      "pa_request": {
+        "pa_request_id": "PA-REAL-006",
+        "patient": {
+          "patient_id": "8a2af5b4-6f29-27d4-b5fd-bb687fa2169b",
+          "age": 44,
+          "gender": "F",
+          "state": "Texas"
+        },
+        "coverage": {
+          "payer": "Medicare"
+        },
+        "service": {
+          "service_description": "Intraarticular knee injection of hyaluronan",
+          "procedure_code": "20610",
+          "start_date": "2026-08-20"
+        },
+        "diagnoses": [
+          {
+            "description": "General medical examination",
+            "icd10_code": "Z00.00"
+          }
+        ],
+        "clinical_notes": "Patient is a 44-year-old female presenting for an annual general adult medical examination (Z00.00). Prior authorization requested for major joint injection (20610). While the patient has a historical diagnosis of knee osteoarthritis from 2014, the current submission only lists an administrative encounter code without documented current joint pain severity scores, physical exam findings, or recent conservative therapy trial."
+      },
+      "policy_context": {
+        "policy_id": "39529",
+        "article_id": "56157",
+        "policy_type": "LCD",
+        "title": "Intraarticular Knee Injections of Hyaluronan"
+      }
+    }
+  ]
+}
