@@ -31,13 +31,13 @@ class Settings(BaseSettings):
 
     # ── Database ─────────────────────────────────────────────────────────
     database_url: str = (
-        "postgresql+psycopg://postgres:postgres@localhost:5432/prior_auth"
+        "******localhost:5432/prior_auth"
     )
 
     # ── Repository strategy ───────────────────────────────────────────────
     # When True the application runs entirely on in-memory mock data so that
     # the API and services can be exercised without a live PostgreSQL database.
-    use_mock_repositories: bool = False
+    use_mock_repositories: bool = True
 
     # ── API ───────────────────────────────────────────────────────────────
     api_v1_prefix: str = "/api/v1"

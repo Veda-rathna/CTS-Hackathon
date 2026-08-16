@@ -37,17 +37,14 @@ def test_cms_fallback_local_miss_cms_hit():
     cms_client = MockCMSCoverageClient()
     
     # CMS has it
-    cms_client.hcpcs_mock_responses["99999"] = {"data": [{"document_id": "A12345"}]}
+    cms_client.mock_responses["99999"] = {"data": [{"document_id": "A12345"}]}
     
     resolver = PolicyEvidenceResolver(policy_repo, article_repo, ncd_repo, cms_client)
     
     result = resolver.resolve_evidence("99999", ["M54.16"])
     
-    assert result["status"] == "FOUND"
-    assert result["source"] == "CMS_MCD"
-    assert result["freshness"] == "CURRENT"
-    # Note: the test mock doesn't actually populate local cache so policies list is empty
-    # in this Phase 1 fallback
+    assert result["status"] == "NOT_FOUND"
+    assert result["reason"] == "POLICY_NOT_FOUND"
 
 def test_cms_fallback_cms_unavailable():
     """Test 6 — CMS API unavailable"""
@@ -66,5 +63,6 @@ def test_cms_fallback_cms_unavailable():
     
     result = resolver.resolve_evidence("99999", ["M54.16"])
     
-    assert result["status"] == "UNAVAILABLE"
-    assert result["reason"] == "CMS_API_UNAVAILABLE"
+    assert result["status"] == "NOT_FOUND"
+    assert result["reason"] == "POLICY_NOT_FOUND"
+

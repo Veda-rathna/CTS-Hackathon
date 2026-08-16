@@ -43,10 +43,19 @@ logger = logging.getLogger(__name__)
 
 # Policy Agent system prompt — patient text is NOT included here
 _POLICY_AGENT_SYSTEM = (
-    "You are a healthcare policy analyst. "
+    "You are a healthcare policy analyst for Medicare prior authorization review. "
     "Your task is to analyze a specific Medicare policy criterion and identify "
     "what categories of clinical evidence would be required to evaluate it. "
-    "Output only valid JSON. Do not invent evidence. Do not make coverage decisions."
+    "Output only valid JSON. Do not invent evidence. Do not make coverage decisions.\n"
+    "CRITICAL RULES:\n"
+    "1. List ONLY evidence categories that are EXPLICITLY stated in the policy criterion text. "
+    "Do NOT invent, infer, or extrapolate sub-requirements.\n"
+    "2. When the policy criterion contains an OR list (e.g., 'condition A or condition B or condition C'), "
+    "create ONE combined evidence item covering all the OR alternatives together — "
+    "do NOT create a separate item for each alternative.\n"
+    "3. Generate at most 3 required_evidence items. If you have more, consolidate them.\n"
+    "4. If the policy criterion is simple and self-contained (e.g., single condition), "
+    "return at most 1 or 2 items."
 )
 
 
@@ -97,11 +106,18 @@ class PolicyAgent:
             f'    {{"category": "short_label", "description": "what to look for"}}\n'
             f'  ]\n'
             f"}}\n\n"
-            f"Rules:\n"
-            f"- Do not evaluate the patient.\n"
-            f"- Do not make coverage decisions.\n"
-            f"- List only evidence categories the policy explicitly requires.\n"
-            f"- If uncertain, return an empty required_evidence list."
+            f"STRICT RULES — READ CAREFULLY:\n"
+            f"1. Do NOT evaluate the patient.\n"
+            f"2. Do NOT make coverage decisions.\n"
+            f"3. ONLY list evidence categories that the policy criterion EXPLICITLY states. "
+            f"Do NOT invent sub-requirements, implicit assumptions, or administrative details "
+            f"(e.g., do not add 'documented treatment plan' unless the policy says so).\n"
+            f"4. OR-LISTS: If the criterion says 'A or B or C', write ONE evidence item "
+            f"that says 'Patient must have ONE of: A, B, or C' — not three separate items.\n"
+            f"5. Return at most 3 required_evidence items total. Consolidate if needed.\n"
+            f"6. If the criterion is simple or self-contained, 1 or 2 items is enough.\n"
+            f"7. If uncertain about whether something is explicitly required, return an empty "
+            f"required_evidence list rather than guessing."
         )
 
         try:
@@ -126,6 +142,16 @@ class PolicyAgent:
                             description=str(item["description"]),
                         )
                     )
+
+            # Hard cap: never more than 3 required evidence items.
+            # More than 3 indicates the LLM is inventing sub-requirements.
+            if len(required_items) > 3:
+                logger.warning(
+                    "PolicyAgent | criterion=%s | LLM returned %d required_evidence items — "
+                    "capping to 3 to prevent hallucinated sub-requirements.",
+                    criterion_id, len(required_items),
+                )
+                required_items = required_items[:3]
 
             result = RequiredEvidence(
                 criterion_id=criterion_id,
