@@ -12,29 +12,26 @@ import sys
 import httpx
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-os.environ["USE_MOCK_REPOSITORIES"] = "true"
-os.environ["DATABASE_URL"] = "postgresql+psycopg://test:test@localhost:5432/test"
 
 # ── LLM Auto-Detection ──────────────────────────────────────────────────────────
-# Try to reach LM Studio at the default address. If it's running and has a model
-# loaded, enable the LLM so semantic criteria (QWEN) return SATISFIED/NOT_SATISFIED
-# instead of UNKNOWN. If not reachable, fall back gracefully.
-_LLM_AVAILABLE = False
-try:
-    _probe = httpx.get("http://127.0.0.1:1234/v1/models", timeout=2.0)
-    if _probe.status_code == 200:
-        _models = _probe.json().get("data", [])
-        if _models:
+from app.core.config import get_settings
+_settings = get_settings()
+_LLM_AVAILABLE = _settings.llm_enabled and bool(_settings.llm_api_key)
+
+if not _LLM_AVAILABLE:
+    try:
+        _probe = httpx.get(f"{_settings.llm_base_url}/models", timeout=2.0)
+        if _probe.status_code == 200 and _probe.json().get("data"):
             _LLM_AVAILABLE = True
-except Exception:
-    pass
+    except Exception:
+        pass
 
 if _LLM_AVAILABLE:
     os.environ["LLM_ENABLED"] = "true"
-    _llm_mode = "LIVE — Qwen via LM Studio"
+    _llm_mode = f"LIVE — {_settings.llm_model} via {_settings.llm_provider.upper()}"
 else:
     os.environ["LLM_ENABLED"] = "false"
-    _llm_mode = "OFFLINE — LM Studio not detected (start it to enable semantic evaluation)"
+    _llm_mode = "OFFLINE — LLM provider not detected"
 
 import logging
 logging.getLogger("app").setLevel(logging.ERROR)
@@ -68,52 +65,44 @@ DEMOS = [
         "clinical_notes": "Patient presents with lumbar radiculopathy confirmed on MRI. Conservative therapy was tried for 8 weeks without relief.",
     },
     {
-        "name": "PEND — Explicitly non-covered diagnosis [LCD Path]",
-        "procedure_code": "64483",
-        "diagnosis_codes": ["Z00.00"],
+        "name": "PEND — Explicitly non-covered diagnosis [LCD 39662 Path]",
+        "procedure_code": "20552",
+        "diagnosis_codes": ["M25.50"],
         "state": "TX",
         "patient_age": 40,
-        "clinical_notes": "Routine general examination. No structural pathology identified.",
+        "clinical_notes": "Routine consultation for general unspecified joint pain without muscle trigger points.",
     },
     {
-        "name": "APPROVE — Stem Cell Transplant covered by NCD 110.23 [NCD RAG Path]",
-        "procedure_code": "38240",
-        "diagnosis_codes": ["C91.10"],
+        "name": "APPROVE — Hepatitis C Screening covered by NCD 361 [NCD RAG Path]",
+        "procedure_code": "87556",
+        "diagnosis_codes": ["Z11.59"],
         "state": "TX",
         "patient_age": 52,
         "clinical_notes": (
-            "Patient diagnosed with chronic lymphocytic leukemia (CLL), relapsed after "
-            "first-line therapy. Allogeneic hematopoietic stem cell transplantation "
-            "recommended as curative intent option. Patient has good performance status "
-            "and adequate cardiopulmonary function documented."
+            "Screening for Hepatitis C Virus (HCV) in asymptomatic high-risk adult patient. "
+            "Patient was born between 1945 and 1965 with history of blood transfusion."
         ),
     },
     {
-        "name": "APPROVE — AFP lab test covered by NCD 190.25 [NCD RAG Path]",
-        "procedure_code": "82105",
-        "diagnosis_codes": ["C22.0"],
-        "state": "CA",
-        "patient_age": 67,
-        "clinical_notes": (
-            "Hepatocellular carcinoma in high-risk patient with alcoholic cirrhosis. "
-            "AFP serum test ordered to monitor response to treatment."
-        ),
-    },
-    {
-        # NCD N123 (160.7.1) — TENS for Acute Post-Operative Pain
-        # Data source: CMS NCD 160.7.1 — TENS is covered for acute pain as a
-        # transcutaneous surface neurostimulator when conservative therapy fails.
-        # HCPCS 64550 is the applicable code.
-        "name": "APPROVE — TENS covered by NCD 160.7.1 [NCD RAG + NCD Decision Path]",
-        "procedure_code": "64550",
-        "diagnosis_codes": ["G89.29"],  # Chronic pain, not elsewhere classified
+        "name": "APPROVE — Breast Reconstruction covered by NCD 64 [NCD RAG Path]",
+        "procedure_code": "11952",
+        "diagnosis_codes": ["C50.919"],
         "state": "TX",
         "patient_age": 48,
         "clinical_notes": (
-            "Patient presents with chronic pain syndrome following lumbar surgery. "
-            "Conservative pharmacological therapy has been tried for over 6 weeks without "
-            "satisfactory relief. TENS (transcutaneous electrical nerve stimulation) "
-            "requested as adjunct pain management."
+            "Patient with breast cancer undergoing breast reconstruction following radical mastectomy. "
+            "Surgical pathology confirmed invasive ductal carcinoma."
+        ),
+    },
+    {
+        "name": "APPROVE — Food Allergy Testing covered by NCD 187 [NCD RAG Path]",
+        "procedure_code": "95052",
+        "diagnosis_codes": ["T78.1XXA"],
+        "state": "TX",
+        "patient_age": 35,
+        "clinical_notes": (
+            "Patient presenting with recurrent severe systemic adverse food reactions. "
+            "Oral challenge ingestion food testing requested to confirm diagnosis."
         ),
     },
     {
@@ -138,28 +127,63 @@ DEMOS = [
 
 def build_service():
     settings = get_settings()
-    settings.use_mock_repositories = True
-    settings.llm_enabled = True
+    settings.llm_enabled = _LLM_AVAILABLE
 
-    class _MockEmbed:
-        def embed_text(self, text): return []
+    if not settings.use_mock_repositories:
+        from app.db.session import SessionLocal
+        from app.repositories.postgres.policy_repository import PostgresPolicyRepository
+        from app.repositories.postgres.article_repository import PostgresArticleRepository
+        from app.repositories.postgres.ncd_repository import PostgresNCDRepository
+        from app.repositories.postgres.lcd_repository import PostgresLCDRepository
+        from app.repositories.policy_chunk_repository import PolicyChunkRepository
+        from app.services.rag.embedding_service import EmbeddingService
 
-    article_repo = MockArticleRepository()
-    lcd_repo = MockLCDRepository()
-    ncd_repo = MockNCDRepository()
+        db = SessionLocal()
+        article_repo = PostgresArticleRepository()
+        lcd_repo = PostgresLCDRepository()
+        ncd_repo = PostgresNCDRepository()
+        policy_repo = PostgresPolicyRepository()
+        chunk_repo = PolicyChunkRepository(db)
+        embedding_service = EmbeddingService()
 
-    return TriageService(
-        policy_repository=MockPolicyRepository(),
-        article_repository=article_repo,
-        ncd_repository=ncd_repo,
-        chunk_repository=MockPolicyChunkRepository(),
-        evaluator=MultiEvaluator(
-            StructuredEvaluator(article_repo, lcd_repo, ncd_repo),
-            RuleEvaluator(),
-            SemanticEvaluator(LLMClient()),
-        ),
-        embedding_service=_MockEmbed(),
-    )
+        llm_client = LLMClient()
+        llm_client.enabled = _LLM_AVAILABLE
+
+        return TriageService(
+            policy_repository=policy_repo,
+            article_repository=article_repo,
+            ncd_repository=ncd_repo,
+            chunk_repository=chunk_repo,
+            evaluator=MultiEvaluator(
+                StructuredEvaluator(article_repo, lcd_repo, ncd_repo),
+                RuleEvaluator(),
+                SemanticEvaluator(llm_client),
+            ),
+            embedding_service=embedding_service,
+        )
+    else:
+        class _MockEmbed:
+            def embed_text(self, text): return []
+
+        article_repo = MockArticleRepository()
+        lcd_repo = MockLCDRepository()
+        ncd_repo = MockNCDRepository()
+
+        llm_client = LLMClient()
+        llm_client.enabled = _LLM_AVAILABLE
+
+        return TriageService(
+            policy_repository=MockPolicyRepository(),
+            article_repository=article_repo,
+            ncd_repository=ncd_repo,
+            chunk_repository=MockPolicyChunkRepository(),
+            evaluator=MultiEvaluator(
+                StructuredEvaluator(article_repo, lcd_repo, ncd_repo),
+                RuleEvaluator(),
+                SemanticEvaluator(llm_client),
+            ),
+            embedding_service=_MockEmbed(),
+        )
 
 # ── Report printer ─────────────────────────────────────────────────────────────
 
@@ -294,10 +318,12 @@ def main():
     
     builtins.print = custom_print
 
+    repo_mode = "MOCK REPOSITORIES" if get_settings().use_mock_repositories else "LIVE NEON POSTGRESQL"
     print(f"\n{SEP}")
     print("  PRIOR AUTHORIZATION TRIAGE & POLICY COMPANION")
-    print("  Output Explainability Demo  (mock mode)")
+    print(f"  Output Explainability Demo  ({repo_mode})")
     print(f"  LLM Mode       : {_llm_mode}")
+    print(f"  Repository Mode: {repo_mode}")
     print(SEP)
 
     for demo in DEMOS:

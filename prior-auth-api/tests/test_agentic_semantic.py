@@ -486,6 +486,31 @@ def test_TC_AGENT_07b_llm_client_handles_malformed_json() -> None:
     assert "error" in result["explanation"].lower() or "failed" in result["explanation"].lower()
 
 
+def test_TC_AGENT_07c_llm_client_sends_bedrock_auth_headers() -> None:
+    """TEST 7c: LLMClient includes Authorization and x-api-key headers when api_key is present."""
+    client = LLMClient.__new__(LLMClient)
+    client.enabled = True
+    client.base_url = "http://127.0.0.1:1234/v1"
+    client.model = "qwen/qwen3-4b-2507"
+    client.temperature = 0.0
+    client.api_key = "test-bedrock-key"
+
+    with patch("httpx.Client.post") as mock_post:
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": "```json\n{\"status\": \"SATISFIED\"}\n```"}}]
+        }
+        mock_post.return_value = mock_response
+
+        res = client.raw_chat("system prompt", "user prompt")
+        assert res == '{"status": "SATISFIED"}'
+
+        mock_post.assert_called_once()
+        headers = mock_post.call_args.kwargs.get("headers", {})
+        assert headers.get("Authorization") == "Bearer test-bedrock-key"
+        assert headers.get("x-api-key") == "test-bedrock-key"
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # TEST 8 — Prompt injection protection
 # ═══════════════════════════════════════════════════════════════════════════════

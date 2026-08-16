@@ -44,3 +44,19 @@ class PostgresNCDRepository:
                 manual_section=row.document_display_id,
                 decision=row.decision,
             )
+
+    def get_hcpcs(self, ncd_id: str) -> list[CodeEntry]:
+        """Return HCPCS codes associated with the specified NCD."""
+        from app.models.ncd import NCDHCPCSCode
+        from app.schemas.article import CodeEntry
+        with self._session() as db:
+            latest_version = self._get_latest_version(db, ncd_id)
+            if latest_version is None:
+                return []
+            stmt = select(NCDHCPCSCode).where(
+                NCDHCPCSCode.ncd_id == ncd_id,
+                NCDHCPCSCode.ncd_version == latest_version,
+            )
+            rows = db.scalars(stmt).all()
+            return [CodeEntry(code=r.hcpcs_code, description=r.description or "") for r in rows]
+

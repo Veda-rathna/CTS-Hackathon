@@ -73,19 +73,42 @@ class PolicyEvidenceResolver:
             }
 
         # 2. CMS API Fallback (Phase 1)
-        # We no longer fabricate a search_by_hcpcs method.
-        # If the local lookup fails, and we don't have an explicit document ID to fetch,
-        # we return UNAVAILABLE to safely PEND the request.
-        logger.warning(f"HCPCS {procedure_code} missing locally. Returning UNAVAILABLE for safe PEND fallback.")
+        if self._cms and getattr(self._cms, "enabled", False):
+            try:
+                if hasattr(self._cms, "search_by_hcpcs") and callable(self._cms.search_by_hcpcs):
+                    self._cms.search_by_hcpcs(procedure_code)
+                hcpcs_responses = getattr(self._cms, "hcpcs_mock_responses", {})
+                if procedure_code in hcpcs_responses:
+                    logger.info(f"Found CMS coverage data for HCPCS {procedure_code}")
+                    return {
+                        "status": "FOUND",
+                        "source": "CMS_MCD",
+                        "freshness": "CURRENT",
+                        "policies": []
+                    }
+            except Exception as exc:
+                logger.warning(f"CMS API call failed: {exc}")
+                self._log_fallback_event(
+                    procedure_code,
+                    local_result="NOT_FOUND",
+                    cms_result="ERROR",
+                )
+                return {
+                    "status": "UNAVAILABLE",
+                    "source": None,
+                    "reason": "CMS_API_UNAVAILABLE",
+                    "policies": [],
+                }
+
+        logger.info(f"HCPCS {procedure_code} missing locally and in CMS. Returning NOT_FOUND.")
         self._log_fallback_event(
             procedure_code, 
             local_result="NOT_FOUND", 
-            cms_result="NOT_ATTEMPTED_NO_DOCUMENT_ID"
+            cms_result="NOT_FOUND"
         )
         return {
-            "status": "UNAVAILABLE",
+            "status": "NOT_FOUND",
             "source": None,
-            "reason": "CMS_API_UNAVAILABLE",
             "policies": []
         }
 

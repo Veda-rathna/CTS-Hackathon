@@ -45,7 +45,7 @@ def _make_timeout() -> httpx.Timeout:
 
 
 class LLMClient:
-    """Client for LM Studio (OpenAI-compatible).
+    """Client for LLMs (Amazon Bedrock, LM Studio, or OpenAI-compatible endpoints).
 
     All methods fail safely — LLM failures always produce UNKNOWN results,
     never APPROVE/PEND/REQUEST_MORE_INFORMATION.
@@ -53,10 +53,15 @@ class LLMClient:
 
     def __init__(self):
         self._settings = get_settings()
+        self.provider = getattr(self._settings, "llm_provider", "bedrock")
         self.base_url = self._settings.llm_base_url
+        if self.provider == "bedrock" and "127.0.0.1" in self.base_url:
+            region = getattr(self._settings, "aws_region", "us-east-1")
+            self.base_url = f"https://bedrock-runtime.{region}.amazonaws.com/v1"
         self.model = self._settings.llm_model
         self.temperature = self._settings.llm_temperature
         self.enabled = self._settings.llm_enabled
+        self.api_key = getattr(self._settings, "llm_api_key", "")
 
     # ── Low-level primitive ───────────────────────────────────────────────────
 
@@ -65,17 +70,77 @@ class LLMClient:
 
         Sends a system + user message pair and returns the raw response
         content string with markdown fences stripped.
+        Supports boto3 Bedrock Converse API, LM Studio, and OpenAI-compatible endpoints.
 
         Args:
             system: System-level instruction (trusted, high-priority)
             user:   User-level content (may contain patient data — treated as DATA)
 
         Raises:
-            Exception: Any HTTP / connectivity error (callers must handle).
+            Exception: Any HTTP / connectivity / AWS error (callers must handle).
         """
+        if getattr(self, "provider", "").lower() == "bedrock":
+            import boto3
+            import time
+            from datetime import datetime
+
+            region = getattr(self._settings, "aws_region", "us-east-1")
+            bedrock_client = boto3.client("bedrock-runtime", region_name=region)
+            converse_kwargs = {
+                "modelId": self.model,
+                "messages": [{"role": "user", "content": [{"text": user}]}],
+                "inferenceConfig": {"temperature": self.temperature},
+            }
+            if system:
+                converse_kwargs["system"] = [{"text": system}]
+
+            t0 = time.monotonic()
+            try:
+                res = bedrock_client.converse(**converse_kwargs)
+                latency_ms = round((time.monotonic() - t0) * 1000)
+                output_text = res["output"]["message"]["content"][0]["text"]
+                stripped = _strip_fences(output_text)
+
+                # ── LM Studio-style terminal logger ──────────────────────────
+                ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                usage = res.get("usage", {})
+                metrics = res.get("metrics", {})
+                if not metrics.get("latencyMs"):
+                    metrics["latencyMs"] = latency_ms
+
+                print(f"\n\033[94m{ts} [INFO] [{self.model}] Model generated prediction:\033[0m")
+                try:
+                    parsed_json = json.loads(stripped)
+                    formatted_json = json.dumps(parsed_json, indent=2)
+                    for line in formatted_json.splitlines():
+                        print(f"\033[36m  {line}\033[0m")
+                except Exception:
+                    print(f"\033[36m  {stripped}\033[0m")
+
+                print(
+                    f"\033[93m  [USAGE] input_tokens: {usage.get('inputTokens', 0)} | "
+                    f"output_tokens: {usage.get('outputTokens', 0)} | "
+                    f"total_tokens: {usage.get('totalTokens', 0)} | "
+                    f"latency: {metrics.get('latencyMs', latency_ms)}ms\033[0m\n"
+                )
+
+                return stripped
+            except Exception as boto_exc:
+                logger.error("AWS Bedrock Converse failed: %s (modelId=%s, region=%s)", boto_exc, self.model, region)
+                raise boto_exc
+
+        headers = {
+            "Content-Type": "application/json",
+        }
+        api_key = getattr(self, "api_key", None)
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+            headers["x-api-key"] = api_key
+
         with httpx.Client(timeout=_make_timeout()) as client:
             response = client.post(
                 f"{self.base_url}/chat/completions",
+                headers=headers,
                 json={
                     "model": self.model,
                     "messages": [

@@ -19,6 +19,9 @@ from sqlalchemy.orm import Session
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 from app.db.session import engine
 from app.models.base import Base
 import app.models  # registers ORM models
@@ -26,7 +29,7 @@ from app.models.ncd import NCD
 from app.services.rag.document_processor import DocumentProcessor
 from app.services.rag.embedding_service import EmbeddingService
 from app.repositories.policy_chunk_repository import PolicyChunkRepository
-from scripts.seed_db import seed as seed_cms_data
+from scripts.seed_db import main as seed_cms_data
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("db_setup")
@@ -37,13 +40,13 @@ def init_vector_db():
     with engine.begin() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
     Base.metadata.create_all(bind=engine)
-    print("      ✓ Created pgvector extension and ORM tables.")
+    print("      [OK] Created pgvector extension and ORM tables.")
 
 
 def seed_database():
     print("\n[2/4] Seeding database with CMS policies...")
     seed_cms_data()
-    print("      ✓ CMS data seeded successfully.")
+    print("      [OK] CMS data seeded successfully.")
 
 
 def ingest_rag_chunks():
@@ -71,7 +74,7 @@ def ingest_rag_chunks():
 
             repo.add_chunks(all_chunks)
             session.commit()
-            print(f"      ✓ Successfully stored {len(all_chunks)} embedded chunks in pgvector.")
+            print(f"      [OK] Successfully stored {len(all_chunks)} embedded chunks in pgvector.")
         else:
             print("      No NCD chunks to ingest.")
 

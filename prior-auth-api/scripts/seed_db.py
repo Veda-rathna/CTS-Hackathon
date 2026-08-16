@@ -115,7 +115,12 @@ def main():
     try:
         # 1. Clear existing database tables in correct dependency order
         print("Clearing existing tables...")
+        from app.models.policy_chunk import PolicyChunk
+        from app.models.ncd import NCDHCPCSCode
+
+        db.query(PolicyChunk).delete()
         db.query(LCDNCDAssociation).delete()
+        db.query(NCDHCPCSCode).delete()
         db.query(LCDHCPCSCode).delete()
         db.query(LCDIcd10Covered).delete()
         db.query(LCDIcd10NonCovered).delete()

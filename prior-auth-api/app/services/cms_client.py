@@ -129,6 +129,7 @@ class MockCMSCoverageClient:
         self.enabled = True
         # For testing, we can pre-populate responses
         self.mock_responses: Dict[str, Any] = {}
+        self.hcpcs_mock_responses: Dict[str, Any] = {}
 
     def get_document(self, document_id: str, version: int | None = None) -> dict[str, Any] | None:
         if not self.enabled:

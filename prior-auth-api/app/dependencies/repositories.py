@@ -102,8 +102,7 @@ def get_policy_repository(
 
 def get_llm_client(settings: Annotated[Settings, Depends(get_settings)]) -> LLMClient:
     client = LLMClient()
-    if settings.use_mock_repositories:
-        client.enabled = False
+    client.enabled = settings.llm_enabled
     return client
 
 def get_multi_evaluator(

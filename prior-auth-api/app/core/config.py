@@ -57,10 +57,18 @@ class Settings(BaseSettings):
 
     # ── LLM Configuration ─────────────────────────────────────────────────
     llm_enabled: bool = True
-    llm_provider: str = "lmstudio"
+    llm_provider: str = "bedrock"
     llm_base_url: str = "http://127.0.0.1:1234/v1"
-    llm_model: str = "qwen/qwen3-4b-2507"
+    llm_model: str = "qwen3-next-80b-a3b"
     llm_temperature: float = 0.0
+    llm_api_key: str = ""
+
+    # ── CMS Coverage API Configuration ─────────────────────────────────────
+    cms_coverage_api_base_url: str = "https://api.coverage.cms.gov/v1"
+    cms_coverage_api_timeout: float = 10.0
+    cms_coverage_api_max_retries: int = 3
+    cms_coverage_api_enabled: bool = True
+    cms_coverage_api_key: str = ""
 
     # ── Agentic Semantic Evaluation Configuration ──────────────────────────────
     # Controls the 4-agent pipeline: PolicyAgent → ClinicalEvidenceAgent →
