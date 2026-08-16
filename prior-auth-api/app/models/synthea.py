@@ -150,3 +150,16 @@ class SyntheaPARequest(Base):
     diagnosis_description = Column(Text, nullable=True)
     clinical_notes = Column(Text, nullable=True)
     review_type = Column(String(32), default="NON_URGENT")
+
+
+class SyntheaCrosswalk(Base):
+    """Mapping table from SNOMED-CT to CPT/HCPCS and ICD-10."""
+
+    __tablename__ = "synthea_crosswalk"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    source_code = Column(String(64), index=True, nullable=False)
+    source_description = Column(Text, nullable=True)
+    target_code = Column(String(64), nullable=False)
+    target_system = Column(String(32), nullable=False)  # 'CPT', 'HCPCS', 'ICD10'
+    target_description = Column(Text, nullable=True)

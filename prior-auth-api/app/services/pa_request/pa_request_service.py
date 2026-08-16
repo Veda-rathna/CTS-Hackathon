@@ -63,6 +63,17 @@ class PARequestService:
         # Step 2 — build triage payload
         triage_dict = build_triage_request(canonical)
 
+        # Crosswalk SNOMED codes if Synthea integration is active
+        if self._synthea_repo:
+            if triage_dict.get("procedure_code"):
+                triage_dict["procedure_code"] = self._synthea_repo.crosswalk_code(triage_dict["procedure_code"])
+            
+            if triage_dict.get("diagnosis_codes"):
+                triage_dict["diagnosis_codes"] = [
+                    self._synthea_repo.crosswalk_code(dx, target_system="ICD10")
+                    for dx in triage_dict["diagnosis_codes"]
+                ]
+
         logger.info(
             "PARequestService | pa_request_id=%s -> triage payload: procedure=%s diagnoses=%s state=%s",
             triage_dict.get("pa_request_id"),

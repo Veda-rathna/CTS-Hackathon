@@ -30,6 +30,7 @@ from app.models.synthea import (
     SyntheaCondition,
     SyntheaProcedure,
     SyntheaObservation,
+    SyntheaCrosswalk,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -269,6 +270,28 @@ def ingest_observations(session: Session, filepath: str) -> int:
     return count
 
 
+def ingest_crosswalk(session: Session) -> int:
+    logger.info("Ingesting standard Synthea SNOMED-to-CPT/ICD10 Crosswalk mappings...")
+    # Mock mappings for Hackathon paths
+    mappings = [
+        # Procedures (SNOMED -> CPT/HCPCS)
+        SyntheaCrosswalk(source_code="127783003", source_description="Spirometry (procedure)", target_code="94010", target_system="CPT", target_description="Spirometry"),
+        SyntheaCrosswalk(source_code="18718003", source_description="Gingivectomy (procedure)", target_code="D4210", target_system="HCPCS", target_description="Gingivectomy or gingivoplasty, four or more contiguous teeth"),
+        SyntheaCrosswalk(source_code="313264002", source_description="Epidural steroid injection (procedure)", target_code="64483", target_system="CPT", target_description="Epidural steroid injection for lumbar radiculopathy"),
+        SyntheaCrosswalk(source_code="396495006", source_description="Stem cell transplant (procedure)", target_code="38240", target_system="CPT", target_description="Allogeneic hematopoietic stem cell transplantation"),
+        
+        # Conditions (SNOMED -> ICD10)
+        SyntheaCrosswalk(source_code="239719007", source_description="Lumbar radiculopathy", target_code="M54.16", target_system="ICD10", target_description="Lumbar radiculopathy"),
+        SyntheaCrosswalk(source_code="91861009", source_description="Acute lymphoblastic leukemia", target_code="C91.0", target_system="ICD10", target_description="Acute lymphoblastic leukemia"),
+        SyntheaCrosswalk(source_code="64228005", source_description="Gingival disease", target_code="K06.8", target_system="ICD10", target_description="Other specified disorders of gingiva and edentulous alveolar ridge"),
+        SyntheaCrosswalk(source_code="68566005", source_description="Chronic gingivitis", target_code="K05.10", target_system="ICD10", target_description="Chronic gingivitis, plaque induced"),
+    ]
+    session.add_all(mappings)
+    session.commit()
+    logger.info("[OK] Inserted %d crosswalk mappings.", len(mappings))
+    return len(mappings)
+
+
 def main():
     print("=" * 65)
     print("         SYNTHEA DATASET INGESTION & PROCESSING")
@@ -286,7 +309,7 @@ def main():
     print("\n[2/3] Processing CSV files and populating database...")
     with Session(engine) as session:
         # Clear existing Synthea data if re-running
-        session.execute(text("TRUNCATE TABLE synthea_observations, synthea_procedures, synthea_conditions, synthea_encounters, synthea_patients CASCADE;"))
+        session.execute(text("TRUNCATE TABLE synthea_observations, synthea_procedures, synthea_conditions, synthea_encounters, synthea_patients, synthea_crosswalk CASCADE;"))
         session.commit()
 
         ingest_patients(session, os.path.join(SYNTHEA_DIR, "patients.csv"))
@@ -294,6 +317,7 @@ def main():
         ingest_conditions(session, os.path.join(SYNTHEA_DIR, "conditions.csv"))
         ingest_procedures(session, os.path.join(SYNTHEA_DIR, "procedures.csv"))
         ingest_observations(session, os.path.join(SYNTHEA_DIR, "observations.csv"))
+        ingest_crosswalk(session)
 
     print("\n" + "=" * 65)
     print("               SYNTHEA DATASET INGESTION COMPLETE")

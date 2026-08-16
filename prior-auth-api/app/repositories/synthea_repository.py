@@ -6,7 +6,7 @@ import logging
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
-from app.models.synthea import SyntheaCondition, SyntheaProcedure, SyntheaObservation
+from app.models.synthea import SyntheaCondition, SyntheaProcedure, SyntheaObservation, SyntheaCrosswalk
 
 logger = logging.getLogger(__name__)
 
@@ -69,3 +69,19 @@ class SyntheaRepository:
         except Exception as e:
             logger.error("SyntheaRepository | Error fetching history for %s: %s", patient_id, e)
             return f"[System: Error retrieving Synthea history for {patient_id}]"
+
+    def crosswalk_code(self, source_code: str, target_system: str = None) -> str:
+        """Translate a SNOMED code to CPT/ICD-10 if a mapping exists."""
+        if not source_code:
+            return source_code
+        
+        query = self._session.query(SyntheaCrosswalk).filter_by(source_code=source_code.strip())
+        if target_system:
+            query = query.filter_by(target_system=target_system)
+            
+        mapping = query.first()
+        if mapping:
+            logger.info("SyntheaRepository | Crosswalked %s -> %s (%s)", source_code, mapping.target_code, mapping.target_system)
+            return mapping.target_code
+            
+        return source_code
