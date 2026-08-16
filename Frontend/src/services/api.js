@@ -34,6 +34,22 @@ export async function runTriage(requestData) {
 }
 
 /**
+ * POST /api/v1/pa-requests
+ * Submit a full structured CanonicalPARequest (patient, coverage, provider,
+ * service, diagnoses) and receive a TriageResponse.
+ *
+ * The backend owns normalization:
+ *   - State full names -> 2-letter abbreviations
+ *   - request_date auto-populated if absent
+ *   - pa_request_id auto-generated if absent
+ *   - All diagnoses ICD-10 codes extracted and passed to triage
+ */
+export async function createPARequest(payload) {
+  const res = await apiClient.post('/pa-requests', payload);
+  return res.data;
+}
+
+/**
  * POST /api/v1/extract  (multipart/form-data)
  * Upload a PA PDF document. Backend extracts triage fields.
  * Returns { procedure_code, diagnosis_codes, state, patient_age, clinical_notes, confidence, missing_fields }
@@ -166,6 +182,7 @@ export function transformPAFormToTriageRequest(formData) {
 
 export default {
   runTriage,
+  createPARequest,
   extractFromPDF,
   checkHealth,
   checkDbHealth,
