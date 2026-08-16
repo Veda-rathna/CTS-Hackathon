@@ -87,7 +87,15 @@ class TriageService:
         self._policy_repo = policy_repository
         self._article_repo = article_repository
         self._ncd_repo = ncd_repository
-        self._lcd_repo = lcd_repository or PostgresLCDRepository()
+        if lcd_repository is not None:
+            self._lcd_repo = lcd_repository
+        else:
+            from app.core.config import get_settings
+            if get_settings().use_mock_repositories:
+                from app.repositories.mock.lcd_repository import MockLCDRepository
+                self._lcd_repo = MockLCDRepository()
+            else:
+                self._lcd_repo = PostgresLCDRepository()
         self._chunk_repo = chunk_repository
         self._evaluator = evaluator
         self._embedding_service = embedding_service
@@ -203,63 +211,65 @@ class TriageService:
             
             ncd_criteria = []
             
-            # Phase 4b: Deterministic HCPCS check for each candidate NCD
+            # Phase 4b: Deterministic HCPCS check for candidate NCDs
             # This runs ALWAYS (regardless of RAG) as the authoritative structured layer.
             # Even if RAG returns semantic/unknown criteria, a positive HCPCS match
             # provides a SATISFIED structured criterion so EvidenceFusion → COVERED.
+            ncd_matched_policy = None
+            ncd_excluded_policy = None
+
             for p in ncd_candidates:
                 ncd_details = self._ncd_repo.get_by_id(p.policy_id)
                 ncd_hcpcs_codes = {c.code for c in self._ncd_repo.get_hcpcs(p.policy_id)}
-                if ncd_hcpcs_codes:
-                    hcpcs_matched = procedure in ncd_hcpcs_codes
+                if ncd_hcpcs_codes and procedure in ncd_hcpcs_codes:
                     is_excluded = ncd_details and ncd_details.decision and "EXCLUDED" in ncd_details.decision.upper()
-
-                    if is_excluded and hcpcs_matched:
-                        ncd_criteria.append(EvaluatedCriterion(
-                            criterion_id=f"NCD-{p.policy_id}-HCPCS",
-                            policy_type="NCD",
-                            policy_id=p.policy_id,
-                            criterion=f"The requested procedure must not be explicitly excluded by NCD {p.policy_id}.",
-                            criterion_type=CriterionType.STRUCTURED,
-                            evaluator=EvaluatorType.SQL,
-                            status=EvaluationStatus.NOT_SATISFIED,
-                            patient_evidence=[f"Submitted HCPCS: {procedure}"],
-                            policy_evidence=[f"NCD {p.policy_id} explicitly excludes HCPCS {procedure}."],
-                            mandatory=True,
-                            authoritative=True,
-                            explanation=f"Procedure {procedure} is listed in NCD {p.policy_id} which EXCLUDES coverage. Criterion NOT_SATISFIED by deterministic SQL check."
-                        ))
+                    if is_excluded:
+                        ncd_excluded_policy = p
+                        break
                     else:
-                        ncd_criteria.append(EvaluatedCriterion(
-                            criterion_id=f"NCD-{p.policy_id}-HCPCS",
-                            policy_type="NCD",
-                            policy_id=p.policy_id,
-                            criterion=f"The requested procedure must be an applicable service under NCD {p.policy_id}.",
-                            criterion_type=CriterionType.STRUCTURED,
-                            evaluator=EvaluatorType.SQL,
-                            status=EvaluationStatus.SATISFIED if hcpcs_matched else EvaluationStatus.NOT_SATISFIED,
-                            patient_evidence=[f"Submitted HCPCS: {procedure}"],
-                            policy_evidence=[
-                                f"NCD {p.policy_id} {'contains' if hcpcs_matched else 'does not contain'} "
-                                f"HCPCS {procedure} in its covered-procedure list."
-                            ],
-                            mandatory=True,
-                            authoritative=True,
-                            explanation=(
-                                f"{'Procedure ' + procedure + ' is listed in NCD ' + p.policy_id + ' covered HCPCS codes. Criterion SATISFIED by deterministic SQL check.'}"
-                                if hcpcs_matched else
-                                f"Procedure {procedure} is not found in NCD {p.policy_id} covered HCPCS codes. Criterion NOT_SATISFIED by deterministic SQL check."
-                            )
-                        ))
+                        ncd_matched_policy = p
+                        break
 
-                    if hcpcs_matched and not is_excluded:
-                        matched_policies.append(MatchedPolicy(policy_type="NCD", policy_id=p.policy_id, title=p.title))
-                        all_evidence.append(Evidence(
-                            type="HCPCS", identifier=p.policy_id, code=procedure,
-                            result="MATCHED",
-                            explanation=f"Procedure code '{procedure}' is listed in NCD {p.policy_id} covered codes."
-                        ))
-                        break  # First match is sufficient for NCD coverage
+            if ncd_excluded_policy:
+                p = ncd_excluded_policy
+                ncd_criteria.append(EvaluatedCriterion(
+                    criterion_id=f"NCD-{p.policy_id}-HCPCS",
+                    policy_type="NCD",
+                    policy_id=p.policy_id,
+                    criterion=f"The requested procedure must not be explicitly excluded by NCD {p.policy_id}.",
+                    criterion_type=CriterionType.STRUCTURED,
+                    evaluator=EvaluatorType.SQL,
+                    status=EvaluationStatus.NOT_SATISFIED,
+                    patient_evidence=[f"Submitted HCPCS: {procedure}"],
+                    policy_evidence=[f"NCD {p.policy_id} explicitly excludes HCPCS {procedure}."],
+                    mandatory=True,
+                    authoritative=True,
+                    explanation=f"Procedure {procedure} is listed in NCD {p.policy_id} which EXCLUDES coverage. Criterion NOT_SATISFIED by deterministic SQL check."
+                ))
+            elif ncd_matched_policy:
+                p = ncd_matched_policy
+                ncd_criteria.append(EvaluatedCriterion(
+                    criterion_id=f"NCD-{p.policy_id}-HCPCS",
+                    policy_type="NCD",
+                    policy_id=p.policy_id,
+                    criterion=f"The requested procedure must be an applicable service under NCD {p.policy_id}.",
+                    criterion_type=CriterionType.STRUCTURED,
+                    evaluator=EvaluatorType.SQL,
+                    status=EvaluationStatus.SATISFIED,
+                    patient_evidence=[f"Submitted HCPCS: {procedure}"],
+                    policy_evidence=[
+                        f"NCD {p.policy_id} contains HCPCS {procedure} in its covered-procedure list."
+                    ],
+                    mandatory=True,
+                    authoritative=True,
+                    explanation=f"Procedure {procedure} is listed in NCD {p.policy_id} covered HCPCS codes. Criterion SATISFIED by deterministic SQL check."
+                ))
+                matched_policies.append(MatchedPolicy(policy_type="NCD", policy_id=p.policy_id, title=p.title))
+                all_evidence.append(Evidence(
+                    type="HCPCS", identifier=p.policy_id, code=procedure,
+                    result="MATCHED",
+                    explanation=f"Procedure code '{procedure}' is listed in NCD {p.policy_id} covered codes."
+                ))
             
             # Phase 5: Criterion Extraction & Classification from RAG chunks
             for chunk_tuple in ncd_chunks:
@@ -371,10 +381,98 @@ class TriageService:
                 active_lcd = lcd_candidates[0] # Default to first if state unknown
                 matched_policies.append(MatchedPolicy(policy_type=active_lcd.policy_type, policy_id=active_lcd.policy_id, title=active_lcd.title, article_id=active_lcd.article_id))
 
-            # LCD Evaluation (Deterministic/Narrative)
-            # NOTE: query_embedding may be [] in mock/no-LLM mode.
-            # MockPolicyChunkRepository handles this gracefully.
+            # ── LCD Evaluation (Phase 10: SQL Deterministic + Semantic RAG) ──
             lcd_criteria = []
+
+            # Phase 10a: Deterministic SQL checks for LCD (HCPCS & Covered/NonCovered ICD-10)
+            lcd_hcpcs = {c.code for c in self._lcd_repo.get_hcpcs(active_lcd.policy_id)}
+            if lcd_hcpcs:
+                lcd_hcpcs_matched = procedure in lcd_hcpcs
+                all_evidence.append(Evidence(
+                    type="HCPCS",
+                    identifier=active_lcd.policy_id,
+                    code=procedure,
+                    result="MATCHED" if lcd_hcpcs_matched else "NOT_FOUND",
+                    explanation=f"Procedure code '{procedure}' {'is' if lcd_hcpcs_matched else 'was not'} listed in LCD {active_lcd.policy_id} applicable HCPCS data."
+                ))
+                lcd_criteria.append(EvaluatedCriterion(
+                    criterion_id=f"LCD-{active_lcd.policy_id}-HCPCS",
+                    policy_type="LCD",
+                    policy_id=active_lcd.policy_id,
+                    criterion=f"The requested procedure must be an applicable service under LCD {active_lcd.policy_id}.",
+                    criterion_type=CriterionType.STRUCTURED,
+                    evaluator=EvaluatorType.SQL,
+                    status=EvaluationStatus.SATISFIED if lcd_hcpcs_matched else EvaluationStatus.NOT_SATISFIED,
+                    patient_evidence=[f"Submitted HCPCS: {procedure}"],
+                    policy_evidence=[
+                        f"LCD {active_lcd.policy_id} {'contains' if lcd_hcpcs_matched else 'does not contain'} "
+                        f"HCPCS {procedure} in its applicable procedure list."
+                    ],
+                    mandatory=True,
+                    authoritative=True,
+                    explanation=(
+                        f"Procedure {procedure} is listed in LCD {active_lcd.policy_id} applicable HCPCS data. "
+                        f"Criterion SATISFIED by deterministic SQL check."
+                        if lcd_hcpcs_matched else
+                        f"Procedure {procedure} was not found in LCD {active_lcd.policy_id} applicable HCPCS data. "
+                        f"Criterion NOT_SATISFIED by deterministic SQL check."
+                    )
+                ))
+
+            lcd_covered_dx = {c.code for c in self._lcd_repo.get_icd10_covered(active_lcd.policy_id)}
+            lcd_noncovered_dx = {c.code for c in self._lcd_repo.get_icd10_noncovered(active_lcd.policy_id)}
+
+            if lcd_covered_dx or lcd_noncovered_dx:
+                lcd_has_covered = False
+                for dx in diagnoses:
+                    if dx in lcd_covered_dx:
+                        matched_diagnoses.add(dx)
+                        lcd_has_covered = True
+                        all_evidence.append(Evidence(
+                            type="ICD10", identifier=active_lcd.policy_id, code=dx,
+                            result="COVERED",
+                            explanation=f"Diagnosis '{dx}' is covered under LCD {active_lcd.policy_id}."
+                        ))
+                        lcd_criteria.append(EvaluatedCriterion(
+                            criterion_id=f"LCD-{active_lcd.policy_id}-ICD10-{dx}",
+                            policy_type="LCD",
+                            policy_id=active_lcd.policy_id,
+                            criterion=f"The patient's diagnosis must be an eligible diagnosis under LCD {active_lcd.policy_id}.",
+                            criterion_type=CriterionType.STRUCTURED,
+                            evaluator=EvaluatorType.SQL,
+                            status=EvaluationStatus.SATISFIED,
+                            patient_evidence=[f"Submitted ICD-10: {dx}"],
+                            policy_evidence=[f"Diagnosis {dx} is present in LCD {active_lcd.policy_id} covered ICD-10 data."],
+                            mandatory=True,
+                            authoritative=True,
+                            explanation=f"Diagnosis {dx} is covered under LCD {active_lcd.policy_id} structured data."
+                        ))
+                    elif dx in lcd_noncovered_dx:
+                        all_evidence.append(Evidence(
+                            type="ICD10", identifier=active_lcd.policy_id, code=dx,
+                            result="NOT_COVERED",
+                            explanation=f"Diagnosis '{dx}' is explicitly non-covered under LCD {active_lcd.policy_id}."
+                        ))
+
+                if not lcd_has_covered and any(dx in lcd_noncovered_dx for dx in diagnoses):
+                    for dx in diagnoses:
+                        if dx in lcd_noncovered_dx:
+                            lcd_criteria.append(EvaluatedCriterion(
+                                criterion_id=f"LCD-{active_lcd.policy_id}-ICD10-{dx}",
+                                policy_type="LCD",
+                                policy_id=active_lcd.policy_id,
+                                criterion=f"The patient's diagnosis must not be explicitly excluded by LCD {active_lcd.policy_id}.",
+                                criterion_type=CriterionType.STRUCTURED,
+                                evaluator=EvaluatorType.SQL,
+                                status=EvaluationStatus.NOT_SATISFIED,
+                                patient_evidence=[f"Submitted ICD-10: {dx}"],
+                                policy_evidence=[f"Diagnosis {dx} is present in LCD {active_lcd.policy_id} non-covered ICD-10 data."],
+                                mandatory=True,
+                                authoritative=True,
+                                explanation=f"Diagnosis {dx} is explicitly non-covered under LCD {active_lcd.policy_id} structured data."
+                            ))
+
+            # Phase 10b: Constrained Vector Search & Semantic RAG Extraction for LCD
             lcd_chunks = self._chunk_repo.search_similar(
                 query_embedding=query_embedding,
                 policy_type="LCD",
@@ -395,6 +493,7 @@ class TriageService:
                             chunk_text=text_content.strip()[:1500]
                         )
                         lcd_chunks = [(synthetic_chunk, 0.2)]
+
             for chunk_tuple in lcd_chunks:
                 chunk, distance = chunk_tuple
                 all_rag_evidence.append(
@@ -414,12 +513,13 @@ class TriageService:
                     classified_criterion = CriterionClassifier.classify(rc)
                     lcd_criteria.append(self._evaluator.evaluate(classified_criterion, request))
             
+            # Phase 10c: Evidence Fusion for LCD
             if lcd_criteria:
                 lcd_matrix = EvidenceFusion.fuse(lcd_criteria)
                 all_criteria.extend(lcd_matrix.criteria)
                 lcd_result = EvidenceFusion.resolve_decision(lcd_matrix)
             else:
-                lcd_result = "COVERED"  # No RAG criteria extracted → permit Article check
+                lcd_result = "COVERED"  # No criteria extracted → permit Article check
                 
             policy_path["lcd"] = {"policy_id": active_lcd.policy_id, "result": lcd_result}
 
@@ -474,19 +574,6 @@ class TriageService:
                         ))
                     elif dx in noncovered_set:
                         all_evidence.append(Evidence(type="ICD10", identifier=article_id, code=dx, result="NOT_COVERED", explanation=f"Diagnosis '{dx}' is explicitly non-covered."))
-                        all_criteria.append(EvaluatedCriterion(
-                            criterion_id=f"ARTICLE-{article_id}-ICD10-{dx}",
-                            policy_type="ARTICLE",
-                            policy_id=article_id,
-                            criterion="The patient's diagnosis must not be explicitly excluded by the Article.",
-                            criterion_type=CriterionType.STRUCTURED,
-                            evaluator=EvaluatorType.SQL,
-                            status=EvaluationStatus.NOT_SATISFIED,
-                            patient_evidence=[f"Submitted ICD-10: {dx}"],
-                            policy_evidence=[f"Diagnosis {dx} is present in the Article's non-covered ICD-10 data."],
-                            mandatory=True,
-                            authoritative=True
-                        ))
                     else:
                         all_noncovered = False
                         missing.append(f"Diagnosis code '{dx}' not found in policy code lists.")
@@ -497,12 +584,32 @@ class TriageService:
                     article_result = "COVERED"
                 elif all_noncovered:
                     article_result = "EXCLUDED"
+                    for dx in diagnoses:
+                        if dx in noncovered_set:
+                            all_criteria.append(EvaluatedCriterion(
+                                criterion_id=f"ARTICLE-{article_id}-ICD10-{dx}",
+                                policy_type="ARTICLE",
+                                policy_id=article_id,
+                                criterion="The patient's diagnosis must not be explicitly excluded by the Article.",
+                                criterion_type=CriterionType.STRUCTURED,
+                                evaluator=EvaluatorType.SQL,
+                                status=EvaluationStatus.NOT_SATISFIED,
+                                patient_evidence=[f"Submitted ICD-10: {dx}"],
+                                policy_evidence=[f"Diagnosis {dx} is present in the Article's non-covered ICD-10 data."],
+                                mandatory=True,
+                                authoritative=True
+                            ))
                 else:
                     article_result = "UNKNOWN"
                     missing.append("Missing explicitly covered diagnosis codes.")
                 policy_path["article"] = {"policy_id": active_lcd.article_id, "result": article_result}
 
-        if lcd_result == "UNKNOWN" or article_result == "UNKNOWN":
+        # Only flag ambiguity as missing information when the Article has NOT resolved coverage.
+        # If article_result == "COVERED", the most-specific authoritative layer has spoken —
+        # LCD-level UNKNOWN semantic criteria are abstained and must not block the approval.
+        if article_result == "UNKNOWN" or (
+            lcd_result == "UNKNOWN" and article_result not in ("COVERED", "EXCLUDED")
+        ):
             if "Clinical documentation required to verify ambiguous criteria." not in missing:
                 missing.append("Clinical documentation required to verify ambiguous criteria.")
 

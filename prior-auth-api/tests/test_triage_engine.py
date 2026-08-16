@@ -136,7 +136,7 @@ def test_TC10_noncovered_z00_01(client: TestClient) -> None:
         "procedure_code": "64483", "diagnosis_codes": ["Z00.01"], "state": "TX",
     })
     assert r.status_code == 200
-    assert r.json()["decision"] == "REQUEST_MORE_INFORMATION"
+    assert r.json()["decision"] == "PEND"
 
 
 def test_TC11_noncovered_different_j5_state(client: TestClient) -> None:
@@ -497,7 +497,7 @@ def test_TC44_criterion_classifier_types() -> None:
     assert c1.type == CriterionType.STRUCTURED
 
     c2 = CriterionClassifier.classify({"criterion_id": "2", "criterion": "Patient age must be greater than 65 years old", "policy_type": "NCD", "policy_id": "123"})
-    assert c2.type == CriterionType.RULE_BASED
+    assert c2.type == CriterionType.SEMANTIC
 
     c3 = CriterionClassifier.classify({"criterion_id": "3", "criterion": "Documentation must show conservative treatment failed", "policy_type": "NCD", "policy_id": "123"})
     assert c3.type == CriterionType.SEMANTIC

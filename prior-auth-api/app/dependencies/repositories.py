@@ -37,7 +37,6 @@ from app.repositories.policy_chunk_repository import PolicyChunkRepository
 from app.services.rag.embedding_service import EmbeddingService
 from app.services.llm.client import LLMClient
 from app.services.evaluation.structured_evaluator import StructuredEvaluator
-from app.services.evaluation.rule_evaluator import RuleEvaluator
 from app.services.evaluation.semantic_evaluator import SemanticEvaluator
 from app.services.evaluation.multi_evaluator import MultiEvaluator
 from sqlalchemy.orm import Session
@@ -159,6 +158,7 @@ def get_triage_service(
     policy_repo: Annotated[PolicyRepository, Depends(get_policy_repository)],
     article_repo: Annotated[ArticleRepository, Depends(get_article_repository)],
     ncd_repo: Annotated[NCDRepository, Depends(get_ncd_repository)],
+    lcd_repo: Annotated[LCDRepository, Depends(get_lcd_repository)],
     chunk_repo: Annotated[PolicyChunkRepository, Depends(get_policy_chunk_repository)],
     evaluator: Annotated[MultiEvaluator, Depends(get_multi_evaluator)],
     embedding_service: Annotated[EmbeddingService, Depends(get_embedding_service)],
@@ -167,6 +167,7 @@ def get_triage_service(
         policy_repository=policy_repo,
         article_repository=article_repo,
         ncd_repository=ncd_repo,
+        lcd_repository=lcd_repo,
         chunk_repository=chunk_repo,
         evaluator=evaluator,
         embedding_service=embedding_service,

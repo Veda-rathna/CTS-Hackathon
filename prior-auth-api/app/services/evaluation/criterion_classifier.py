@@ -6,7 +6,13 @@ from app.schemas.evaluation import CriterionType, PolicyCriterion
 
 
 class CriterionClassifier:
-    """Classifies criteria into STRUCTURED, RULE_BASED, or SEMANTIC."""
+    """Classifies criteria into STRUCTURED or SEMANTIC.
+
+    STRUCTURED: contains deterministic code references (HCPCS, CPT, ICD-10).
+                Routed to StructuredEvaluator (SQL / deterministic).
+    SEMANTIC:   free-text clinical requirements.
+                Routed to SemanticEvaluator (4-agent Qwen pipeline).
+    """
 
     @staticmethod
     def classify(criterion_dict: dict) -> PolicyCriterion:

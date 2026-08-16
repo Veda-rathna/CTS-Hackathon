@@ -50,52 +50,67 @@ from app.repositories.policy_chunk_repository import PolicyChunkRepository
 from app.services.rag.embedding_service import EmbeddingService
 from app.services.llm.client import LLMClient
 from app.services.evaluation.structured_evaluator import StructuredEvaluator
-from app.services.evaluation.rule_evaluator import RuleEvaluator
 from app.services.evaluation.semantic_evaluator import SemanticEvaluator
 from app.services.evaluation.multi_evaluator import MultiEvaluator
 
-# ── Demo scenarios (5 Real CMS Dataset Test Cases) ──────────────────────────────
+# ── Demo scenarios (6 Real CMS Dataset Test Cases) ──────────────────────────────
 
 DEMOS = [
     {
-        "name": "APPROVE — Epidural Steroid Injection covered by LCD (NCD Not Addressed)",
+        "name": "APPROVE — Covered Knee Osteoarthritis Hyaluronan Injection (PA-REAL-001)",
+        "procedure_code": "20610",
+        "diagnosis_codes": ["M17.11"],
+        "state": "TX",
+        "patient_age": 51,
+        "clinical_notes": "Intraarticular knee injection of hyaluronan for unilateral primary osteoarthritis right knee.",
+    },
+    {
+        "name": "APPROVE — Covered Lumbar Radiculopathy Epidural Steroid Injection (PA-REAL-002)",
         "procedure_code": "64483",
         "diagnosis_codes": ["M54.16"],
         "state": "TX",
-        "patient_age": 55,
-        "clinical_notes": "Patient presents with lumbar radiculopathy confirmed on MRI. Conservative physical therapy was tried for 8 weeks without adequate relief.",
+        "patient_age": 47,
+        "clinical_notes": "Epidural injection, lumbar or sacral. Patient presents with lumbar radiculopathy confirmed on MRI. Conservative physical therapy was tried for 8 weeks without adequate relief.",
     },
     {
-        "name": "PEND — Explicitly non-covered diagnosis [LCD Path]",
+        "name": "PEND/DENY — Mandatory Requirement Failed (Non-Covered Joint Pain for Trigger Point Injection) (PA-REAL-003)",
         "procedure_code": "20552",
         "diagnosis_codes": ["M25.50"],
         "state": "TX",
-        "patient_age": 40,
-        "clinical_notes": "Routine consultation for general unspecified joint pain without muscle trigger points.",
+        "patient_age": 61,
+        "clinical_notes": "Injection(s), single or multiple trigger point(s), 1 or 2 muscle(s) for pain in unspecified joint.",
     },
     {
-        "name": "PEND — Biofeedback Therapy excluded by NCD 124 [NCD Path]",
-        "procedure_code": "97012",
-        "diagnosis_codes": ["G89.4"],
-        "state": "TX",
-        "patient_age": 52,
-        "clinical_notes": "Biofeedback therapy and mechanical traction for spinal pain syndrome following physical therapy evaluation.",
-    },
-    {
-        "name": "REQUEST_MORE_INFORMATION — Outside jurisdiction (CA) [LCD Path]",
+        "name": "NEED_MORE_INFORMATION — Missing Required Clinical Documentation (Unlisted Headache for Epidural) (PA-REAL-004)",
         "procedure_code": "64483",
-        "diagnosis_codes": ["M54.16"],
-        "state": "CA",
-        "patient_age": 63,
-        "clinical_notes": "Lumbosacral radiculopathy. Submitted in CA (outside Novitas J5 jurisdiction).",
+        "diagnosis_codes": ["R51.9"],
+        "state": "TX",
+        "patient_age": 67,
+        "clinical_notes": "Epidural injection, lumbar or sacral for unspecified headache.",
     },
     {
-        "name": "PEND — No matching policy in database",
-        "procedure_code": "99999",
-        "diagnosis_codes": ["M54.16"],
+        "name": "PEND/DENY — Explicit Policy Exclusion under NCD 373 (PA-REAL-005)",
+        "procedure_code": "20552",
+        "diagnosis_codes": ["M25.50"],
         "state": "TX",
-        "patient_age": 45,
-        "clinical_notes": "Unmapped procedure code not addressed in any CMS LCD or NCD policy database.",
+        "patient_age": 57,
+        "clinical_notes": "Trigger point injection for acupuncture-related indications.",
+    },
+    {
+        "name": "NEED_MORE_INFORMATION — Unknown/Incomplete Diagnosis (Administrative Exam Code for Knee Injection) (PA-REAL-006)",
+        "procedure_code": "20610",
+        "diagnosis_codes": ["Z00.00"],
+        "state": "TX",
+        "patient_age": 44,
+        "clinical_notes": "Intraarticular knee injection of hyaluronan for general medical examination.",
+    },
+    {
+        "name": "APPROVE — Intravenous Immune Globulin Covered under National Policy NCD 158 (PA-REAL-007)",
+        "procedure_code": "J1561",
+        "diagnosis_codes": ["L10.0"],
+        "state": "TX",
+        "patient_age": 58,
+        "clinical_notes": "Intravenous immune globulin infusion for biopsy-proven pemphigus vulgaris refractory to standard systemic corticosteroid therapy.",
     },
 ]
 
@@ -122,6 +137,7 @@ def build_service():
         policy_repository=policy_repo,
         article_repository=article_repo,
         ncd_repository=ncd_repo,
+        lcd_repository=lcd_repo,
         chunk_repository=chunk_repo,
         evaluator=MultiEvaluator(
             StructuredEvaluator(article_repo, lcd_repo, ncd_repo),
