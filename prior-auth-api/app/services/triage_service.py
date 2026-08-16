@@ -17,7 +17,9 @@ from typing import List
 
 from app.repositories.interfaces.article_repository import ArticleRepository
 from app.repositories.interfaces.ncd_repository import NCDRepository
+from app.repositories.interfaces.lcd_repository import LCDRepository
 from app.repositories.interfaces.policy_repository import PolicyRepository
+from app.repositories.postgres.lcd_repository import PostgresLCDRepository
 from app.repositories.policy_chunk_repository import PolicyChunkRepository
 
 from app.services.rag.embedding_service import EmbeddingService
@@ -70,7 +72,7 @@ def _filter_latest_effective_policies(
 
 
 class TriageService:
-    """Triage engine that matches a clinical request to policies using Deterministic+LLM pipeline."""
+    """Core triage service enforcing CMS Medicare hierarchical rules."""
 
     def __init__(
         self,
@@ -80,10 +82,12 @@ class TriageService:
         chunk_repository: PolicyChunkRepository,
         evaluator: MultiEvaluator,
         embedding_service: EmbeddingService,
+        lcd_repository: LCDRepository | None = None,
     ) -> None:
         self._policy_repo = policy_repository
         self._article_repo = article_repository
         self._ncd_repo = ncd_repository
+        self._lcd_repo = lcd_repository or PostgresLCDRepository()
         self._chunk_repo = chunk_repository
         self._evaluator = evaluator
         self._embedding_service = embedding_service
@@ -194,7 +198,7 @@ class TriageService:
                 policy_type="NCD",
                 candidate_policy_ids=ncd_ids,
                 top_k=5,
-                threshold=0.6
+                threshold=0.85
             )
             
             ncd_criteria = []
@@ -376,8 +380,21 @@ class TriageService:
                 policy_type="LCD",
                 candidate_policy_ids=[active_lcd.policy_id],
                 top_k=5,
-                threshold=0.8
+                threshold=0.85
             )
+            if not lcd_chunks:
+                lcd_details = self._lcd_repo.get_by_id(active_lcd.policy_id)
+                if lcd_details:
+                    text_content = (lcd_details.indication or "") + "\n" + (lcd_details.summary_of_evidence or "")
+                    if text_content.strip():
+                        from app.models.policy_chunk import PolicyChunk
+                        synthetic_chunk = PolicyChunk(
+                            policy_type="LCD",
+                            policy_id=active_lcd.policy_id,
+                            section="indications_limitations",
+                            chunk_text=text_content.strip()[:1500]
+                        )
+                        lcd_chunks = [(synthetic_chunk, 0.2)]
             for chunk_tuple in lcd_chunks:
                 chunk, distance = chunk_tuple
                 all_rag_evidence.append(
@@ -407,7 +424,7 @@ class TriageService:
             policy_path["lcd"] = {"policy_id": active_lcd.policy_id, "result": lcd_result}
 
             # ── Article (Phase 11) ───────────────────────────────────────────
-            if lcd_result == "COVERED" and active_lcd.article_id:
+            if lcd_result in ("COVERED", "UNKNOWN") and active_lcd.article_id:
                 article_id = active_lcd.article_id
                 
                 # Deterministic HCPCS

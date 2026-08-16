@@ -118,7 +118,6 @@ def get_multi_evaluator(
             lcd_repository=lcd_repo,
             ncd_repository=ncd_repo,
         ),
-        rule_evaluator=RuleEvaluator(),
         semantic_evaluator=SemanticEvaluator(llm_client)
     )
 

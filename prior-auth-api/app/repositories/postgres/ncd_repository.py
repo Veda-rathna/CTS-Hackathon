@@ -7,7 +7,8 @@ from __future__ import annotations
 from sqlalchemy import select
 
 from app.db.session import SessionLocal
-from app.models.ncd import NCD
+from app.models.ncd import NCD, NCDHCPCSCode
+from app.schemas.article import CodeEntry
 from app.schemas.ncd import NCDResponse
 
 
@@ -44,3 +45,16 @@ class PostgresNCDRepository:
                 manual_section=row.document_display_id,
                 decision=row.decision,
             )
+
+    def get_hcpcs(self, ncd_id: str) -> list[CodeEntry]:
+        """Return HCPCS/CPT codes covered under this NCD."""
+        with self._session() as db:
+            latest_version = self._get_latest_version(db, ncd_id)
+            if latest_version is None:
+                return []
+            stmt = select(NCDHCPCSCode).where(
+                NCDHCPCSCode.ncd_id == ncd_id,
+                NCDHCPCSCode.ncd_version == latest_version
+            )
+            rows = db.scalars(stmt).all()
+            return [CodeEntry(code=r.hcpcs_code, description=r.description) for r in rows]

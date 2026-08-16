@@ -57,10 +57,11 @@ class Settings(BaseSettings):
 
     # ── LLM Configuration ─────────────────────────────────────────────────
     llm_enabled: bool = True
-    llm_provider: str = "lmstudio"
+    llm_provider: str = "bedrock"
     llm_base_url: str = "http://127.0.0.1:1234/v1"
-    llm_model: str = "qwen/qwen3-4b-2507"
+    llm_model: str = "qwen.qwen3-vl-235b-a22b"
     llm_temperature: float = 0.0
+    llm_api_key: str | None = None
 
     # ── Agentic Semantic Evaluation Configuration ──────────────────────────────
     # Controls the 4-agent pipeline: PolicyAgent → ClinicalEvidenceAgent →
@@ -79,6 +80,13 @@ class Settings(BaseSettings):
     # agent_source_text_max_chars: Max chars of source_text passed to PolicyAgent.
     #   Prevents very large policy chunks from blowing out LLM context.
     agent_source_text_max_chars: int = 2000
+
+    # ── CMS Coverage API Configuration ─────────────────────────────────────
+    cms_coverage_api_base_url: str = "https://api.coverage.cms.gov"
+    cms_coverage_api_timeout: float = 10.0
+    cms_coverage_api_max_retries: int = 2
+    cms_coverage_api_enabled: bool = True
+    cms_coverage_api_key: str | None = None
 
 
 

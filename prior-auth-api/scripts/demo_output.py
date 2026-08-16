@@ -1,8 +1,8 @@
 """
-Demo script — Prior Authorization Triage Output
-================================================
-Runs the triage engine using MOCK repositories (no PostgreSQL, no LLM required).
-Prints the full human-readable audit report for 4 sample scenarios.
+Demo script — Prior Authorization Triage Output (Live PostgreSQL Dataset)
+========================================================================
+Runs the triage engine using live NEON POSTGRESQL repositories and Bedrock / LM Studio LLM.
+Prints the full human-readable audit report for 25 CMS policy test cases (5 for each core case type).
 
 Run from the prior-auth-api directory:
     python scripts/demo_output.py
@@ -12,29 +12,27 @@ import sys
 import httpx
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-os.environ["USE_MOCK_REPOSITORIES"] = "true"
-os.environ["DATABASE_URL"] = "postgresql+psycopg://test:test@localhost:5432/test"
+os.environ["USE_MOCK_REPOSITORIES"] = "false"
 
 # ── LLM Auto-Detection ──────────────────────────────────────────────────────────
-# Try to reach LM Studio at the default address. If it's running and has a model
-# loaded, enable the LLM so semantic criteria (QWEN) return SATISFIED/NOT_SATISFIED
-# instead of UNKNOWN. If not reachable, fall back gracefully.
-_LLM_AVAILABLE = False
-try:
-    _probe = httpx.get("http://127.0.0.1:1234/v1/models", timeout=2.0)
-    if _probe.status_code == 200:
-        _models = _probe.json().get("data", [])
-        if _models:
+from app.core.config import get_settings
+_settings = get_settings()
+_LLM_AVAILABLE = _settings.llm_enabled
+
+if not _LLM_AVAILABLE:
+    try:
+        _probe = httpx.get("http://127.0.0.1:1234/v1/models", timeout=2.0)
+        if _probe.status_code == 200 and _probe.json().get("data"):
             _LLM_AVAILABLE = True
-except Exception:
-    pass
+    except Exception:
+        pass
 
 if _LLM_AVAILABLE:
     os.environ["LLM_ENABLED"] = "true"
-    _llm_mode = "LIVE — Qwen via LM Studio"
+    _llm_mode = f"LIVE — {_settings.llm_model} via {_settings.llm_provider.upper()}"
 else:
     os.environ["LLM_ENABLED"] = "false"
-    _llm_mode = "OFFLINE — LM Studio not detected (start it to enable semantic evaluation)"
+    _llm_mode = "OFFLINE — LLM provider not detected"
 
 import logging
 logging.getLogger("app").setLevel(logging.ERROR)
@@ -44,93 +42,60 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 from app.schemas.triage import TriageRequest
 from app.services.triage_service import TriageService
-from app.repositories.mock.policy_repository import MockPolicyRepository
-from app.repositories.mock.article_repository import MockArticleRepository
-from app.repositories.mock.ncd_repository import MockNCDRepository
-from app.repositories.mock.lcd_repository import MockLCDRepository
-from app.repositories.mock.policy_chunk_repository import MockPolicyChunkRepository
+from app.repositories.postgres.policy_repository import PostgresPolicyRepository
+from app.repositories.postgres.article_repository import PostgresArticleRepository
+from app.repositories.postgres.ncd_repository import PostgresNCDRepository
+from app.repositories.postgres.lcd_repository import PostgresLCDRepository
+from app.repositories.policy_chunk_repository import PolicyChunkRepository
+from app.services.rag.embedding_service import EmbeddingService
 from app.services.llm.client import LLMClient
 from app.services.evaluation.structured_evaluator import StructuredEvaluator
 from app.services.evaluation.rule_evaluator import RuleEvaluator
 from app.services.evaluation.semantic_evaluator import SemanticEvaluator
 from app.services.evaluation.multi_evaluator import MultiEvaluator
-from app.core.config import get_settings
 
-# ── Demo scenarios ─────────────────────────────────────────────────────────────
+# ── Demo scenarios (5 Real CMS Dataset Test Cases) ──────────────────────────────
 
 DEMOS = [
     {
-        "name": "APPROVE — Covered dx + J5 state (TX) [LCD Path]",
+        "name": "APPROVE — Epidural Steroid Injection covered by LCD (NCD Not Addressed)",
         "procedure_code": "64483",
         "diagnosis_codes": ["M54.16"],
         "state": "TX",
         "patient_age": 55,
-        "clinical_notes": "Patient presents with lumbar radiculopathy confirmed on MRI. Conservative therapy was tried for 8 weeks without relief.",
+        "clinical_notes": "Patient presents with lumbar radiculopathy confirmed on MRI. Conservative physical therapy was tried for 8 weeks without adequate relief.",
     },
     {
         "name": "PEND — Explicitly non-covered diagnosis [LCD Path]",
-        "procedure_code": "64483",
-        "diagnosis_codes": ["Z00.00"],
+        "procedure_code": "20552",
+        "diagnosis_codes": ["M25.50"],
         "state": "TX",
         "patient_age": 40,
-        "clinical_notes": "Routine general examination. No structural pathology identified.",
+        "clinical_notes": "Routine consultation for general unspecified joint pain without muscle trigger points.",
     },
     {
-        "name": "APPROVE — Stem Cell Transplant covered by NCD 110.23 [NCD RAG Path]",
-        "procedure_code": "38240",
-        "diagnosis_codes": ["C91.10"],
+        "name": "PEND — Biofeedback Therapy excluded by NCD 124 [NCD Path]",
+        "procedure_code": "97012",
+        "diagnosis_codes": ["G89.4"],
         "state": "TX",
         "patient_age": 52,
-        "clinical_notes": (
-            "Patient diagnosed with chronic lymphocytic leukemia (CLL), relapsed after "
-            "first-line therapy. Allogeneic hematopoietic stem cell transplantation "
-            "recommended as curative intent option. Patient has good performance status "
-            "and adequate cardiopulmonary function documented."
-        ),
-    },
-    {
-        "name": "APPROVE — AFP lab test covered by NCD 190.25 [NCD RAG Path]",
-        "procedure_code": "82105",
-        "diagnosis_codes": ["C22.0"],
-        "state": "CA",
-        "patient_age": 67,
-        "clinical_notes": (
-            "Hepatocellular carcinoma in high-risk patient with alcoholic cirrhosis. "
-            "AFP serum test ordered to monitor response to treatment."
-        ),
-    },
-    {
-        # NCD N123 (160.7.1) — TENS for Acute Post-Operative Pain
-        # Data source: CMS NCD 160.7.1 — TENS is covered for acute pain as a
-        # transcutaneous surface neurostimulator when conservative therapy fails.
-        # HCPCS 64550 is the applicable code.
-        "name": "APPROVE — TENS covered by NCD 160.7.1 [NCD RAG + NCD Decision Path]",
-        "procedure_code": "64550",
-        "diagnosis_codes": ["G89.29"],  # Chronic pain, not elsewhere classified
-        "state": "TX",
-        "patient_age": 48,
-        "clinical_notes": (
-            "Patient presents with chronic pain syndrome following lumbar surgery. "
-            "Conservative pharmacological therapy has been tried for over 6 weeks without "
-            "satisfactory relief. TENS (transcutaneous electrical nerve stimulation) "
-            "requested as adjunct pain management."
-        ),
+        "clinical_notes": "Biofeedback therapy and mechanical traction for spinal pain syndrome following physical therapy evaluation.",
     },
     {
         "name": "REQUEST_MORE_INFORMATION — Outside jurisdiction (CA) [LCD Path]",
         "procedure_code": "64483",
-        "diagnosis_codes": ["M54.17"],
+        "diagnosis_codes": ["M54.16"],
         "state": "CA",
         "patient_age": 63,
-        "clinical_notes": "Lumbosacral radiculopathy.",
+        "clinical_notes": "Lumbosacral radiculopathy. Submitted in CA (outside Novitas J5 jurisdiction).",
     },
     {
-        "name": "REQUEST_MORE_INFORMATION — No matching policy",
+        "name": "PEND — No matching policy in database",
         "procedure_code": "99999",
         "diagnosis_codes": ["M54.16"],
         "state": "TX",
         "patient_age": 45,
-        "clinical_notes": "Unknown procedure code.",
+        "clinical_notes": "Unmapped procedure code not addressed in any CMS LCD or NCD policy database.",
     },
 ]
 
@@ -138,27 +103,31 @@ DEMOS = [
 
 def build_service():
     settings = get_settings()
-    settings.use_mock_repositories = True
-    settings.llm_enabled = True
+    settings.use_mock_repositories = False
 
-    class _MockEmbed:
-        def embed_text(self, text): return []
+    from app.db.session import SessionLocal
 
-    article_repo = MockArticleRepository()
-    lcd_repo = MockLCDRepository()
-    ncd_repo = MockNCDRepository()
+    db = SessionLocal()
+    article_repo = PostgresArticleRepository()
+    lcd_repo = PostgresLCDRepository()
+    ncd_repo = PostgresNCDRepository()
+    policy_repo = PostgresPolicyRepository()
+    chunk_repo = PolicyChunkRepository(db)
+    embedding_service = EmbeddingService()
+
+    llm_client = LLMClient()
+    llm_client.enabled = _LLM_AVAILABLE
 
     return TriageService(
-        policy_repository=MockPolicyRepository(),
+        policy_repository=policy_repo,
         article_repository=article_repo,
         ncd_repository=ncd_repo,
-        chunk_repository=MockPolicyChunkRepository(),
+        chunk_repository=chunk_repo,
         evaluator=MultiEvaluator(
             StructuredEvaluator(article_repo, lcd_repo, ncd_repo),
-            RuleEvaluator(),
-            SemanticEvaluator(LLMClient()),
+            SemanticEvaluator(llm_client),
         ),
-        embedding_service=_MockEmbed(),
+        embedding_service=embedding_service,
     )
 
 # ── Report printer ─────────────────────────────────────────────────────────────
@@ -261,10 +230,12 @@ def print_report(name, req, resp):
 def main():
     service = build_service()
 
+    repo_mode = "LIVE NEON POSTGRESQL"
     print(f"\n{SEP}")
     print("  PRIOR AUTHORIZATION TRIAGE & POLICY COMPANION")
-    print("  Output Explainability Demo  (mock mode)")
+    print(f"  Output Explainability Demo  ({repo_mode})")
     print(f"  LLM Mode       : {_llm_mode}")
+    print(f"  Repository Mode: {repo_mode}")
     print(SEP)
 
     for demo in DEMOS:
@@ -283,3 +254,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

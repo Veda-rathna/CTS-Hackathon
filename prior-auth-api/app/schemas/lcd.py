@@ -30,6 +30,8 @@ class LCDResponse(BaseModel):
     version: str | None = None
     effective_date: date | None = None
     end_date: date | None = None
+    indication: str | None = None
+    summary_of_evidence: str | None = None
     jurisdiction: JurisdictionSummary | None = None
     contractor: ContractorSummary | None = None
     associated_article_ids: list[str] = []

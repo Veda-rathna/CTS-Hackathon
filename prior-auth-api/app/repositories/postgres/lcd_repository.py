@@ -22,6 +22,8 @@ def _lcd_to_schema(row: LCD) -> LCDResponse:
         version=str(row.lcd_version),
         effective_date=row.orig_det_eff_date,
         end_date=row.date_retired,
+        indication=row.indication,
+        summary_of_evidence=row.summary_of_evidence,
         jurisdiction=None,  # Handled dynamically or via seed mapping
         contractor=None,    # Handled dynamically
         associated_article_ids=article_ids,
@@ -54,4 +56,43 @@ class PostgresLCDRepository:
                 return None
             row = db.get(LCD, (lcd_id, latest_version))
             return _lcd_to_schema(row) if row else None
+
+    def get_hcpcs(self, lcd_id: str) -> list[CodeEntry]:
+        """Return HCPCS/CPT codes listed under this LCD."""
+        with self._session() as db:
+            latest_version = self._get_latest_version(db, lcd_id)
+            if latest_version is None:
+                return []
+            stmt = select(LCDHCPCSCode).where(
+                LCDHCPCSCode.lcd_id == lcd_id,
+                LCDHCPCSCode.lcd_version == latest_version
+            )
+            rows = db.scalars(stmt).all()
+            return [CodeEntry(code=r.hcpcs_code, description=r.description) for r in rows]
+
+    def get_icd10_covered(self, lcd_id: str) -> list[CodeEntry]:
+        """Return covered ICD-10 codes for this LCD."""
+        with self._session() as db:
+            latest_version = self._get_latest_version(db, lcd_id)
+            if latest_version is None:
+                return []
+            stmt = select(LCDIcd10Covered).where(
+                LCDIcd10Covered.lcd_id == lcd_id,
+                LCDIcd10Covered.lcd_version == latest_version
+            )
+            rows = db.scalars(stmt).all()
+            return [CodeEntry(code=r.icd10_code, description=r.description) for r in rows]
+
+    def get_icd10_noncovered(self, lcd_id: str) -> list[CodeEntry]:
+        """Return non-covered ICD-10 codes for this LCD."""
+        with self._session() as db:
+            latest_version = self._get_latest_version(db, lcd_id)
+            if latest_version is None:
+                return []
+            stmt = select(LCDIcd10NonCovered).where(
+                LCDIcd10NonCovered.lcd_id == lcd_id,
+                LCDIcd10NonCovered.lcd_version == latest_version
+            )
+            rows = db.scalars(stmt).all()
+            return [CodeEntry(code=r.icd10_code, description=r.description) for r in rows]
 
