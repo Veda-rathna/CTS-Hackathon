@@ -53,6 +53,10 @@ class TriageRequest(BaseModel):
         ge=0,
         description="Patient age in years (≥ 0). Optional context for policy checks.",
     )
+    patient_id: str | None = Field(
+        default=None,
+        description="Optional patient identifier used to fetch Synthea clinical history.",
+    )
     clinical_notes: str | None = Field(
         default=None,
         description="Patient clinical notes for semantic evaluation.",

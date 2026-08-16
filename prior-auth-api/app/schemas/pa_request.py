@@ -1,4 +1,4 @@
-﻿"""Canonical PA Request Pydantic schemas.
+"""Canonical PA Request Pydantic schemas.
 
 These models define the structured clinical PA request that flows from the
 frontend form -> NormalizationService -> PARequestService -> TriageService.
@@ -143,6 +143,10 @@ class CanonicalPARequest(BaseModel):
     diagnoses: list[PADiagnosis] = Field(
         default_factory=list,
         description="One or more diagnoses associated with the PA request.",
+    )
+    clinical_notes: Optional[str] = Field(
+        default=None,
+        description="Optional free-text clinical notes from the submitting provider.",
     )
 
     model_config = {

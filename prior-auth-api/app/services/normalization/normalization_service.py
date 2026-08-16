@@ -1,4 +1,4 @@
-﻿"""PA Request Normalization Service.
+"""PA Request Normalization Service.
 
 The single, reusable normalization layer for all intake sources (manual form,
 and in future, PDF extraction).
@@ -232,4 +232,5 @@ def build_triage_request(canonical: CanonicalPARequest) -> dict:
         "state": state,
         "patient_age": patient_age,
         "service_date": service_date,
+        "clinical_notes": canonical.clinical_notes,
     }

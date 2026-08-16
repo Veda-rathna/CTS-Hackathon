@@ -16,3 +16,6 @@ __pycache__/
 node_modules/
 dist/
 .vite/
+
+synthea_sample_data_csv_latest/
+synthea_sample_data_csv_latest.zip
