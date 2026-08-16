@@ -43,6 +43,12 @@ from app.services.evaluation.multi_evaluator import MultiEvaluator
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 
+def get_synthea_repository(
+    session: Annotated[Session, Depends(get_db)]
+):
+    from app.repositories.synthea_repository import SyntheaRepository
+    return SyntheaRepository(session)
+
 # ── Repository factories ──────────────────────────────────────────────────────
 
 def get_policy_chunk_repository(

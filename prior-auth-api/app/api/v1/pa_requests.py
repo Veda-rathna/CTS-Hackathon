@@ -13,12 +13,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.dependencies.repositories import get_triage_service
+from app.dependencies.repositories import get_triage_service, get_synthea_repository
 from app.schemas.pa_request import CanonicalPARequest
 from app.schemas.triage import TriageResponse
 from app.services.normalization import NormalizationService
 from app.services.pa_request import PARequestService
 from app.services.triage_service import TriageService
+from app.repositories.synthea_repository import SyntheaRepository
 
 router = APIRouter(prefix="/pa-requests", tags=["PA Requests"])
 
@@ -32,11 +33,13 @@ _DISCLAIMER = (
 
 def get_pa_request_service(
     triage_service: Annotated[TriageService, Depends(get_triage_service)],
+    synthea_repo: Annotated[SyntheaRepository, Depends(get_synthea_repository)],
 ) -> PARequestService:
-    """Dependency: build PARequestService with injected TriageService."""
+    """Dependency: build PARequestService with injected TriageService and SyntheaRepository."""
     return PARequestService(
         normalization_service=NormalizationService(),
         triage_service=triage_service,
+        synthea_repository=synthea_repo,
     )
 
 

@@ -1,111 +1,40 @@
-# Prior Authorization Triage & Policy Companion (CTS Hackathon)
+# AI-Powered Prior Authorization Triage & Policy Companion
 
-> **Use Case UC02 — Utilization Management**
+> **CTS Hackathon | Use Case UC02 — Utilization Management**
 
-A production-ready **FastAPI** backend solution that evaluates Medicare prior authorization requests against official CMS coverage policies using a hybrid adjudication architecture: **Deterministic SQL lookups**, **pgvector RAG vector search**, and **local LLM semantic criterion evaluation (Qwen3 via LM Studio)**.
+An explainable Prior Authorization (PA) triage system that combines clinical request normalization, CMS Medicare coverage evidence, deterministic policy evaluation, and safe routing for manual review. This system acts as a deterministic policy companion to intelligently route PA requests using **deterministic SQL lookups**, **pgvector RAG vector search**, and **local LLM semantic criterion evaluation**.
 
 ---
 
-## 📋 Problem Statement (UC02)
-
-> **"Before some treatments happen, the insurer has to say yes first — that pre-check is called 'prior authorization' or 'prior auth'. Prototype a system that takes an incoming request, extracts the key clinical and administrative facts, checks it against a configurable coverage rule set, and recommends approve, pend for nurse review, or request more information — with the reasoning shown."**
+## 📋 1. Problem Statement & Solution
 
 ### The Challenge
-Prior authorization decides whether a requested service meets a health plan's coverage and medical necessity rules before care is delivered. It is one of the most scrutinized payer-provider friction points today because **speed, accuracy, transparency, and experience** (member & provider) all matter simultaneously.
+Prior Authorization (PA) is a utilization management process used by health insurers to determine if a prescribed procedure or service is medically necessary and covered. Evaluating PA requests requires reviewing complex clinical notes and diagnosis codes against lengthy, dense coverage policies (like Medicare's Local Coverage Determinations). Manual review is notoriously slow, leading to care delays, administrative burnout, and friction between providers and payers. Missing or incorrectly formatted information creates unnecessary denials. A system is needed to traceably connect patient clinical data to specific policy evidence to accelerate review and eliminate arbitrary denials.
 
-### Solution Requirements
-- **Fact Extraction**: Procedure code (HCPCS/CPT), diagnosis codes (ICD-10-CM), state (MAC jurisdiction), patient demographics, clinical notes.
-- **Coverage Rule Set**: CMS Medicare Coverage Database (National Coverage Determinations [NCD], Local Coverage Determinations [LCD], Billing/Coding Articles [LCA]).
-- **3-Tier Decision Engine**: Recommends `APPROVE`, `PEND` (for nurse review), or `REQUEST_MORE_INFORMATION`.
-- **Explainability & Transparency**: Complete evidence audit trace showing matched policies, RAG similarity scores, and LLM reasoning.
-
----
-
-## 🛠️ Hybrid Architecture & Adjudication Pipeline
-
-Our engine mirrors the official CMS adjudication hierarchy, enforced by a **deterministic + RAG + LLM cascade**:
-
-```
-                               ┌─────────────────────────┐
-                               │   Prior Auth Request    │
-                               │  CPT, ICD10, State, Notes│
-                               └────────────┬────────────┘
-                                            │
-                                            ▼
-                              ┌───────────────────────────┐
-                              │ 1. Policy Lookup (SQL)    │
-                              │    Find Candidate NCD/LCD │
-                              └─────────────┬─────────────┘
-                                            │
-                                            ▼
-                              ┌───────────────────────────┐
-                              │ 2. NCD Evaluation         │
-                              │    pgvector RAG + LLM     │
-                              └─────────────┬─────────────┘
-                                            │
-               ┌────────────────────────────┼────────────────────────────┐
-               │ COVERED                    │ EXCLUDED                   │ NOT_ADDRESSED
-               ▼                            ▼                            ▼
-        ┌──────────────┐             ┌──────────────┐        ┌───────────────────────┐
-        │   APPROVE    │             │     PEND     │        │ 3. Jurisdiction Check │
-        └──────────────┘             └──────────────┘        │    State in MAC Zone? │
-                                                             └───────────┬───────────┘
-                                                                         │ MATCHED
-                                                                         ▼
-                                                             ┌───────────────────────┐
-                                                             │ 4. LCD Evaluation     │
-                                                             │    RAG + LLM + SQL    │
-                                                             └───────────┬───────────┘
-                                                                         │ COVERED
-                                                                         ▼
-                                                             ┌───────────────────────┐
-                                                             │ 5. Article Evaluation │
-                                                             │    ICD-10 Code Matrix │
-                                                             └───────────┬───────────┘
-                                                                         │
-                                                                         ▼
-                                                             ┌───────────────────────┐
-                                                             │ 6. Decision Engine    │
-                                                             │    APPROVE / PEND /   │
-                                                             │    REQUEST_MORE_INFO  │
-                                                             └───────────────────────┘
-```
-
-### Key Technical Pillars
-
-1. **CMS Adjudication Cascade**:
-   - **NCD Override (First Priority)**: National policies take precedence. If an NCD explicitly covers or excludes the procedure for the diagnosis, adjudication halts early.
-   - **MAC Jurisdiction Verification (Second Priority)**: Validates state abbreviations against regional Medicare Administrative Contractor (MAC) jurisdictions.
-   - **LCD Evaluation (Third Priority)**: RAG vector search over active Local Coverage Determinations.
-   - **Article ICD-10 Matrix (Fourth Priority)**: Deterministic SQL validation against `article_icd10_covered` and `article_icd10_noncovered` code lists.
-
-2. **Authority Hierarchy in Evidence Fusion**:
-   $$\text{Structured (SQL)} > \text{Rule-based} > \text{Semantic (LLM)}$$
-   - Authoritative SQL code checks **always** override LLM outputs.
-   - LLM `UNKNOWN` results pass through to secondary policy layers without causing false rejections.
-   - Timeout circuit breaker (5s connect / 20s read) prevents server hangs if the LLM is offline.
-
-3. **Repository Pattern (Mock & PostgreSQL Modes)**:
-   - Toggle `USE_MOCK_REPOSITORIES=true` for instant in-memory execution without a database.
-   - Toggle `USE_MOCK_REPOSITORIES=false` for full PostgreSQL + pgvector vector search.
+### The Solution
+This project provides an automated, explainable triage and decision-support system. 
+1. **Receive PA request:** Accept standard clinical data and notes.
+2. **Extract & Normalize:** Standardize HCPCS and ICD-10 formats.
+3. **Query Evidence:** Check for normalized CMS policy evidence stored locally, fetching from CMS directly if missing.
+4. **Evaluate Criteria:** Compare requested codes against structured policy lists, utilizing a 6-tier hierarchical adjudication cascade.
+5. **Produce Recommendation:** Suggest `APPROVE`, `PEND`, or `REQUEST_MORE_INFORMATION`.
+6. **Explain Reasoning:** Surface human-readable explanations mapping exactly to CMS policy requirements.
 
 ---
 
-## ⚡ Quick Start
+## ⚡ 2. Quick Start & Setup
 
-### 1. Unified CLI Runner (`manage.py`)
+The backend is built with **FastAPI**, **PostgreSQL (Neon)**, **SQLAlchemy**, and **pgvector**.
 
-Navigate to `prior-auth-api` and use `manage.py` for all tasks:
+Navigate to the `prior-auth-api` directory to run the unified CLI (`manage.py`):
 
 ```bash
 cd prior-auth-api
 
 # Create & activate environment
 python -m venv .venv
-# On Windows:
-.venv\Scripts\activate
-# On macOS/Linux:
-source .venv/bin/activate
+.venv\Scripts\activate      # Windows
+source .venv/bin/activate  # macOS/Linux
 
 # Install dependencies
 pip install -r requirements.txt
@@ -116,59 +45,150 @@ python manage.py serve
 # Run Pytest suite
 python manage.py test
 
-# Run Live API verification test suite
+# Run Live API verification test suite (End to End)
 python manage.py test-live
-
-# Full Database Setup (Init pgvector → Seed CMS data → Ingest RAG embeddings)
-python manage.py setup-db
 ```
 
-### 2. Interactive Documentation & Endpoints
+---
+
+## 🏛️ 3. System Architecture
+
+```mermaid
+flowchart TD
+    %% External systems
+    CMS[CMS MCD API]
+    
+    %% Ingestion Pipeline
+    subgraph CMS Ingestion Pipeline
+        CMSClient[CMSCoverageClient]
+        Normalizer[CMSNormalizer]
+    end
+    
+    %% Local Database
+    subgraph Neon PostgreSQL
+        DB[(Local Policy Evidence Cache)]
+        Repo[PostgresPolicyRepository]
+    end
+    
+    %% Evaluation Engine
+    subgraph PA Triage Engine
+        PA[PA Request]
+        Resolver[PolicyEvidenceResolver]
+        Triage[TriageService]
+        Eval[Deterministic Policy Evaluator]
+        Decision[Decision / Reason / Evidence]
+    end
+    
+    %% Ingestion flow
+    CMS -->|Raw JSON| CMSClient
+    CMSClient -->|Retrieve Document| Normalizer
+    Normalizer -->|Normalized Objects| Repo
+    Repo -->|Upsert| DB
+    
+    %% Evaluation flow
+    PA --> Resolver
+    Resolver -->|Query Evidence| Repo
+    Repo -->|Local Policy| Resolver
+    Resolver -->|Candidate Policies| Triage
+    Triage --> Eval
+    Eval -->|Exact Match| Decision
+```
+
+---
+
+## ⚙️ 4. CMS Adjudication Engine
+
+Our engine mirrors the official CMS adjudication hierarchy, enforced by a **deterministic + RAG + LLM cascade**:
+
+1. **National Coverage (NCD) (Highest Priority):** Evaluates national policies via pgvector RAG and LLM criterion classifier. If an NCD explicitly covers or excludes the procedure, adjudication halts early.
+2. **Jurisdiction Verification:** Validates state abbreviations against regional Medicare Administrative Contractor (MAC) jurisdictions.
+3. **Local Coverage (LCD):** RAG search over active Local Coverage Determinations.
+4. **Article ICD-10 Matrix:** Deterministic SQL validation against `article_icd10_covered` and `article_icd10_noncovered` code lists.
+
+### Authority Hierarchy in Evidence Fusion
+$$\text{Structured (SQL)} > \text{Rule-based} > \text{Semantic (LLM)}$$
+Authoritative SQL code checks **always** override LLM outputs. Ambiguous LLM evaluations fall through to deterministic rules.
+
+---
+
+## 🔄 5. CMS API Integration & Fallback
+
+We implemented a robust HTTP client specifically for the CMS Medicare Coverage Database (MCD) API to fetch live policy data:
+- **Dynamic Authentication:** Automatically negotiates and injects the AMA/ADA license agreement `Bearer` token.
+- **Local-First, CMS-Fallback:** Queries the local Neon PostgreSQL database first. If data is missing or incomplete, it reaches out to the CMS API, normalizes the massive JSON payload into our `PolicyMatch` Pydantic models, and caches it locally via an `upsert` mechanism for future requests.
+
+---
+
+## 🗄️ 6. Database Schema
+
+Backed by **Neon PostgreSQL** and **pgvector**.
+
+```mermaid
+erDiagram
+    LCD ||--o{ LCDHCPCSCode : contains
+    LCD ||--o{ LCDIcd10Covered : covers
+    LCD ||--o{ LCDIcd10NonCovered : excludes
+    LCD {
+        string lcd_id PK
+        int lcd_version PK
+        string title
+        string status
+        date orig_det_eff_date
+        text associated_article_ids
+    }
+    LCDHCPCSCode {
+        string lcd_id PK,FK
+        int lcd_version PK,FK
+        string hcpcs_code PK
+    }
+    LCDIcd10Covered {
+        string lcd_id PK,FK
+        int lcd_version PK,FK
+        string icd10_code PK
+    }
+    LCDIcd10NonCovered {
+        string lcd_id PK,FK
+        int lcd_version PK,FK
+        string icd10_code PK
+    }
+```
+
+---
+
+## 📡 7. API Endpoints & Payloads
 
 - **Swagger UI**: http://localhost:8001/docs
 - **ReDoc**: http://localhost:8001/redoc
-- **API Health Check**: `GET http://localhost:8001/api/v1/health`
-- **Core Triage Endpoint**: `POST http://localhost:8001/api/v1/triage`
 
----
-
-## 📂 Project Directory Structure
-
-```
-CTS-Hackathon/
-├── DOCUMENTATION.md            # MASTER TECHNICAL DOCUMENTATION (Architecture + Adjudication + Roadmap)
-├── README.md                   # Workspace root README (this file)
-└── prior-auth-api/             # FastAPI Application Root
-    ├── manage.py               # CENTRAL CLI RUNNER (serve, test, setup-db, test-live)
-    ├── app/
-    │   ├── api/v1/             # REST Endpoints (triage, policies, articles, lcds, ncds, health)
-    │   ├── schemas/            # Strict Pydantic Data Contracts (TriageRequest, TriageResponse)
-    │   ├── services/           # Adjudication Cascade, Decision Engine, Evidence Fusion
-    │   ├── repositories/       # Data Access Interfaces (Mock & Postgres implementations)
-    │   ├── models/             # SQLAlchemy ORM Data Models (NCD, LCD, Article, PolicyChunk)
-    │   ├── core/               # Pydantic BaseSettings & Logging configuration
-    │   └── db/                 # Database engine & session factory
-    ├── scripts/                # Utility & Test Scripts
-    │   ├── db_setup.py         # Unified DB Init + Seeding + pgvector Embedding Ingestion
-    │   └── test_live.py        # Unified Live API Verification Suite
-    ├── tests/                  # Streamlined Pytest Test Suite
-    │   ├── test_triage_engine.py # Master Adjudication Engine & Edge Case Tests (46 tests)
-    │   └── test_domain_routers.py # Master Domain Router Endpoint Tests (22 tests)
-    ├── Dockerfile
-    ├── docker-compose.yml
-    └── requirements.txt
+### Triage Request (`POST /api/v1/triage`)
+```json
+{
+  "procedure_code": "64483",
+  "diagnosis_codes": ["M54.16"],
+  "state": "TX",
+  "patient_age": 65,
+  "clinical_notes": "Patient has radiculopathy confirmed on MRI, failed conservative therapy."
+}
 ```
 
----
-
-## 📖 Master Documentation Reference
-
-For detailed technical explanations, refer to **[`prior-auth-api/DOCUMENTATION.md`](prior-auth-api/DOCUMENTATION.md)**:
-- **System Architecture**: High-level module diagrams, repository pattern, and service graph.
-- **Engine Deep Dive**: Detailed breakdown of the 6-step CMS coverage cascade.
-- **Data Integration Contract**: Entity-relationship schema (Contractor → Jurisdiction → LCD → Article).
-- **UC02 Gaps & Production Roadmap**: Gap matrix (Synthea FHIR ingestion, longitudinal prior claims, HITL nurse review queue, 50-state MAC scaling) and 3-phase enterprise deployment roadmap.
+### Triage Response (`200 OK`)
+| Decision | Meaning |
+| :--- | :--- |
+| **APPROVE** | Policy evidence and configured criteria explicitly support approval. |
+| **PEND** | Evidence is ambiguous, exclusions were triggered, or review requirements mandate a manual review. |
+| **REQUEST_MORE_INFORMATION** | A required code is missing, or the diagnosis is not found in the policy code lists. |
 
 ---
 
-*CTS Hackathon — Use Case UC02 Utilization Management Solution*
+## 🚀 8. Roadmap & Future Work
+
+| Component | Status | Description & Solution |
+|---|---|---|
+| **Fact Extraction** | ✅ **Complete** | Standardized Pydantic request schema (`TriageRequest`). |
+| **Coverage Cascade** | ✅ **Complete** | Full 6-phase adjudication pipeline (NCD → Jurisdiction → LCD → Article). |
+| **Synthea History Retrieval** | ✅ **Complete** | Dynamically intercepts PA requests to fetch synthetic medical timelines. |
+| **Synthea FHIR Ingestion** | ⚠️ **Partial (85%)** | Accepts free-text notes; native FHIR R4 Bundle parsing planned. |
+| **Prior Claims History** | ❌ **Roadmap** | Longitudinal prior claims tracking planned for frequency/quantity limits. |
+| **Decision Logging DB** | ❌ **Roadmap** | Immutable background audit logger (`triage_audit_logs`) for HIPAA compliance. |
+| **HITL Nurse Review** | ❌ **Roadmap** | Review queue endpoints for UM nurses to adjudicate `PEND` requests. |
+| **Background Sync Module** | ❌ **Roadmap** | A background worker to periodically query CMS APIs to pre-warm the database and delta-sync policy updates. |
