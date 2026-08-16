@@ -1,22 +1,7 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Send,
-  RotateCcw,
-  Plus,
-  X,
-  RefreshCw,
-  AlertCircle,
-  FileText,
-  Stethoscope,
-  MapPin,
-  User,
-  ClipboardList,
-  Calendar,
-  Zap,
-  Building2,
-  Shield,
-  Hash,
+  RotateCcw, Plus, X, RefreshCw, AlertCircle, Zap, Sparkles, User, Stethoscope, Building2
 } from 'lucide-react';
 import { createPARequest } from '../../services/api';
 import { savePARequest } from '../../utils/storage';
@@ -30,7 +15,7 @@ const US_STATES = [
 
 const SAMPLE_CASES = [
   {
-    label: 'Epidural Injection (LCD L39054)',
+    label: 'Epidural',
     data: {
       pa_request_id: '',
       patient: { patient_id: 'p-sample-1', date_of_birth: '1969-03-15', age: 55, gender: 'M', state: 'TX' },
@@ -50,7 +35,7 @@ const SAMPLE_CASES = [
     },
   },
   {
-    label: 'Stem Cell Transplant (NCD 110.23)',
+    label: 'Stem Cell',
     data: {
       pa_request_id: '',
       patient: { patient_id: 'p-sample-2', date_of_birth: '1982-07-22', age: 42, gender: 'F', state: 'CA' },
@@ -70,9 +55,9 @@ const SAMPLE_CASES = [
     },
   },
   {
-    label: 'Dental Gingivectomy',
+    label: 'Dental',
     data: {
-      pa_request_id: 'PA-001',
+      pa_request_id: '',
       patient: { patient_id: 'p001', date_of_birth: '1979-02-20', age: 47, gender: 'M', state: 'Massachusetts' },
       coverage: { payer: 'Medicare', plan_id: 'MED-MA-001', plan_name: 'Medicare Advantage Example Plan' },
       request: { review_type: 'NON_URGENT', request_type: 'INITIAL', urgency_reason: '', previous_authorization_number: '' },
@@ -112,14 +97,15 @@ const DEFAULT_FORM = {
 function validate(form) {
   const errors = {};
   const proc = (form.service?.procedure_code || '').trim();
-  if (!proc) errors['service.procedure_code'] = 'Procedure code is required.';
-  else if (!/^[A-Za-z0-9]{1,7}$/.test(proc)) errors['service.procedure_code'] = 'Enter a valid CPT/HCPCS code.';
+  if (!proc) errors['service.procedure_code'] = 'Req';
+  
   const validDx = (form.diagnoses || []).filter((d) => d.icd10_code && d.icd10_code.trim());
-  if (validDx.length === 0) errors['diagnoses'] = 'At least one diagnosis with an ICD-10 code is required.';
+  if (validDx.length === 0) errors['diagnoses'] = 'Req';
+  
   const age = form.patient?.age;
   if (age !== '' && age !== null && age !== undefined) {
     const n = Number(age);
-    if (isNaN(n) || n < 0 || n > 130) errors['patient.age'] = 'Enter a valid age (0-130).';
+    if (isNaN(n) || n < 0 || n > 130) errors['patient.age'] = 'Inv';
   }
   return errors;
 }
@@ -130,6 +116,7 @@ export default function ManualPAForm() {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  const [activeTab, setActiveTab] = useState(1);
 
   const setFlat = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -151,8 +138,8 @@ export default function ManualPAForm() {
     if (form.diagnoses.length === 1) return;
     setFlat('diagnoses', form.diagnoses.filter((_, i) => i !== idx));
   };
-  const loadSample = (s) => { setForm({ ...s.data }); setErrors({}); setSubmitError(null); };
-  const reset = () => { setForm(DEFAULT_FORM); setErrors({}); setSubmitError(null); };
+  const loadSample = (s) => { setForm({ ...s.data }); setErrors({}); setSubmitError(null); setActiveTab(1); };
+  const reset = () => { setForm(DEFAULT_FORM); setErrors({}); setSubmitError(null); setActiveTab(1); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -160,7 +147,9 @@ export default function ManualPAForm() {
     const validationErrors = validate(form);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Auto switch tab if error exists
+      if (validationErrors['patient.age']) setActiveTab(1);
+      else if (validationErrors['service.procedure_code'] || validationErrors['diagnoses']) setActiveTab(2);
       return;
     }
     setSubmitting(true);
@@ -223,308 +212,256 @@ export default function ManualPAForm() {
       const saved = savePARequest(displayRecord, response);
       navigate(`/pa/${saved.pa_request_id}`);
     } catch (err) {
-      const msg = err.message || 'An error occurred while submitting the request.';
-      if (msg.toLowerCase().includes('network') || msg.toLowerCase().includes('connect') || msg.toLowerCase().includes('fetch')) {
-        setSubmitError('Unable to connect to the Prior Authorization service. Please ensure the backend is running on http://localhost:8000.');
-      } else {
-        setSubmitError(msg);
-      }
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setSubmitError(err.message || 'Error submitting request.');
     } finally {
       setSubmitting(false);
     }
   };
 
   const inputCls = (hasErr) =>
-    `w-full px-3 py-2 text-sm rounded-lg border ${hasErr ? 'border-rose-400 bg-rose-50/40' : 'border-slate-300 focus:border-sky-500'} focus:outline-none focus:ring-2 focus:ring-sky-500/20 text-slate-800 transition-colors`;
-  const selectCls = (accent) =>
-    `w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:border-${accent}-500 focus:ring-2 focus:ring-${accent}-500/20 focus:outline-none bg-white text-slate-800 transition-colors`;
+    `w-full px-3 py-2 text-sm rounded-lg border ${hasErr ? 'border-rose-400 bg-rose-50 text-rose-900' : 'border-slate-300 bg-white hover:border-slate-400 focus:bg-white focus:border-sky-500'} focus:outline-none focus:ring-4 focus:ring-sky-500/10 transition-all shadow-sm`;
+  
+  const lblCls = "block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-
-      {/* Quick load */}
-      <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-        <span className="text-xs font-semibold text-slate-600 mr-1">Quick load:</span>
-        {SAMPLE_CASES.map((s) => (
-          <button key={s.label} type="button" onClick={() => loadSample(s)}
-            className="px-2.5 py-1 text-xs font-medium rounded-lg bg-white border border-slate-200 hover:border-sky-400 hover:text-sky-700 shadow-sm transition-colors">
-            {s.label}
+    <div className="flex flex-col h-[calc(100vh-100px)] w-full max-w-4xl mx-auto overflow-hidden bg-white/70 backdrop-blur-xl rounded-2xl border border-slate-200/80 shadow-lg">
+      
+      {/* HEADER / TOP BAR */}
+      <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50/50 flex-shrink-0">
+        <h2 className="text-base font-extrabold text-slate-800">Prior Authorization Intake</h2>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-400 mr-1 hidden sm:block">Quick Demo Loads:</span>
+          {SAMPLE_CASES.map((s) => (
+            <button key={s.label} type="button" onClick={() => loadSample(s)}
+              className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-sky-700 hover:border-sky-300 shadow-sm transition-all">
+              {s.label}
+            </button>
+          ))}
+          <button type="button" onClick={reset} className="ml-2 p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors" title="Clear Form">
+            <RotateCcw className="w-4 h-4" />
           </button>
-        ))}
-        <button type="button" onClick={reset}
-          className="ml-auto flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-500 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors">
-          <RotateCcw className="w-3.5 h-3.5" />Clear
-        </button>
+        </div>
       </div>
 
       {submitError && (
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-3">
-          <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
-          <div className="text-xs text-rose-800"><span className="font-bold block mb-0.5">Submission Failed</span>{submitError}</div>
+        <div className="mx-4 mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3 flex-shrink-0">
+          <AlertCircle className="w-5 h-5 text-rose-600" />
+          <span className="text-sm font-medium text-rose-800">{submitError}</span>
         </div>
       )}
 
-      {/* REQUEST META */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
-        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-          <div className="p-1.5 rounded-lg bg-indigo-50"><Hash className="w-4 h-4 text-indigo-600" /></div>
-          <h3 className="text-sm font-bold text-slate-800">Request Info</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">PA Request ID <span className="text-slate-400 font-normal">(auto if blank)</span></label>
-            <input type="text" value={form.pa_request_id} onChange={(e) => setFlat('pa_request_id', e.target.value)}
-              placeholder="e.g. PA-001" className={inputCls(false)} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Review Type</label>
-            <select value={form.request.review_type} onChange={(e) => setNested('request', 'review_type', e.target.value)} className={selectCls('indigo')}>
-              <option value="NON_URGENT">NON_URGENT</option>
-              <option value="URGENT">URGENT</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Request Type</label>
-            <select value={form.request.request_type} onChange={(e) => setNested('request', 'request_type', e.target.value)} className={selectCls('indigo')}>
-              <option value="INITIAL">INITIAL</option>
-              <option value="REAUTHORIZATION">REAUTHORIZATION</option>
-            </select>
-          </div>
-        </div>
+      {/* TABS NAVIGATION */}
+      <div className="flex px-4 pt-4 gap-2 flex-shrink-0">
+        {[
+          { id: 1, label: 'Patient Info', icon: User },
+          { id: 2, label: 'Clinical Data', icon: Stethoscope },
+          { id: 3, label: 'Admin Details', icon: Building2 },
+        ].map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 px-2 rounded-t-xl text-sm font-bold border-t border-x transition-all ${
+                isActive 
+                  ? 'bg-white border-slate-200 text-sky-700' 
+                  : 'bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+              }`}
+              style={isActive ? { marginBottom: '-1px', zIndex: 10 } : {}}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* SERVICE & PROCEDURE */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
-        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-          <div className="p-1.5 rounded-lg bg-sky-50"><Stethoscope className="w-4 h-4 text-sky-600" /></div>
-          <h3 className="text-sm font-bold text-slate-800">Service & Procedure</h3>
-          <span className="text-rose-500 text-sm">*</span>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">CPT / HCPCS Code <span className="text-rose-500">*</span></label>
-            <input type="text" value={form.service.procedure_code}
-              onChange={(e) => setNested('service', 'procedure_code', e.target.value.toUpperCase())}
-              placeholder="e.g. 64483 or D4210" maxLength={7}
-              className={`w-full sm:w-48 px-3 py-2 text-sm font-mono font-semibold rounded-lg border ${errors['service.procedure_code'] ? 'border-rose-400 bg-rose-50/40' : 'border-slate-300 focus:border-sky-500'} focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-colors uppercase`} />
-            {errors['service.procedure_code'] && (
-              <p className="mt-1 text-xs text-rose-600 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors['service.procedure_code']}</p>
-            )}
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Place of Service</label>
-            <input type="text" value={form.service.place_of_service} onChange={(e) => setNested('service', 'place_of_service', e.target.value)}
-              placeholder="e.g. Outpatient" className={inputCls(false)} />
-          </div>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1">Service Description</label>
-          <input type="text" value={form.service.service_description} onChange={(e) => setNested('service', 'service_description', e.target.value)}
-            placeholder="Human-readable description of the requested service" className={inputCls(false)} />
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Start Date</label>
-            <input type="date" value={form.service.start_date} onChange={(e) => setNested('service', 'start_date', e.target.value)} className={inputCls(false)} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">End Date</label>
-            <input type="date" value={form.service.end_date} onChange={(e) => setNested('service', 'end_date', e.target.value)} className={inputCls(false)} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1"># Sessions</label>
-            <input type="number" value={form.service.number_of_sessions} onChange={(e) => setNested('service', 'number_of_sessions', e.target.value)}
-              min={1} placeholder="1" className={inputCls(false)} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Frequency</label>
-            <input type="text" value={form.service.frequency} onChange={(e) => setNested('service', 'frequency', e.target.value)}
-              placeholder="e.g. Once" className={inputCls(false)} />
-          </div>
-        </div>
-      </div>
-
-      {/* DIAGNOSES */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
-        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-          <div className="p-1.5 rounded-lg bg-emerald-50"><FileText className="w-4 h-4 text-emerald-600" /></div>
-          <h3 className="text-sm font-bold text-slate-800">Diagnoses</h3>
-          <span className="text-rose-500 text-sm">*</span>
-        </div>
-        <div className="space-y-3">
-          {form.diagnoses.map((dx, idx) => (
-            <div key={idx} className="flex items-start gap-2">
-              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <input type="text" value={dx.icd10_code} onChange={(e) => setDiagnosis(idx, 'icd10_code', e.target.value)}
-                  placeholder={`ICD-10 Code #${idx + 1}`} maxLength={8}
-                  className={`px-3 py-2 text-sm font-mono font-semibold rounded-lg border ${errors['diagnoses'] && idx === 0 ? 'border-rose-400 bg-rose-50/40' : 'border-slate-300 focus:border-emerald-500'} focus:outline-none focus:ring-2 focus:ring-emerald-500/20 uppercase`} />
-                <input type="text" value={dx.description} onChange={(e) => setDiagnosis(idx, 'description', e.target.value)}
-                  placeholder="Description (optional)"
-                  className="px-3 py-2 text-sm rounded-lg border border-slate-300 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20" />
+      {/* MAIN CONTENT AREA */}
+      <div className="flex-1 overflow-hidden flex flex-col bg-white border-t border-slate-200">
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden" noValidate>
+          
+          <div className="flex-1 p-6 sm:p-8 overflow-y-auto">
+            {/* TAB 1: PATIENT */}
+            {activeTab === 1 && (
+              <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in duration-300">
+                <div className="space-y-1 mb-6">
+                  <h3 className="text-lg font-extrabold text-slate-800">Patient Demographics</h3>
+                  <p className="text-sm text-slate-500">Enter patient ID to automatically trigger Synthea AI history linking.</p>
+                </div>
+                
+                <div>
+                  <label className={lblCls}>Patient ID</label>
+                  <input type="text" value={form.patient.patient_id} onChange={(e) => setNested('patient', 'patient_id', e.target.value)} className={inputCls(false) + " font-mono font-bold"} placeholder="p-sample-1" />
+                  {form.patient.patient_id && (
+                    <div className="mt-2 text-xs font-bold text-purple-700 bg-purple-50 px-3 py-2 rounded-lg border border-purple-100 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4" /> Synthea Medical History Merging Active
+                    </div>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={lblCls}>Date of Birth</label>
+                    <input type="date" value={form.patient.date_of_birth} onChange={(e) => setNested('patient', 'date_of_birth', e.target.value)} className={inputCls(false)} />
+                  </div>
+                  <div>
+                    <label className={lblCls}>Age</label>
+                    <input type="number" value={form.patient.age} onChange={(e) => setNested('patient', 'age', e.target.value)} className={inputCls(!!errors['patient.age'])} />
+                  </div>
+                  <div>
+                    <label className={lblCls}>Gender</label>
+                    <select value={form.patient.gender} onChange={(e) => setNested('patient', 'gender', e.target.value)} className={inputCls(false)}>
+                      <option value="">Select Gender</option><option value="M">Male (M)</option><option value="F">Female (F)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={lblCls}>Patient State</label>
+                    <select value={form.patient.state} onChange={(e) => setNested('patient', 'state', e.target.value)} className={inputCls(false)}>
+                      <option value="">Select State</option>
+                      {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                </div>
               </div>
-              {form.diagnoses.length > 1 && (
-                <button type="button" onClick={() => removeDiagnosis(idx)}
-                  className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors mt-0.5" title="Remove">
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          ))}
-          <button type="button" onClick={addDiagnosis}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors">
-            <Plus className="w-3.5 h-3.5" />Add Diagnosis
-          </button>
-          {errors['diagnoses'] && (
-            <p className="text-xs text-rose-600 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors['diagnoses']}</p>
-          )}
-          <p className="text-[11px] text-slate-400">ICD-10-CM format. Multiple diagnoses supported.</p>
-        </div>
-      </div>
-
-      {/* PATIENT */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
-        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-          <div className="p-1.5 rounded-lg bg-purple-50"><User className="w-4 h-4 text-purple-600" /></div>
-          <h3 className="text-sm font-bold text-slate-800">Patient</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Patient ID</label>
-            <input type="text" value={form.patient.patient_id} onChange={(e) => setNested('patient', 'patient_id', e.target.value)}
-              placeholder="e.g. p001" className={inputCls(false)} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Date of Birth</label>
-            <input type="date" value={form.patient.date_of_birth} onChange={(e) => setNested('patient', 'date_of_birth', e.target.value)} className={inputCls(false)} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Age (years)</label>
-            <input type="number" value={form.patient.age} onChange={(e) => setNested('patient', 'age', e.target.value)}
-              placeholder="e.g. 55" min={0} max={130} className={inputCls(!!errors['patient.age'])} />
-            {errors['patient.age'] && <p className="mt-1 text-xs text-rose-600">{errors['patient.age']}</p>}
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Gender</label>
-            <select value={form.patient.gender} onChange={(e) => setNested('patient', 'gender', e.target.value)} className={selectCls('purple')}>
-              <option value="">Select</option>
-              <option value="M">M - Male</option>
-              <option value="F">F - Female</option>
-              <option value="O">O - Other</option>
-              <option value="U">U - Unknown</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">
-              <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-purple-500" />Patient State</span>
-            </label>
-            <select value={form.patient.state} onChange={(e) => setNested('patient', 'state', e.target.value)} className={selectCls('purple')}>
-              <option value="">Select state (optional)</option>
-              {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <p className="mt-1 text-[11px] text-slate-400">Used for jurisdiction-based LCD lookup.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* COVERAGE */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
-        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-          <div className="p-1.5 rounded-lg bg-teal-50"><Shield className="w-4 h-4 text-teal-600" /></div>
-          <h3 className="text-sm font-bold text-slate-800">Coverage</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Payer</label>
-            <input type="text" value={form.coverage.payer} onChange={(e) => setNested('coverage', 'payer', e.target.value)}
-              placeholder="e.g. Medicare" className={inputCls(false)} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Plan ID</label>
-            <input type="text" value={form.coverage.plan_id} onChange={(e) => setNested('coverage', 'plan_id', e.target.value)}
-              placeholder="e.g. MED-MA-001" className={inputCls(false)} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Plan Name</label>
-            <input type="text" value={form.coverage.plan_name} onChange={(e) => setNested('coverage', 'plan_name', e.target.value)}
-              placeholder="e.g. Medicare Advantage" className={inputCls(false)} />
-          </div>
-        </div>
-      </div>
-
-      {/* PROVIDER */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
-        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-          <div className="p-1.5 rounded-lg bg-orange-50"><Building2 className="w-4 h-4 text-orange-600" /></div>
-          <h3 className="text-sm font-bold text-slate-800">Provider</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Organization Name</label>
-            <input type="text" value={form.provider.organization_name} onChange={(e) => setNested('provider', 'organization_name', e.target.value)}
-              placeholder="e.g. FENWAY COMMUNITY HEALTH CENTER" className={inputCls(false)} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Specialty</label>
-            <input type="text" value={form.provider.specialty} onChange={(e) => setNested('provider', 'specialty', e.target.value)}
-              placeholder="e.g. GENERAL PRACTICE" className={inputCls(false)} />
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Provider ID</label>
-            <input type="text" value={form.provider.provider_id} onChange={(e) => setNested('provider', 'provider_id', e.target.value)}
-              placeholder="e.g. prov018" className={inputCls(false)} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Organization ID</label>
-            <input type="text" value={form.provider.organization_id} onChange={(e) => setNested('provider', 'organization_id', e.target.value)}
-              placeholder="e.g. org018" className={inputCls(false)} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Provider State</label>
-            <select value={form.provider.state} onChange={(e) => setNested('provider', 'state', e.target.value)} className={selectCls('orange')}>
-              <option value="">Select state</option>
-              {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* CLINICAL NOTES */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
-        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-          <div className="p-1.5 rounded-lg bg-amber-50"><ClipboardList className="w-4 h-4 text-amber-600" /></div>
-          <h3 className="text-sm font-bold text-slate-800">Clinical Notes</h3>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1">Clinical Documentation / Medical Justification</label>
-          <textarea value={form.clinical_notes} onChange={(e) => setFlat('clinical_notes', e.target.value)}
-            placeholder="Describe the patient clinical history, prior treatments, medical necessity and supporting evidence..."
-            rows={5}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none text-slate-800 leading-relaxed resize-y transition-colors" />
-          <p className="mt-1 text-[11px] text-slate-400">Used by semantic and agentic evaluation pipeline.</p>
-        </div>
-      </div>
-
-      {/* SUBMIT */}
-      <div className="sticky bottom-4 z-10">
-        <div className="bg-white border border-slate-200 shadow-lg rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="text-xs text-slate-400 hidden sm:block">
-            Submitting to <code className="font-mono text-sky-700">POST /api/v1/pa-requests</code>
-          </div>
-          <button type="submit" disabled={submitting}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:bg-sky-400 text-sm font-bold text-white shadow-sm transition-all">
-            {submitting ? (
-              <><RefreshCw className="w-4 h-4 animate-spin" /><span>Evaluating Policy...</span></>
-            ) : (
-              <><Zap className="w-4 h-4" /><span>Submit for Policy Evaluation</span></>
             )}
-          </button>
-        </div>
+
+            {/* TAB 2: CLINICAL */}
+            {activeTab === 2 && (
+              <div className="max-w-3xl mx-auto flex flex-col h-full animate-in fade-in duration-300">
+                <div className="space-y-1 mb-5 flex-shrink-0">
+                  <h3 className="text-lg font-extrabold text-slate-800">Clinical Evaluation Data</h3>
+                  <p className="text-sm text-slate-500">Provide the codes and clinical notes required for policy matching.</p>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5 flex-shrink-0">
+                  <div>
+                    <label className={lblCls}>CPT / HCPCS Code <span className="text-rose-500">*</span></label>
+                    <input type="text" value={form.service.procedure_code} onChange={(e) => setNested('service', 'procedure_code', e.target.value.toUpperCase())} className={inputCls(!!errors['service.procedure_code']) + " font-mono uppercase font-bold"} placeholder="e.g. 64483" />
+                  </div>
+                  <div>
+                    <label className={lblCls}>Place of Service</label>
+                    <input type="text" value={form.service.place_of_service} onChange={(e) => setNested('service', 'place_of_service', e.target.value)} className={inputCls(false)} placeholder="Outpatient" />
+                  </div>
+                </div>
+
+                <div className="mb-5 flex-shrink-0">
+                  <label className={lblCls}>Diagnoses (ICD-10) <span className="text-rose-500">*</span></label>
+                  <div className="space-y-2">
+                    {form.diagnoses.map((dx, idx) => (
+                      <div key={idx} className="flex gap-2 items-start">
+                        <input type="text" value={dx.icd10_code} onChange={(e) => setDiagnosis(idx, 'icd10_code', e.target.value)} placeholder="Code" maxLength={8} className={inputCls(errors['diagnoses'] && idx===0) + " w-32 font-mono uppercase"} />
+                        <input type="text" value={dx.description} onChange={(e) => setDiagnosis(idx, 'description', e.target.value)} placeholder="Diagnosis Description" className={inputCls(false) + " flex-1"} />
+                        {form.diagnoses.length > 1 && (
+                          <button type="button" onClick={() => removeDiagnosis(idx)} className="p-2 text-slate-400 hover:text-rose-500 bg-slate-50 hover:bg-rose-50 rounded-lg transition-colors border border-slate-200 mt-0.5"><X className="w-4 h-4" /></button>
+                        )}
+                      </div>
+                    ))}
+                    <button type="button" onClick={addDiagnosis} className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-sky-700 bg-sky-50 border border-sky-100 rounded-lg hover:bg-sky-100 transition-colors">
+                      <Plus className="w-4 h-4" /> Add Diagnosis
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex-1 flex flex-col min-h-0">
+                  <label className={lblCls}>Clinical Documentation / Justification</label>
+                  <textarea 
+                    value={form.clinical_notes} 
+                    onChange={(e) => setFlat('clinical_notes', e.target.value)}
+                    placeholder="Provide medical justification, previous treatments failed..."
+                    className="flex-1 w-full p-4 text-sm rounded-xl bg-slate-50 border border-slate-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none resize-none text-slate-800 leading-relaxed shadow-inner" 
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: ADMIN */}
+            {activeTab === 3 && (
+              <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in duration-300">
+                <div className="space-y-1 mb-6">
+                  <h3 className="text-lg font-extrabold text-slate-800">Administrative Metadata</h3>
+                  <p className="text-sm text-slate-500">Provider, coverage, and request routing details.</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-5 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div>
+                    <label className={lblCls}>Review Type</label>
+                    <select value={form.request.review_type} onChange={(e) => setNested('request', 'review_type', e.target.value)} className={inputCls(false)}>
+                      <option value="NON_URGENT">Standard</option><option value="URGENT">Expedited</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={lblCls}>Request Type</label>
+                    <select value={form.request.request_type} onChange={(e) => setNested('request', 'request_type', e.target.value)} className={inputCls(false)}>
+                      <option value="INITIAL">Initial</option><option value="REAUTHORIZATION">Reauthorization</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={lblCls}>PA Request ID</label>
+                    <input type="text" value={form.pa_request_id} onChange={(e) => setFlat('pa_request_id', e.target.value)} className={inputCls(false)} placeholder="Auto-generated" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-5 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div>
+                    <label className={lblCls}>Payer</label>
+                    <input type="text" value={form.coverage.payer} onChange={(e) => setNested('coverage', 'payer', e.target.value)} className={inputCls(false)} placeholder="e.g. Medicare" />
+                  </div>
+                  <div>
+                    <label className={lblCls}>Plan ID</label>
+                    <input type="text" value={form.coverage.plan_id} onChange={(e) => setNested('coverage', 'plan_id', e.target.value)} className={inputCls(false)} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-5 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div>
+                    <label className={lblCls}>Provider Organization</label>
+                    <input type="text" value={form.provider.organization_name} onChange={(e) => setNested('provider', 'organization_name', e.target.value)} className={inputCls(false)} />
+                  </div>
+                  <div>
+                    <label className={lblCls}>Provider Specialty</label>
+                    <input type="text" value={form.provider.specialty} onChange={(e) => setNested('provider', 'specialty', e.target.value)} className={inputCls(false)} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* CONDITIONAL FOOTER */}
+          <div className="p-4 border-t border-slate-200 bg-slate-50 flex-shrink-0 flex items-center justify-between">
+            {activeTab > 1 ? (
+              <button 
+                type="button" 
+                onClick={() => setActiveTab(prev => prev - 1)}
+                className="px-6 py-3 rounded-xl text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 hover:text-slate-900 transition-colors shadow-sm"
+              >
+                Previous Step
+              </button>
+            ) : <div />}
+
+            {activeTab < 3 ? (
+              <button 
+                type="button" 
+                onClick={() => setActiveTab(prev => prev + 1)}
+                className="px-8 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-sm font-extrabold text-white shadow-md transition-all"
+              >
+                Next Step
+              </button>
+            ) : (
+              <button type="submit" disabled={submitting}
+                className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-sm font-extrabold text-white shadow-lg transition-all flex items-center justify-center gap-2">
+                {submitting ? (
+                  <><RefreshCw className="w-5 h-5 animate-spin" /> Adjudicating Request...</>
+                ) : (
+                  <><Zap className="w-5 h-5 text-sky-400 fill-sky-400" /> Submit to AI Engine</>
+                )}
+              </button>
+            )}
+          </div>
+
+        </form>
       </div>
-    </form>
+    </div>
   );
 }
