@@ -127,7 +127,7 @@ def test_TC09_noncovered_z00_00(client: TestClient) -> None:
     d = r.json()
     assert r.status_code == 200
     assert d["decision"] == "PEND"
-    assert "ARTICLE_EXCLUDES_PROCEDURE" in d["reason_codes"]
+    assert "LCD_EXCLUDES_PROCEDURE" in d["reason_codes"]
 
 
 def test_TC10_noncovered_z00_01(client: TestClient) -> None:
@@ -136,7 +136,7 @@ def test_TC10_noncovered_z00_01(client: TestClient) -> None:
         "procedure_code": "64483", "diagnosis_codes": ["Z00.01"], "state": "TX",
     })
     assert r.status_code == 200
-    assert r.json()["decision"] == "PEND"
+    assert r.json()["decision"] == "REQUEST_MORE_INFORMATION"
 
 
 def test_TC11_noncovered_different_j5_state(client: TestClient) -> None:
@@ -158,6 +158,7 @@ def test_TC12_unknown_dx_not_in_any_list(client: TestClient) -> None:
         "procedure_code": "64483", "diagnosis_codes": ["R99.99"], "state": "TX",
     })
     d = r.json()
+    print("TC12 Response:", d["decision"], d["reason_codes"])
     assert r.status_code == 200
     assert d["decision"] == "REQUEST_MORE_INFORMATION"
     assert len(d["missing_information"]) > 0

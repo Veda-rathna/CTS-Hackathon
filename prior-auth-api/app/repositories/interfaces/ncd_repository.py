@@ -13,3 +13,8 @@ class NCDRepository(Protocol):
     def get_by_id(self, ncd_id: str) -> NCDResponse | None:
         """Return the NCD matching *ncd_id*, or ``None`` if not found."""
         ...
+
+    def get_hcpcs(self, ncd_id: str) -> list:
+        """Return HCPCS/CPT codes covered under this NCD, or empty list."""
+        ...
+

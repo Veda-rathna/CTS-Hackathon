@@ -1,10 +1,17 @@
-"""LLM Client for semantic evaluation via LM Studio / Qwen."""
+"""LLM Client for semantic evaluation via LM Studio / Qwen.
+
+Provides three call patterns:
+1. evaluate_criterion()               — legacy flat prompt (backward compat)
+2. raw_chat(system, user)             — low-level call used by individual agents
+3. evaluate_semantic_criterion_structured() — structured Qwen call via AgentOrchestrator
+
+Runtime model: qwen/qwen3-4b-2507 via LM Studio at http://127.0.0.1:1234/v1
+"""
 from __future__ import annotations
 
 import json
 import logging
 import httpx
-from typing import Any
 from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
@@ -13,33 +20,163 @@ logger = logging.getLogger(__name__)
 
 
 class LLMResponse(BaseModel):
-    """Structured response from the LLM."""
+    """Structured response from the LLM (legacy evaluate_criterion path)."""
     status: str = Field(..., description="SATISFIED, NOT_SATISFIED, or UNKNOWN")
-    patient_evidence: list[str] = Field(default_factory=list, description="Evidence found in patient clinical notes")
+    patient_evidence: list[str] = Field(
+        default_factory=list,
+        description="Evidence found in patient clinical notes",
+    )
+
+
+def _strip_fences(content: str) -> str:
+    """Strip markdown code fences from LLM output."""
+    content = content.strip()
+    if content.startswith("```json"):
+        content = content[7:]
+    if content.startswith("```"):
+        content = content[3:]
+    if content.endswith("```"):
+        content = content[:-3]
+    return content.strip()
+
+
+def _make_timeout() -> httpx.Timeout:
+    return httpx.Timeout(connect=5.0, read=30.0, write=5.0, pool=5.0)
 
 
 class LLMClient:
-    """Client for LM Studio (OpenAI compatible)."""
-    
+    """Client for LM Studio (OpenAI-compatible).
+
+    All methods fail safely — LLM failures always produce UNKNOWN results,
+    never APPROVE/PEND/REQUEST_MORE_INFORMATION.
+    """
+
     def __init__(self):
         self._settings = get_settings()
         self.base_url = self._settings.llm_base_url
         self.model = self._settings.llm_model
         self.temperature = self._settings.llm_temperature
         self.enabled = self._settings.llm_enabled
-        
+
+    # ── Low-level primitive ───────────────────────────────────────────────────
+
+    def raw_chat(self, system: str, user: str) -> str:
+        """Low-level LLM call used by individual agents.
+
+        Sends a system + user message pair and returns the raw response
+        content string with markdown fences stripped.
+
+        Args:
+            system: System-level instruction (trusted, high-priority)
+            user:   User-level content (may contain patient data — treated as DATA)
+
+        Raises:
+            Exception: Any HTTP / connectivity error (callers must handle).
+        """
+        with httpx.Client(timeout=_make_timeout()) as client:
+            response = client.post(
+                f"{self.base_url}/chat/completions",
+                json={
+                    "model": self.model,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                    "temperature": self.temperature,
+                },
+            )
+            response.raise_for_status()
+            content = response.json()["choices"][0]["message"]["content"]
+            return _strip_fences(content)
+
+    # ── Agent Orchestrator — structured Qwen call ─────────────────────────────
+
+    def evaluate_semantic_criterion_structured(
+        self,
+        qwen_prompt_context: str,
+    ) -> dict:
+        """Send the structured Qwen evaluation prompt and return parsed dict.
+
+        Used by AgentOrchestrator for the main semantic reasoning step.
+        Input is the EvaluationAgent-prepared context (patient text arrives
+        only as pre-extracted evidence bullets, never as raw instructions).
+
+        Returns:
+            dict with keys: result, evidence_cited, explanation
+            On any failure: returns a safe UNKNOWN dict.
+        """
+        _SYSTEM = (
+            "You are a deterministic healthcare policy evaluator. "
+            "Evaluate whether the patient evidence satisfies the policy criterion. "
+            "Output only valid JSON. "
+            "NEVER return APPROVE, DENY, PEND, or REQUEST_MORE_INFORMATION — "
+            "only SATISFIED, NOT_SATISFIED, or UNKNOWN."
+        )
+        _SAFE: dict = {
+            "result": "UNKNOWN",
+            "evidence_cited": [],
+            "explanation": "Semantic evaluation unavailable.",
+        }
+
+        if not self.enabled:
+            _SAFE["explanation"] = "LLM evaluation disabled."
+            return _SAFE
+
+        try:
+            raw = self.raw_chat(system=_SYSTEM, user=qwen_prompt_context)
+            parsed = json.loads(raw)
+            result = parsed.get("result", "UNKNOWN").upper()
+            # Enforce allowed values — forbidden authorization decisions → UNKNOWN
+            if result not in ("SATISFIED", "NOT_SATISFIED", "UNKNOWN"):
+                logger.warning(
+                    "Qwen returned forbidden result '%s' — converting to UNKNOWN", result
+                )
+                result = "UNKNOWN"
+            return {
+                "result": result,
+                "evidence_cited": [
+                    str(e) for e in parsed.get("evidence_cited", []) if e
+                ],
+                "explanation": str(parsed.get("explanation", "")).strip(),
+            }
+        except httpx.ConnectError as exc:
+            logger.warning("Qwen unreachable (ConnectError): %s", exc)
+            _SAFE["explanation"] = "Qwen service unreachable. Deterministic rules apply."
+            return _SAFE
+        except httpx.TimeoutException as exc:
+            logger.warning("Qwen timed out: %s", exc)
+            _SAFE["explanation"] = "Qwen evaluation timed out. Deterministic rules apply."
+            return _SAFE
+        except json.JSONDecodeError as exc:
+            logger.warning("Qwen returned malformed JSON: %s", exc)
+            _SAFE["explanation"] = "Qwen returned malformed JSON response."
+            return _SAFE
+        except Exception as exc:
+            logger.error("Qwen structured evaluation failed: %s", exc)
+            _SAFE["explanation"] = f"Qwen API error: {str(exc)}"
+            return _SAFE
+
+    # ── Legacy method (backward compatibility) ────────────────────────────────
+
     def evaluate_criterion(self, criterion_text: str, clinical_notes: str | None) -> LLMResponse:
-        """Call LLM to evaluate if patient evidence satisfies the semantic criterion."""
-        
-        # Fallback to UNKNOWN if LLM is disabled or no notes are provided
+        """Legacy call: evaluate criterion directly with clinical notes.
+
+        Used by the legacy SemanticEvaluator path (non-agentic).
+        Kept for backward compatibility. The agentic path uses
+        evaluate_semantic_criterion_structured() instead.
+        """
         if not self.enabled:
             return LLMResponse(status="UNKNOWN", patient_evidence=["LLM evaluation disabled."])
-            
+
         if not clinical_notes:
-            return LLMResponse(status="UNKNOWN", patient_evidence=["No clinical notes provided for evaluation."])
+            return LLMResponse(
+                status="UNKNOWN",
+                patient_evidence=["No clinical notes provided for evaluation."],
+            )
 
         prompt = (
-            f"You are a medical policy evaluator. Evaluate if the patient evidence satisfies the semantic policy criterion.\n\n"
+            f"You are a medical policy evaluator. Evaluate if the patient evidence "
+            f"satisfies the semantic policy criterion.\n\n"
             f"Policy Criterion:\n{criterion_text}\n\n"
             f"Patient Clinical Notes:\n{clinical_notes}\n\n"
             f"Respond with a JSON object exactly matching this schema:\n"
@@ -51,57 +188,34 @@ class LLMClient:
         )
 
         try:
-            # Split timeout: 5s to connect, 20s to read — prevents hanging on unavailable LLM
-            timeout = httpx.Timeout(connect=5.0, read=20.0, write=5.0, pool=5.0)
-            with httpx.Client(timeout=timeout) as client:
-                response = client.post(
-                    f"{self.base_url}/chat/completions",
-                    json={
-                        "model": self.model,
-                        "messages": [
-                            {"role": "system", "content": "You are a deterministic healthcare policy evaluator. Output only valid JSON."},
-                            {"role": "user", "content": prompt}
-                        ],
-                        "temperature": self.temperature
-                    }
-                )
-                response.raise_for_status()
-                data = response.json()
-                content = data["choices"][0]["message"]["content"].strip()
-                if content.startswith("```json"):
-                    content = content[7:]
-                if content.startswith("```"):
-                    content = content[3:]
-                if content.endswith("```"):
-                    content = content[:-3]
-                content = content.strip()
-                
-                parsed = json.loads(content)
-                status = parsed.get("status", "UNKNOWN").upper()
-                if status not in ("SATISFIED", "NOT_SATISFIED", "UNKNOWN"):
-                    status = "UNKNOWN"
-                    
-                return LLMResponse(
-                    status=status,
-                    patient_evidence=parsed.get("patient_evidence", [])
-                )
-
-        except httpx.ConnectError as e:
-            logger.warning("LLM unreachable (ConnectError) — falling back to UNKNOWN. Error: %s", e)
-            return LLMResponse(
-                status="UNKNOWN",
-                patient_evidence=["LLM service unreachable. Deterministic rules will apply."]
+            raw = self.raw_chat(
+                system="You are a deterministic healthcare policy evaluator. Output only valid JSON.",
+                user=prompt,
             )
-        except httpx.TimeoutException as e:
-            logger.warning("LLM timed out — falling back to UNKNOWN. Error: %s", e)
+            parsed = json.loads(raw)
+            status = parsed.get("status", "UNKNOWN").upper()
+            if status not in ("SATISFIED", "NOT_SATISFIED", "UNKNOWN"):
+                status = "UNKNOWN"
             return LLMResponse(
-                status="UNKNOWN",
-                patient_evidence=["LLM evaluation timed out. Deterministic rules will apply."]
-            )
-        except Exception as e:
-            logger.error("LLM evaluation failed: %s", e)
-            return LLMResponse(
-                status="UNKNOWN", 
-                patient_evidence=[f"LLM API error: {str(e)}"]
+                status=status,
+                patient_evidence=parsed.get("patient_evidence", []),
             )
 
+        except httpx.ConnectError as exc:
+            logger.warning("LLM unreachable (ConnectError) — falling back to UNKNOWN. Error: %s", exc)
+            return LLMResponse(
+                status="UNKNOWN",
+                patient_evidence=["LLM service unreachable. Deterministic rules will apply."],
+            )
+        except httpx.TimeoutException as exc:
+            logger.warning("LLM timed out — falling back to UNKNOWN. Error: %s", exc)
+            return LLMResponse(
+                status="UNKNOWN",
+                patient_evidence=["LLM evaluation timed out. Deterministic rules will apply."],
+            )
+        except Exception as exc:
+            logger.error("LLM evaluation failed: %s", exc)
+            return LLMResponse(
+                status="UNKNOWN",
+                patient_evidence=[f"LLM API error: {str(exc)}"],
+            )

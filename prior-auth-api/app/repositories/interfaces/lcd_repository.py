@@ -17,3 +17,14 @@ class LCDRepository(Protocol):
         """Return the LCD matching *lcd_id*, or ``None`` if not found."""
         ...
 
+    def get_hcpcs(self, lcd_id: str) -> list:
+        """Return HCPCS/CPT codes listed under this LCD."""
+        ...
+
+    def get_icd10_covered(self, lcd_id: str) -> list:
+        """Return covered ICD-10 codes for this LCD."""
+        ...
+
+    def get_icd10_noncovered(self, lcd_id: str) -> list:
+        """Return non-covered ICD-10 codes for this LCD."""
+        ...

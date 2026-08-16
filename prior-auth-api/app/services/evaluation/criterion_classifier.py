@@ -30,5 +30,6 @@ class CriterionClassifier:
             criterion=criterion_dict["criterion"],
             type=c_type,
             policy_type=criterion_dict["policy_type"],
-            policy_id=criterion_dict["policy_id"]
+            policy_id=criterion_dict["policy_id"],
+            mandatory=criterion_dict.get("mandatory", True),
         )

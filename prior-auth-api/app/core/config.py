@@ -31,13 +31,13 @@ class Settings(BaseSettings):
 
     # ── Database ─────────────────────────────────────────────────────────
     database_url: str = (
-        "postgresql+psycopg://postgres:postgres@localhost:5432/prior_auth"
+        "******localhost:5432/prior_auth"
     )
 
     # ── Repository strategy ───────────────────────────────────────────────
     # When True the application runs entirely on in-memory mock data so that
     # the API and services can be exercised without a live PostgreSQL database.
-    use_mock_repositories: bool = False
+    use_mock_repositories: bool = True
 
     # ── API ───────────────────────────────────────────────────────────────
     api_v1_prefix: str = "/api/v1"
@@ -61,6 +61,33 @@ class Settings(BaseSettings):
     llm_base_url: str = "http://127.0.0.1:1234/v1"
     llm_model: str = "qwen/qwen3-4b-2507"
     llm_temperature: float = 0.0
+
+    # ── Agentic Semantic Evaluation Configuration ──────────────────────────────
+    # Controls the 4-agent pipeline: PolicyAgent → ClinicalEvidenceAgent →
+    # EvaluationAgent → Qwen → CriticAgent
+    #
+    # agent_read_timeout_secs: Per-agent LLM call timeout (seconds).
+    #   Increase for slower hardware / larger models.
+    #   Default 30s covers Qwen3-4B on CPU.
+    agent_read_timeout_secs: float = 30.0
+
+    # agent_hallucination_threshold: Minimum fraction of key words from a cited
+    #   evidence string that must appear in the original clinical text.
+    #   0.0 = disable hallucination guard, 1.0 = exact match required.
+    agent_hallucination_threshold: float = 0.35
+
+    # agent_source_text_max_chars: Max chars of source_text passed to PolicyAgent.
+    #   Prevents very large policy chunks from blowing out LLM context.
+    agent_source_text_max_chars: int = 2000
+
+    # ── CMS Coverage API ──────────────────────────────────────────────────
+    cms_coverage_api_enabled: bool = False
+    cms_coverage_api_base_url: str = "https://api.coverage.cms.gov"
+    cms_coverage_api_timeout: float = 10.0
+    cms_coverage_api_max_retries: int = 2
+    cms_coverage_api_key: str = ""
+
+
 
 
     @property

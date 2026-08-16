@@ -46,13 +46,14 @@ from app.db.session import get_db
 # ── Repository factories ──────────────────────────────────────────────────────
 
 def get_policy_chunk_repository(
-    db: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
 ):
     if settings.use_mock_repositories:
         from app.repositories.mock.policy_chunk_repository import MockPolicyChunkRepository
         return MockPolicyChunkRepository()
-    return PolicyChunkRepository(db)
+    from app.db.session import SessionLocal
+    return PolicyChunkRepository(SessionLocal())
+
 
 def get_article_repository(
     settings: Annotated[Settings, Depends(get_settings)],
@@ -100,8 +101,11 @@ def get_policy_repository(
 
 # ── Service factories (depend on repository factories) ────────────────────────
 
-def get_llm_client() -> LLMClient:
-    return LLMClient()
+def get_llm_client(settings: Annotated[Settings, Depends(get_settings)]) -> LLMClient:
+    client = LLMClient()
+    if settings.use_mock_repositories:
+        client.enabled = False
+    return client
 
 def get_multi_evaluator(
     llm_client: Annotated[LLMClient, Depends(get_llm_client)],

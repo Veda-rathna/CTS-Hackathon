@@ -203,7 +203,12 @@ def run_tests():
                 if criteria_list:
                     rag_used = "YES"
                 
-                overall_pol = ncd_result if ncd_result not in ("NOT_ADDRESSED", "", None) else (lcd_result if article_result in ("NOT_ADDRESSED", "", None) else article_result)
+                overall_pol = getattr(response, 'evidence_fusion_result', None)
+                if not overall_pol:
+                    # Fallback: infer from policy_path if new field not populated
+                    overall_pol = ncd_result if ncd_result not in ("NOT_ADDRESSED", "", None) else (
+                        lcd_result if article_result in ("NOT_ADDRESSED", "", None) else article_result
+                    )
 
                 structured_json.update({
                     "policy_path": path,
@@ -212,13 +217,13 @@ def run_tests():
                     "code_matching": ([code_matching_hcpcs] if code_matching_hcpcs else []) + code_matching_icd10,
                     "policy_evaluation": {
                         "criteria": criteria_list,
-                        "overall_result": overall_pol
+                        "overall_result": response.evidence_fusion_result or overall_pol
                     },
                     "evidence_fusion": {
                         "satisfied": sat,
                         "not_satisfied": nsat,
                         "unknown": unk,
-                        "result": overall_pol
+                        "result": response.evidence_fusion_result or overall_pol
                     },
                     "final_decision": {
                         "decision": final_decision,
@@ -331,15 +336,13 @@ def run_tests():
                         
                     print(f"\nResult:\n    {c.get('status')}")
                     
-                    explanation = c.get('status') + " by " + eval_type
-                    if eval_type == "SQL":
-                        if "HCPCS" in c.get('criterion_id', ''):
-                            explanation = f"The submitted procedure code {request.procedure_code} was evaluated against the policy data. Evaluated as {c.get('status')} by SQL."
-                        elif "ICD10" in c.get('criterion_id', ''):
-                            explanation = f"The submitted diagnosis {request.diagnosis_codes[0]} was evaluated against the policy data. Evaluated as {c.get('status')} by SQL."
-                    elif eval_type == "QWEN":
-                        explanation = f"The submitted clinical documentation was reviewed against this semantic requirement. Evaluated as {c.get('status')} by Qwen."
-                        
+                    # Explanation comes directly from the EvaluatedCriterion object,
+                    # populated by the evaluator. No fabrication in this script.
+                    explanation = c.get('explanation') or ""
+                    if not explanation:
+                        # Minimal fallback only if the field is genuinely empty
+                        explanation = f"Evaluated as {c.get('status')} by {eval_type}."
+
                     # Fix formatting for explanation
                     print(f"\nExplanation:\n    {explanation}\n")
                     
@@ -347,30 +350,26 @@ def run_tests():
                 print(f"\nSATISFIED:\n    {sat}")
                 print(f"\nNOT_SATISFIED:\n    {nsat}")
                 print(f"\nUNKNOWN:\n    {unk}")
-                print(f"\nPolicy Result:\n    {structured_json['evidence_fusion']['result']}")
+                print(f"\nPolicy Result:\n    {response.evidence_fusion_result or structured_json['evidence_fusion']['result']}")
                 
                 print("\n\n" + "="*60 + "\nFINAL DECISION\n" + "="*60)
                 print(f"\nDecision:\n    {final_decision}")
                 
                 print("\nDecision Basis:\n")
-                if final_decision == "APPROVE":
-                    print("    All mandatory policy criteria were satisfied.\n")
-                elif final_decision == "PEND":
-                    print("    The request could not be automatically approved due to unmet or unknown criteria.\n")
+                # Use the decision_basis field from the response directly
+                decision_basis_text = getattr(response, 'decision_basis', '')
+                if decision_basis_text:
+                    for basis_line in decision_basis_text.split('\n'):
+                        print(f"    {basis_line}")
                 else:
-                    print("    Additional information is required to make a decision.\n")
-                    
-                for c in criteria_list:
-                    req_short = c.get('criterion').split('.')[0][:40] + "..."
-                    eval_type = c.get('evaluator')
-                    if eval_type == "LLM":
-                        eval_type = "QWEN"
-                    
-                    suffix = f" by {eval_type}" if eval_type == "QWEN" else ""
-                    print(f"    • {req_short} → {c.get('status')}{suffix}")
-                    
-                print(f"\n    Evidence Fusion:\n        {structured_json['evidence_fusion']['result']}")
-                print(f"\n    DecisionEngine:\n        {structured_json['evidence_fusion']['result']} → {final_decision}\n")
+                    # Minimal fallback if field missing
+                    if final_decision == "APPROVE":
+                        print("    All mandatory policy criteria were satisfied.\n")
+                    elif final_decision == "PEND":
+                        print("    The request could not be automatically approved due to unmet or unknown criteria.\n")
+                    else:
+                        print("    Additional information is required to make a decision.\n")
+                print()
 
                 if final_decision not in ["APPROVE", "PEND", "REQUEST_MORE_INFORMATION"]:
                     print(f"\n❌ INVALID FINAL DECISION CONTRACT: {final_decision}")
