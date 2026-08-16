@@ -1,3 +1,5 @@
+
+
 """Abstract interface (Protocol) for the NCD repository."""
 from __future__ import annotations
 
