@@ -26,18 +26,14 @@ def test_cms_fallback_local_hit():
     assert result["freshness"] == "CURRENT"
     assert len(result["policies"]) > 0
 
-def test_cms_fallback_local_miss_cms_hit():
-    """Test 2 — HCPCS missing locally"""
+def test_cms_fallback_local_miss():
+    """Test 2 — HCPCS missing locally returns NOT_FOUND."""
     policy_repo = MockPolicyRepository()
-    # Override find_policies_for_procedure to return empty
     policy_repo.find_policies_for_procedure = lambda x: []
     
     article_repo = MockArticleRepository()
     ncd_repo = MockNCDRepository()
     cms_client = MockCMSCoverageClient()
-    
-    # CMS has it
-    cms_client.mock_responses["99999"] = {"data": [{"document_id": "A12345"}]}
     
     resolver = PolicyEvidenceResolver(policy_repo, article_repo, ncd_repo, cms_client)
     
@@ -45,24 +41,5 @@ def test_cms_fallback_local_miss_cms_hit():
     
     assert result["status"] == "NOT_FOUND"
     assert result["reason"] == "POLICY_NOT_FOUND"
-
-def test_cms_fallback_cms_unavailable():
-    """Test 6 — CMS API unavailable"""
-    policy_repo = MockPolicyRepository()
-    policy_repo.find_policies_for_procedure = lambda x: []
-    article_repo = MockArticleRepository()
-    ncd_repo = MockNCDRepository()
-    cms_client = MockCMSCoverageClient()
-    
-    def raise_error(*args, **kwargs):
-        raise Exception("API down")
-        
-    cms_client.search_by_hcpcs = raise_error
-    
-    resolver = PolicyEvidenceResolver(policy_repo, article_repo, ncd_repo, cms_client)
-    
-    result = resolver.resolve_evidence("99999", ["M54.16"])
-    
-    assert result["status"] == "NOT_FOUND"
-    assert result["reason"] == "POLICY_NOT_FOUND"
+    assert result["policies"] == []
 

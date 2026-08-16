@@ -6,7 +6,13 @@ from app.schemas.evaluation import CriterionType, PolicyCriterion
 
 
 class CriterionClassifier:
-    """Classifies criteria into STRUCTURED, RULE_BASED, or SEMANTIC."""
+    """Classifies criteria into STRUCTURED or SEMANTIC.
+
+    STRUCTURED: contains deterministic code references (HCPCS, CPT, ICD-10).
+                Routed to StructuredEvaluator (SQL / deterministic).
+    SEMANTIC:   free-text clinical requirements.
+                Routed to SemanticEvaluator (4-agent Qwen pipeline).
+    """
 
     @staticmethod
     def classify(criterion_dict: dict) -> PolicyCriterion:
@@ -16,12 +22,7 @@ class CriterionClassifier:
         # 1. Check for Structured deterministic signals (Codes)
         if re.search(r'\b(hcpcs|cpt|icd-?10|code)\b', text):
             c_type = CriterionType.STRUCTURED
-            
-        # 2. Check for Rule-Based signals (Age, Dates, Numeric Thresholds)
-        elif re.search(r'\b(age|years old|\>|\<|>=|<=|greater than|less than|date|days)\b', text):
-            c_type = CriterionType.RULE_BASED
-            
-        # 3. Default to Semantic LLM Evaluation
+        # 2. Default to Semantic LLM Evaluation
         else:
             c_type = CriterionType.SEMANTIC
             

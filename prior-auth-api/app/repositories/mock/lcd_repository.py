@@ -33,6 +33,10 @@ _LCDS: dict[str, LCDResponse] = {
                 code="64484",
                 description="Transforaminal epidural injection, lumbar/sacral, each additional level",
             ),
+            CodeEntry(
+                code="62321",
+                description="Injection, interlaminar epidural or subarachnoid; lumbar or sacral",
+            ),
         ],
         icd10_covered=[
             CodeEntry(code="M54.16", description="Radiculopathy, lumbar region"),

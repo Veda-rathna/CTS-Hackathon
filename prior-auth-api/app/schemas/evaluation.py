@@ -10,14 +10,12 @@ from pydantic import BaseModel, Field
 class CriterionType(str, Enum):
     """Categorization of a policy criterion."""
     STRUCTURED = "STRUCTURED"
-    RULE_BASED = "RULE_BASED"
     SEMANTIC = "SEMANTIC"
 
 
 class EvaluatorType(str, Enum):
     """The system that evaluates the criterion."""
     SQL = "SQL"
-    RULES = "RULES"
     LLM = "LLM"
     AGENTIC_QWEN = "AGENTIC_QWEN"  # Four-agent orchestrated semantic evaluation
 

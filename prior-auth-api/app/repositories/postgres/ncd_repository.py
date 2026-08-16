@@ -7,7 +7,8 @@ from __future__ import annotations
 from sqlalchemy import select
 
 from app.db.session import SessionLocal
-from app.models.ncd import NCD
+from app.models.ncd import NCD, NCDHCPCSCode
+from app.schemas.article import CodeEntry
 from app.schemas.ncd import NCDResponse
 
 

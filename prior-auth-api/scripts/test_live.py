@@ -76,6 +76,17 @@ TESTS = [
         "must_not_contain_reason": "NCD_EXCLUDES_PROCEDURE",
     },
     {
+        "name": "REAL DB: J1561 + L10.0 (NCD 158 Intravenous Immune Globulin)",
+        "description": "IVIG infusion for pemphigus vulgaris covered under National Policy NCD 158.",
+        "payload": {
+            "procedure_code": "J1561",
+            "diagnosis_codes": ["L10.0"],
+            "state": "TX",
+            "clinical_notes": "Intravenous immune globulin infusion for biopsy-proven pemphigus vulgaris refractory to standard systemic corticosteroid therapy.",
+        },
+        "expect_decision": "APPROVE",
+    },
+    {
         "name": "NORMALIZATION: Messy whitespace & lowercase inputs",
         "description": "Ensures Pydantic strips whitespace and normalizes case before length checks.",
         "payload": {

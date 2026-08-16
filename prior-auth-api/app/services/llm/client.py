@@ -45,7 +45,7 @@ def _make_timeout() -> httpx.Timeout:
 
 
 class LLMClient:
-    """Client for LM Studio (OpenAI-compatible).
+    """Client for LM Studio / AWS Bedrock (OpenAI-compatible).
 
     All methods fail safely — LLM failures always produce UNKNOWN results,
     never APPROVE/PEND/REQUEST_MORE_INFORMATION.
@@ -53,10 +53,19 @@ class LLMClient:
 
     def __init__(self):
         self._settings = get_settings()
-        self.base_url = self._settings.llm_base_url
+        self.provider = getattr(self._settings, "llm_provider", "bedrock").lower()
+        self.api_key = getattr(self._settings, "llm_api_key", None)
         self.model = self._settings.llm_model
         self.temperature = self._settings.llm_temperature
         self.enabled = self._settings.llm_enabled
+
+        base = self._settings.llm_base_url
+        if self.provider == "bedrock" or (self.api_key and "127.0.0.1" in base):
+            self.endpoint_url = f"https://bedrock-runtime.us-east-1.amazonaws.com/model/{self.model}/invoke"
+        elif base.endswith("/chat/completions"):
+            self.endpoint_url = base
+        else:
+            self.endpoint_url = f"{base.rstrip('/')}/chat/completions"
 
     # ── Low-level primitive ───────────────────────────────────────────────────
 
@@ -65,17 +74,15 @@ class LLMClient:
 
         Sends a system + user message pair and returns the raw response
         content string with markdown fences stripped.
-
-        Args:
-            system: System-level instruction (trusted, high-priority)
-            user:   User-level content (may contain patient data — treated as DATA)
-
-        Raises:
-            Exception: Any HTTP / connectivity error (callers must handle).
         """
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
         with httpx.Client(timeout=_make_timeout()) as client:
             response = client.post(
-                f"{self.base_url}/chat/completions",
+                self.endpoint_url,
+                headers=headers,
                 json={
                     "model": self.model,
                     "messages": [
