@@ -175,7 +175,7 @@ export function transformPAFormToTriageRequest(formData) {
     diagnosis_codes: diagnosisCodes,
     state: state.toUpperCase() || null,
     patient_age: pa.patient?.age ? Number(pa.patient.age) : null,
-    clinical_notes: pa.service?.service_description || null,
+    clinical_notes: pa.clinical_notes || pa.service?.service_description || null,
     service_date: pa.service?.start_date || null,
   };
 }

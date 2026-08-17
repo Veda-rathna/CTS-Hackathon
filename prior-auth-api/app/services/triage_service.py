@@ -219,12 +219,20 @@ class TriageService:
             for p in ncd_candidates:
                 ncd_details = self._ncd_repo.get_by_id(p.policy_id)
                 ncd_hcpcs_codes = {c.code for c in self._ncd_repo.get_hcpcs(p.policy_id)}
-                if ncd_hcpcs_codes and procedure in ncd_hcpcs_codes:
-                    is_excluded = ncd_details and ncd_details.decision and "EXCLUDED" in ncd_details.decision.upper()
-                    if is_excluded:
+                dec = (ncd_details.decision or "").upper() if ncd_details else ""
+                if ncd_hcpcs_codes:
+                    if procedure in ncd_hcpcs_codes:
+                        if "EXCLUDED" in dec or "NON" in dec:
+                            ncd_excluded_policy = p
+                            break
+                        else:
+                            ncd_matched_policy = p
+                            break
+                elif ncd_details and dec:
+                    if "EXCLUDED" in dec or "NON" in dec:
                         ncd_excluded_policy = p
                         break
-                    else:
+                    elif "COVERED" in dec:
                         ncd_matched_policy = p
                         break
 
@@ -613,14 +621,15 @@ class TriageService:
                     missing.append("Missing explicitly covered diagnosis codes.")
                 policy_path["article"] = {"policy_id": active_lcd.article_id, "result": article_result}
 
-        # Only flag ambiguity as missing information when the Article has NOT resolved coverage.
-        # If article_result == "COVERED", the most-specific authoritative layer has spoken —
-        # LCD-level UNKNOWN semantic criteria are abstained and must not block the approval.
-        if article_result == "UNKNOWN" or (
-            lcd_result == "UNKNOWN" and article_result not in ("COVERED", "EXCLUDED")
-        ):
-            if "Clinical documentation required to verify ambiguous criteria." not in missing:
-                missing.append("Clinical documentation required to verify ambiguous criteria.")
+        # Populate missing information from all mandatory criteria that are UNKNOWN
+        for c in all_criteria:
+            if c.mandatory and c.status == EvaluationStatus.UNKNOWN:
+                req_text = c.requirement or c.criterion
+                if req_text and req_text not in missing:
+                    missing.append(req_text)
+
+        # Deduplicate missing information
+        missing = list(dict.fromkeys(m for m in missing if m and str(m).strip()))
 
         final_decision, decision_reasons, decision_warnings = DecisionEngine.map_to_final(
             ncd_result, lcd_result, article_result, missing, criteria=all_criteria

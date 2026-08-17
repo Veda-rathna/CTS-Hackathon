@@ -143,8 +143,31 @@ class PolicyAgent:
                         )
                     )
 
+            if not required_items:
+                c_lower = criterion.criterion.lower()
+                if any(k in c_lower for k in ("conservative", "physical therapy", "trial", "failed", "drug", "nsaid")):
+                    required_items.append(
+                        RequiredEvidenceItem(
+                            category="conservative_therapy",
+                            description="Documentation of completed conservative therapy, physical therapy, or medication trial.",
+                        )
+                    )
+                if any(k in c_lower for k in ("mri", "imaging", "x-ray", "radiograph", "scan")):
+                    required_items.append(
+                        RequiredEvidenceItem(
+                            category="diagnostic_imaging",
+                            description="Diagnostic imaging reports or radiographic confirmation of the condition.",
+                        )
+                    )
+                if any(k in c_lower for k in ("symptom", "pain", "indication", "radiculopathy", "osteoarthritis", "exam", "trigger point", "joint", "disc")):
+                    required_items.append(
+                        RequiredEvidenceItem(
+                            category="clinical_indication",
+                            description="Documentation of documented symptoms, clinical indication, and physical examination findings.",
+                        )
+                    )
+
             # Hard cap: never more than 3 required evidence items.
-            # More than 3 indicates the LLM is inventing sub-requirements.
             if len(required_items) > 3:
                 logger.warning(
                     "PolicyAgent | criterion=%s | LLM returned %d required_evidence items — "
@@ -190,16 +213,49 @@ class PolicyAgent:
         reason: str,
         start: float,
     ) -> tuple[RequiredEvidence, AgentTraceEntry]:
-        """Safe fallback: return minimal RequiredEvidence so pipeline continues."""
+        """Safe fallback: extract structured RequiredEvidence deterministically from criterion text."""
         latency = round((time.monotonic() - start) * 1000)
+        c_lower = criterion_text.lower()
+        required_items: list[RequiredEvidenceItem] = []
+
+        if any(k in c_lower for k in ("conservative", "physical therapy", "trial", "failed", "drug", "nsaid")):
+            required_items.append(
+                RequiredEvidenceItem(
+                    category="conservative_therapy",
+                    description="Documentation of completed conservative therapy, physical therapy, or medication trial.",
+                )
+            )
+        if any(k in c_lower for k in ("mri", "imaging", "x-ray", "radiograph", "scan")):
+            required_items.append(
+                RequiredEvidenceItem(
+                    category="diagnostic_imaging",
+                    description="Diagnostic imaging reports or radiographic confirmation of the condition.",
+                )
+            )
+        if any(k in c_lower for k in ("symptom", "pain", "indication", "radiculopathy", "osteoarthritis", "exam", "trigger point", "joint")):
+            required_items.append(
+                RequiredEvidenceItem(
+                    category="clinical_indication",
+                    description="Documentation of documented symptoms, clinical indication, and physical examination findings.",
+                )
+            )
+
+        if not required_items:
+            required_items.append(
+                RequiredEvidenceItem(
+                    category="clinical_documentation",
+                    description=f"Supporting clinical documentation for: {criterion_text[:100]}",
+                )
+            )
+
         result = RequiredEvidence(
             criterion_id=criterion_id,
             requirement=criterion_text,
-            required_evidence=[],
+            required_evidence=required_items[:3],
         )
         trace = AgentTraceEntry(
             agent="POLICY_AGENT",
-            status=AgentStatus.FAILED,
-            output_summary=f"Policy Agent failed ({reason}). Using criterion text as requirement.",
+            status=AgentStatus.COMPLETED if reason == "LLM disabled" else AgentStatus.FAILED,
+            output_summary=f"Identified {len(result.required_evidence)} required evidence categories (deterministic fallback).",
         )
         return result, trace

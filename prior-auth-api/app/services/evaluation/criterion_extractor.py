@@ -41,12 +41,14 @@ class CriterionExtractor:
                         "mandatory": not is_optional,
                     })
         
-        # Also look for explicit requirement phrases
+        # Also look for explicit requirement phrases or clinical indication sentences
         req_phrases = [
             r'documentation must (?:support|demonstrate|show) ([^\.]+)',
             r'patient has (?:a|an)? ([^\.]+)',
             r'must have (?:failed|tried) ([^\.]+)',
-            r'is covered for ([^\.]+)'
+            r'is covered for ([^\.]+)',
+            r'indicated for (?:the treatment of )?([^\.]+)',
+            r'candidates (?:for [^\.]+ are [^\.]+)'
         ]
         
         for phrase in req_phrases:
@@ -62,12 +64,31 @@ class CriterionExtractor:
                         "source_text": chunk.chunk_text,
                         "mandatory": not is_optional,
                     })
-        
-        # If no explicit bullets or phrases found, fallback to the chunk as a whole.
+
+        # If no explicit bullets or phrases found, extract clinical requirement sentences
         if not criteria:
+            raw_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
+            for s in raw_sentences:
+                s_lower = s.lower()
+                if any(ign in s_lower for ign in ("compliance with the provisions", "post payment data analysis", "medical review audits", "history/background")):
+                    continue
+                if any(k in s_lower for k in ("indicated", "candidate", "covered", "failed", "conservative", "therapy", "trial", "osteoarthritis", "radiculopathy", "pain", "symptom")):
+                    criteria.append({
+                        "criterion_id": f"{chunk.policy_type}-{chunk.policy_id}-C{uuid.uuid4().hex[:6]}",
+                        "criterion": s,
+                        "policy_type": chunk.policy_type,
+                        "policy_id": chunk.policy_id,
+                        "source_text": chunk.chunk_text,
+                        "mandatory": not is_optional,
+                    })
+                    break  # Keep the primary clinical requirement sentence
+
+        # If still no criteria, use clean excerpt
+        if not criteria:
+            clean_text = text[:300].strip()
             criteria.append({
                 "criterion_id": f"{chunk.policy_type}-{chunk.policy_id}-C{uuid.uuid4().hex[:6]}",
-                "criterion": text,
+                "criterion": clean_text,
                 "policy_type": chunk.policy_type,
                 "policy_id": chunk.policy_id,
                 "source_text": chunk.chunk_text,

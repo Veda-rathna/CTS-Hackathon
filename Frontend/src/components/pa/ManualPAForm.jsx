@@ -13,67 +13,155 @@ const US_STATES = [
   'VA', 'WA', 'WV', 'WI', 'WY',
 ];
 
-const SAMPLE_CASES = [
+const REALISTIC_SCENARIOS = [
   {
-    label: 'Epidural',
+    id: 'PA-REAL-001',
+    label: 'PA-REAL-001',
+    name: 'Knee Hyaluronan Injection',
+    expected: 'APPROVE',
+    expectedBadge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    description: 'Covered primary knee osteoarthritis (CPT 20610, ICD-10 M17.11) with 12-week conservative therapy trial.',
     data: {
-      pa_request_id: '',
-      patient: { patient_id: 'p-sample-1', date_of_birth: '1969-03-15', age: 55, gender: 'M', state: 'TX' },
-      coverage: { payer: 'Medicare', plan_id: '', plan_name: '' },
+      pa_request_id: 'PA-REAL-001',
+      patient: { patient_id: '1f2982d5-e5da-6d4a-38d7-d7e7323880bb', date_of_birth: '1958-04-12', age: 68, gender: 'F', state: 'TX' },
+      coverage: { payer: 'Medicare', plan_id: 'MED-TX-001', plan_name: 'Medicare Traditional' },
       request: { review_type: 'NON_URGENT', request_type: 'INITIAL', urgency_reason: '', previous_authorization_number: '' },
-      provider: { provider_id: '', specialty: 'Pain Management', organization_id: '', organization_name: '', state: 'TX' },
+      provider: { provider_id: 'PRV-ORTHO-01', specialty: 'Orthopedic Surgery', organization_id: 'ORG-TX-01', organization_name: 'Austin Orthopedic Institute', state: 'TX' },
       service: {
-        service_description: 'Epidural steroid injection for lumbar radiculopathy',
+        service_description: 'Intraarticular Knee Injections of Hyaluronan (Viscosupplementation)',
+        procedure_code: '20610',
+        start_date: new Date().toISOString().split('T')[0],
+        end_date: new Date().toISOString().split('T')[0],
+        place_of_service: 'Outpatient Clinic',
+        number_of_sessions: 1, duration: '1 day', frequency: 'Once',
+      },
+      diagnoses: [{ description: 'Unilateral primary osteoarthritis, right knee', icd10_code: 'M17.11' }],
+      clinical_notes: 'Patient is a 68-year-old female presenting with persistent pain and functional limitation of the right knee due to primary osteoarthritis (M17.11). Symptoms have persisted for >6 months. Patient has completed a 12-week trial of structured physical therapy, daily acetaminophen, and oral NSAIDs (meloxicam) with inadequate relief. Plain radiographs demonstrate Grade 3 joint space narrowing and subchondral sclerosis without joint infection. Requesting intra-articular hyaluronan injection (20610).',
+    },
+  },
+  {
+    id: 'PA-REAL-002',
+    label: 'PA-REAL-002',
+    name: 'Lumbar Epidural Steroid',
+    expected: 'APPROVE',
+    expectedBadge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    description: 'Covered lumbar radiculopathy (CPT 64483, ICD-10 M54.16) with 10-week conservative trial & MRI confirmation.',
+    data: {
+      pa_request_id: 'PA-REAL-002',
+      patient: { patient_id: 'a1733070-046a-4506-bba6-47f32652e9d7', date_of_birth: '1962-09-18', age: 64, gender: 'F', state: 'TX' },
+      coverage: { payer: 'Medicare', plan_id: 'MED-TX-001', plan_name: 'Medicare Traditional' },
+      request: { review_type: 'NON_URGENT', request_type: 'INITIAL', urgency_reason: '', previous_authorization_number: '' },
+      provider: { provider_id: 'PRV-PAIN-02', specialty: 'Interventional Pain Management', organization_id: 'ORG-TX-02', organization_name: 'Texas Spine & Pain Specialists', state: 'TX' },
+      service: {
+        service_description: 'Injection(s), anesthetic agent and/or steroid, transforaminal epidural; lumbar or sacral, single level',
         procedure_code: '64483',
         start_date: new Date().toISOString().split('T')[0],
         end_date: new Date().toISOString().split('T')[0],
-        place_of_service: 'Outpatient',
+        place_of_service: 'Ambulatory Surgery Center',
         number_of_sessions: 1, duration: '1 day', frequency: 'Once',
       },
-      diagnoses: [{ description: 'Lumbar radiculopathy', icd10_code: 'M54.16' }],
-      clinical_notes: 'Patient presents with lumbar radiculopathy confirmed on MRI. Conservative therapy including physical therapy was tried for 8 weeks without relief.',
+      diagnoses: [{ description: 'Radiculopathy, lumbar region', icd10_code: 'M54.16' }],
+      clinical_notes: 'Patient is a 64-year-old female with severe right-sided L5 lumbar radiculopathy (M54.16) lasting >14 weeks. Physical examination demonstrates positive straight-leg raise at 40 degrees, diminished sensation in L5 dermatome, and 4/5 weakness in extensor hallucis longus. Lumbar MRI confirms L4-L5 disc herniation with nerve root impingement. Patient has failed a 10-week conservative therapy regimen comprising formal physical therapy, gabapentin, and oral prednisone. Requesting lumbar transforaminal epidural steroid injection (64483).',
     },
   },
   {
-    label: 'Stem Cell',
+    id: 'PA-REAL-003',
+    label: 'PA-REAL-003',
+    name: 'Trigger Point - Joint Pain',
+    expected: 'DENY',
+    expectedBadge: 'bg-rose-50 text-rose-700 border-rose-200',
+    description: 'Non-covered acute joint pain without trigger points (CPT 20552, ICD-10 M25.50).',
     data: {
-      pa_request_id: '',
-      patient: { patient_id: 'p-sample-2', date_of_birth: '1982-07-22', age: 42, gender: 'F', state: 'CA' },
-      coverage: { payer: 'Medicare', plan_id: '', plan_name: '' },
+      pa_request_id: 'PA-REAL-003',
+      patient: { patient_id: 'ba234ff2-cefe-dfee-935a-8ea2378da8c2', date_of_birth: '1965-02-14', age: 61, gender: 'M', state: 'TX' },
+      coverage: { payer: 'Medicare', plan_id: 'MED-TX-001', plan_name: 'Medicare Traditional' },
       request: { review_type: 'NON_URGENT', request_type: 'INITIAL', urgency_reason: '', previous_authorization_number: '' },
-      provider: { provider_id: '', specialty: 'Oncology', organization_id: '', organization_name: '', state: 'CA' },
+      provider: { provider_id: 'PRV-PAIN-03', specialty: 'Pain Medicine', organization_id: 'ORG-TX-03', organization_name: 'Dallas Pain Institute', state: 'TX' },
       service: {
-        service_description: 'Allogeneic hematopoietic stem cell transplantation',
-        procedure_code: '38240',
+        service_description: 'Injection(s), single or multiple trigger point(s), 1 or 2 muscle(s)',
+        procedure_code: '20552',
         start_date: new Date().toISOString().split('T')[0],
         end_date: new Date().toISOString().split('T')[0],
-        place_of_service: 'Inpatient',
+        place_of_service: 'Outpatient Clinic',
         number_of_sessions: 1, duration: '1 day', frequency: 'Once',
       },
-      diagnoses: [{ description: 'Acute lymphoblastic leukemia', icd10_code: 'C91.0' }],
-      clinical_notes: 'Allogeneic HSCT recommended following failure of first-line chemotherapy.',
+      diagnoses: [{ description: 'Pain in unspecified joint', icd10_code: 'M25.50' }],
+      clinical_notes: 'Patient is a 61-year-old male presenting with acute, non-localized joint pain (M25.50) without documented myofascial trigger points or taut bands. Symptoms began 5 days ago. Patient has not undergone conservative physical therapy or trial of pharmacologic analgesics. Requesting trigger point injection (20552) for acute joint pain relief.',
     },
   },
   {
-    label: 'Dental',
+    id: 'PA-REAL-004',
+    label: 'PA-REAL-004',
+    name: 'Epidural - Missing Spine Docs',
+    expected: 'NEED_MORE_INFORMATION',
+    expectedBadge: 'bg-sky-50 text-sky-700 border-sky-200',
+    description: 'Missing spinal physical exam, conservative therapy, and spine imaging for epidural (CPT 64483, ICD-10 R51.9).',
     data: {
-      pa_request_id: '',
-      patient: { patient_id: 'p001', date_of_birth: '1979-02-20', age: 47, gender: 'M', state: 'Massachusetts' },
-      coverage: { payer: 'Medicare', plan_id: 'MED-MA-001', plan_name: 'Medicare Advantage Example Plan' },
+      pa_request_id: 'PA-REAL-004',
+      patient: { patient_id: 'd20a36fc-23ba-8462-bf39-864000fbf25f', date_of_birth: '1959-11-03', age: 67, gender: 'M', state: 'TX' },
+      coverage: { payer: 'Medicare', plan_id: 'MED-TX-001', plan_name: 'Medicare Traditional' },
       request: { review_type: 'NON_URGENT', request_type: 'INITIAL', urgency_reason: '', previous_authorization_number: '' },
-      provider: { provider_id: 'prov018', specialty: 'GENERAL PRACTICE', organization_id: 'org018', organization_name: 'FENWAY COMMUNITY HEALTH CENTER INC', state: 'MA' },
+      provider: { provider_id: 'PRV-NEURO-04', specialty: 'Neurology', organization_id: 'ORG-TX-04', organization_name: 'Houston Neurological Clinic', state: 'TX' },
       service: {
-        service_description: 'Gingivectomy or gingivoplasty, four or more contiguous teeth',
-        procedure_code: 'D4210',
-        start_date: '2026-08-15', end_date: '2026-08-15',
-        place_of_service: 'Outpatient Dental Surgical Suite',
+        service_description: 'Epidural injection, lumbar or sacral',
+        procedure_code: '64483',
+        start_date: new Date().toISOString().split('T')[0],
+        end_date: new Date().toISOString().split('T')[0],
+        place_of_service: 'Outpatient Hospital',
         number_of_sessions: 1, duration: '1 day', frequency: 'Once',
       },
-      diagnoses: [
-        { description: 'Gingival disease', icd10_code: 'K06.8' },
-        { description: 'Chronic gingivitis', icd10_code: 'K05.10' },
-      ],
-      clinical_notes: '',
+      diagnoses: [{ description: 'Headache, unspecified', icd10_code: 'R51.9' }],
+      clinical_notes: 'Patient is a 67-year-old male presenting with diffuse headache symptoms (R51.9). Provider requested lumbar transforaminal epidural injection (64483). The submitted medical record contains no spinal physical examination, no documentation of lumbar radicular symptoms or conservative spinal therapy, and no spine imaging reports.',
+    },
+  },
+  {
+    id: 'PA-REAL-005',
+    label: 'PA-REAL-005',
+    name: 'Trigger Point - NCD 373 Exclusion',
+    expected: 'DENY',
+    expectedBadge: 'bg-rose-50 text-rose-700 border-rose-200',
+    description: 'Explicit exclusion under NCD 373 for non-indicated acupuncture/dry needling trigger points (CPT 20552, ICD-10 M25.50).',
+    data: {
+      pa_request_id: 'PA-REAL-005',
+      patient: { patient_id: '80c747ab-dc05-2bca-dafa-e2aa58619442', date_of_birth: '1969-07-29', age: 57, gender: 'M', state: 'TX' },
+      coverage: { payer: 'Medicare', plan_id: 'MED-TX-001', plan_name: 'Medicare Traditional' },
+      request: { review_type: 'NON_URGENT', request_type: 'INITIAL', urgency_reason: '', previous_authorization_number: '' },
+      provider: { provider_id: 'PRV-PAIN-05', specialty: 'Physical Medicine & Rehabilitation', organization_id: 'ORG-TX-05', organization_name: 'San Antonio PM&R Associates', state: 'TX' },
+      service: {
+        service_description: 'Trigger point injection for acupuncture-related indications',
+        procedure_code: '20552',
+        start_date: new Date().toISOString().split('T')[0],
+        end_date: new Date().toISOString().split('T')[0],
+        place_of_service: 'Outpatient Clinic',
+        number_of_sessions: 1, duration: '1 day', frequency: 'Once',
+      },
+      diagnoses: [{ description: 'Pain in unspecified joint', icd10_code: 'M25.50' }],
+      clinical_notes: 'Patient is a 57-year-old male with chronic non-specific low back pain since 2014 requesting trigger point injections for generalized joint discomfort (M25.50). The requested service falls under acupuncture-related dry needling/trigger point exclusions under NCD 373 for non-indicated axial spine symptoms.',
+    },
+  },
+  {
+    id: 'PA-REAL-006',
+    label: 'PA-REAL-006',
+    name: 'Knee - Unlisted Exam Code',
+    expected: 'NEED_MORE_INFORMATION',
+    expectedBadge: 'bg-sky-50 text-sky-700 border-sky-200',
+    description: 'Administrative exam code (ICD-10 Z00.00) lacking knee osteoarthritis clinical documentation (CPT 20610).',
+    data: {
+      pa_request_id: 'PA-REAL-006',
+      patient: { patient_id: '8a2af5b4-6f29-27d4-b5fd-bb687fa2169b', date_of_birth: '1956-01-25', age: 70, gender: 'M', state: 'TX' },
+      coverage: { payer: 'Medicare', plan_id: 'MED-TX-001', plan_name: 'Medicare Traditional' },
+      request: { review_type: 'NON_URGENT', request_type: 'INITIAL', urgency_reason: '', previous_authorization_number: '' },
+      provider: { provider_id: 'PRV-MED-06', specialty: 'Internal Medicine', organization_id: 'ORG-TX-06', organization_name: 'Fort Worth Medical Associates', state: 'TX' },
+      service: {
+        service_description: 'Intra-articular knee viscosupplementation',
+        procedure_code: '20610',
+        start_date: new Date().toISOString().split('T')[0],
+        end_date: new Date().toISOString().split('T')[0],
+        place_of_service: 'Outpatient Clinic',
+        number_of_sessions: 1, duration: '1 day', frequency: 'Once',
+      },
+      diagnoses: [{ description: 'Encounter for general adult medical examination without abnormal findings', icd10_code: 'Z00.00' }],
+      clinical_notes: 'Patient is a 70-year-old male presenting for annual preventive medical examination without complaints (Z00.00). Provider requested knee viscosupplementation injection (20610) without documentation of knee osteoarthritis, duration of symptoms, conservative therapy attempts, or diagnostic imaging.',
     },
   },
 ];
@@ -117,6 +205,7 @@ export default function ManualPAForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [activeTab, setActiveTab] = useState(1);
+  const [selectedScenarioId, setSelectedScenarioId] = useState('');
 
   const setFlat = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -138,8 +227,20 @@ export default function ManualPAForm() {
     if (form.diagnoses.length === 1) return;
     setFlat('diagnoses', form.diagnoses.filter((_, i) => i !== idx));
   };
-  const loadSample = (s) => { setForm({ ...s.data }); setErrors({}); setSubmitError(null); setActiveTab(1); };
-  const reset = () => { setForm(DEFAULT_FORM); setErrors({}); setSubmitError(null); setActiveTab(1); };
+  const loadScenario = (scenario) => {
+    setForm({ ...scenario.data });
+    setSelectedScenarioId(scenario.id);
+    setErrors({});
+    setSubmitError(null);
+    setActiveTab(2); // Jump straight to clinical data tab to show populated codes & notes
+  };
+  const reset = () => {
+    setForm(DEFAULT_FORM);
+    setSelectedScenarioId('');
+    setErrors({});
+    setSubmitError(null);
+    setActiveTab(1);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -183,7 +284,7 @@ export default function ManualPAForm() {
           state: form.provider.state || undefined,
         },
         service: {
-          service_description: form.clinical_notes?.trim() || form.service.service_description?.trim() || '',
+          service_description: form.service.service_description?.trim() || '',
           procedure_code: form.service.procedure_code?.trim().toUpperCase() || undefined,
           start_date: form.service.start_date || undefined,
           end_date: form.service.end_date || undefined,
@@ -195,6 +296,7 @@ export default function ManualPAForm() {
         diagnoses: form.diagnoses
           .filter((d) => d.icd10_code?.trim())
           .map((d) => ({ description: d.description?.trim() || '', icd10_code: d.icd10_code.trim().toUpperCase() })),
+        clinical_notes: form.clinical_notes?.trim() || undefined,
       };
 
       const response = await createPARequest(payload);
@@ -224,34 +326,105 @@ export default function ManualPAForm() {
   const lblCls = "block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5";
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] w-full max-w-4xl mx-auto overflow-hidden bg-white/70 backdrop-blur-xl rounded-2xl border border-slate-200/80 shadow-lg">
+    <div className="relative flex flex-col h-[calc(100vh-100px)] w-full max-w-5xl mx-auto overflow-hidden bg-white/80 backdrop-blur-xl rounded-3xl border border-slate-200/90 shadow-xl">
       
-      {/* HEADER / TOP BAR */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50/50 flex-shrink-0">
-        <h2 className="text-base font-extrabold text-slate-800">Prior Authorization Intake</h2>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-400 mr-1 hidden sm:block">Quick Demo Loads:</span>
-          {SAMPLE_CASES.map((s) => (
-            <button key={s.label} type="button" onClick={() => loadSample(s)}
-              className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-sky-700 hover:border-sky-300 shadow-sm transition-all">
-              {s.label}
-            </button>
-          ))}
-          <button type="button" onClick={reset} className="ml-2 p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors" title="Clear Form">
-            <RotateCcw className="w-4 h-4" />
+      {/* EVALUATION LOADING OVERLAY */}
+      {submitting && (
+        <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex flex-col items-center justify-center p-6 text-white text-center animate-in fade-in duration-200">
+          <div className="p-6 rounded-3xl bg-slate-900/95 border border-slate-800 shadow-2xl max-w-md w-full space-y-5">
+            <div className="relative flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full border-4 border-sky-500/20 border-t-sky-400 animate-spin" />
+              <Zap className="w-6 h-6 text-sky-400 fill-sky-400 absolute" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-extrabold text-white tracking-tight">Evaluating Prior Authorization</h3>
+              <p className="text-xs text-slate-300 font-medium">
+                Evaluating policy and clinical evidence against CMS Medicare rules...
+              </p>
+            </div>
+            <div className="space-y-2 pt-3 text-left text-[11px] text-slate-300 border-t border-slate-800">
+              <div className="flex items-center gap-2 text-sky-300 font-medium">
+                <RefreshCw className="w-3.5 h-3.5 flex-shrink-0 animate-spin text-sky-400" />
+                <span>1. Matching CMS NCD, LCD & Article coverage policies</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-300 font-medium">
+                <Sparkles className="w-3.5 h-3.5 flex-shrink-0 text-indigo-400 animate-pulse" />
+                <span>2. Evaluating patient clinical documentation & Synthea EHR</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-400 font-medium">
+                <Building2 className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />
+                <span>3. Synthesizing evidence matrix with DecisionEngine</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HEADER / DEMO SCENARIO SELECTOR */}
+      <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 via-sky-50/30 to-indigo-50/20 flex-shrink-0 space-y-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-sky-600" />
+            <h2 className="text-sm font-extrabold text-slate-800 tracking-tight">
+              Prior Authorization Intake Form
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={reset}
+            className="self-end sm:self-auto inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-slate-200 transition-colors"
+            title="Clear and reset form"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset</span>
           </button>
+        </div>
+
+        {/* Demo Scenarios Quick-Picker */}
+        <div className="space-y-1.5">
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+            Demo Scenarios (Click to auto-populate test request):
+          </span>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
+            {REALISTIC_SCENARIOS.map((s) => {
+              const isSelected = selectedScenarioId === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => loadScenario(s)}
+                  className={`p-2 text-left rounded-xl border transition-all text-xs flex flex-col justify-between gap-1 shadow-2xs ${
+                    isSelected
+                      ? 'bg-sky-50/90 border-sky-400 ring-2 ring-sky-500/20 text-sky-950 font-bold'
+                      : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 font-medium'
+                  }`}
+                  title={`${s.name} - ${s.description}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[10px] font-bold text-slate-900">{s.label}</span>
+                    <span className={`text-[9px] font-extrabold px-1 rounded border ${s.expectedBadge}`}>
+                      {s.expected === 'NEED_MORE_INFORMATION' ? 'NEED INFO' : s.expected}
+                    </span>
+                  </div>
+                  <span className="text-[11px] leading-tight line-clamp-1 text-slate-600">
+                    {s.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       {submitError && (
-        <div className="mx-4 mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3 flex-shrink-0">
-          <AlertCircle className="w-5 h-5 text-rose-600" />
-          <span className="text-sm font-medium text-rose-800">{submitError}</span>
+        <div className="mx-4 mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3 flex-shrink-0">
+          <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
+          <span className="text-xs font-semibold text-rose-800">{submitError}</span>
         </div>
       )}
 
       {/* TABS NAVIGATION */}
-      <div className="flex px-4 pt-4 gap-2 flex-shrink-0">
+      <div className="flex px-4 pt-3 gap-2 flex-shrink-0">
         {[
           { id: 1, label: 'Patient Info', icon: User },
           { id: 2, label: 'Clinical Data', icon: Stethoscope },

@@ -1,21 +1,15 @@
-"""Multi-Evaluator using the Strategy Pattern.
-
-Routes evaluation criteria to the correct evaluator:
-  - STRUCTURED → StructuredEvaluator (deterministic SQL)
-  - SEMANTIC   → SemanticEvaluator   (4-agent Qwen pipeline)
-
-RULE_BASED has been removed; all non-structured criteria go to SemanticEvaluator.
-"""
+"""Multi-Evaluator executing Structured (SQL) and Semantic (LLM/Agentic) evaluation with EvidenceFusion."""
 from __future__ import annotations
 
-from app.schemas.evaluation import CriterionType, EvaluatedCriterion, PolicyCriterion
+from app.schemas.evaluation import CriterionType, EvaluatedCriterion, EvaluationStatus, EvaluatorType, PolicyCriterion
 from app.schemas.triage import TriageRequest
 from .structured_evaluator import StructuredEvaluator
 from .semantic_evaluator import SemanticEvaluator
+from .evidence_fusion import EvidenceFusion
 
 
 class MultiEvaluator:
-    """Routes evaluation to StructuredEvaluator or SemanticEvaluator."""
+    """Executes both StructuredEvaluator and SemanticEvaluator and fuses results."""
 
     def __init__(
         self,
@@ -26,36 +20,36 @@ class MultiEvaluator:
         self._semantic = semantic_evaluator
 
     def evaluate(self, criterion: PolicyCriterion, request: TriageRequest) -> EvaluatedCriterion:
-        """Route the criterion to the correct evaluator.
+        """Execute both structured and semantic evaluation, then fuse with EvidenceFusion.
 
-        STRUCTURED → StructuredEvaluator (authoritative, deterministic)
-        SEMANTIC   → SemanticEvaluator   (non-authoritative, agentic)
-
-        If no SemanticEvaluator is configured, semantic criteria return UNKNOWN.
+        Every criterion is evaluated by both Structured and Semantic pipelines,
+        passing both results into EvidenceFusion for deterministic authority resolution.
         """
-        if criterion.type == CriterionType.STRUCTURED:
-            return self._structured.evaluate(criterion, request)
+        # 1. Always execute Structured / SQL Evaluation
+        structured_result = self._structured.evaluate(criterion, request)
 
-        # SEMANTIC path — route through agentic pipeline if available
+        # 2. Always execute Semantic / Agentic Evaluation
         if self._semantic is not None:
-            return self._semantic.evaluate(criterion, request)
+            semantic_result = self._semantic.evaluate(criterion, request)
+        else:
+            semantic_result = EvaluatedCriterion(
+                criterion_id=criterion.criterion_id,
+                policy_type=criterion.policy_type,
+                policy_id=criterion.policy_id,
+                criterion=criterion.criterion,
+                requirement=criterion.criterion,
+                criterion_type=CriterionType.SEMANTIC,
+                evaluator=EvaluatorType.AGENTIC_QWEN,
+                status=EvaluationStatus.UNKNOWN,
+                patient_evidence=[],
+                policy_evidence=[criterion.criterion],
+                explanation=(
+                    "No semantic evaluator is configured. "
+                    "The criterion cannot be evaluated — result is UNKNOWN."
+                ),
+                authoritative=False,
+                mandatory=criterion.mandatory,
+            )
 
-        # Fallback: no semantic evaluator configured → UNKNOWN
-        from app.schemas.evaluation import EvaluatedCriterion, EvaluationStatus, EvaluatorType
-        return EvaluatedCriterion(
-            criterion_id=criterion.criterion_id,
-            policy_type=criterion.policy_type,
-            policy_id=criterion.policy_id,
-            criterion=criterion.criterion,
-            criterion_type=criterion.type,
-            evaluator=EvaluatorType.AGENTIC_QWEN,
-            status=EvaluationStatus.UNKNOWN,
-            patient_evidence=[],
-            policy_evidence=[criterion.criterion],
-            explanation=(
-                "No semantic evaluator is configured. "
-                "The criterion cannot be evaluated — result is UNKNOWN."
-            ),
-            authoritative=False,
-            mandatory=criterion.mandatory,
-        )
+        # 3. Consolidate via EvidenceFusion
+        return EvidenceFusion.fuse_criterion(structured_result, semantic_result, criterion)

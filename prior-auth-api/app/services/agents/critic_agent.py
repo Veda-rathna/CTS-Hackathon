@@ -148,22 +148,22 @@ class CriticAgent:
             checks_performed.append("CHECK_3: Hallucination check — PASSED")
 
         # ── Check 4: Absence-of-evidence vs evidence-of-absence ───────────────
-        # If Qwen says NOT_SATISFIED but there is only MISSING evidence (not contradicting),
-        # it may have confused "we don't have evidence" with "evidence says no".
-        # This is the softest check — only reject if purely missing (no notes at all).
+        # If Qwen says NOT_SATISFIED based purely on missing clinical documentation or unperformed tests,
+        # it must be converted to UNKNOWN (prompting for records) rather than an outright DENY.
         if qwen_result.result == SemanticResult.NOT_SATISFIED:
             no_clinical_notes = not (clinical_evidence.raw_clinical_text or "").strip()
-            has_only_missing = (
-                not clinical_evidence.supporting_evidence
-                and not clinical_evidence.contradicting_evidence
-                and clinical_evidence.missing_evidence
-            )
-            if no_clinical_notes or has_only_missing:
-                # NOT_SATISFIED without actual contradicting evidence → should be UNKNOWN
+            _absence_tokens = ("no ", "without ", "has not ", "not undergone ", "no documentation", "unperformed", "missing")
+            true_contradictions = [
+                c for c in clinical_evidence.contradicting_evidence
+                if not any(token in c.lower() for token in _absence_tokens)
+            ]
+            has_only_absence_or_missing = not true_contradictions and bool(clinical_evidence.missing_evidence or not clinical_evidence.contradicting_evidence)
+
+            if no_clinical_notes or has_only_absence_or_missing:
                 rejection_reasons.append(
-                    "Qwen returned NOT_SATISFIED when no contradicting evidence is present — "
-                    "only missing evidence. The correct result should be UNKNOWN, "
-                    "not NOT_SATISFIED (absence of evidence ≠ evidence of absence)."
+                    "Qwen returned NOT_SATISFIED when required clinical documentation or trials are missing. "
+                    "In prior authorization, missing documentation resolves to UNKNOWN "
+                    "(prompting for additional information) rather than an outright denial."
                 )
                 checks_performed.append(
                     "CHECK_4: Absence vs negative evidence — FAILED (converted to UNKNOWN)"

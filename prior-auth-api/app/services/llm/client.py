@@ -45,7 +45,7 @@ def _make_timeout() -> httpx.Timeout:
 
 
 class LLMClient:
-    """Client for LM Studio / AWS Bedrock (OpenAI-compatible).
+    """Client for LM Studio / AWS Bedrock / OpenAI-compatible models.
 
     All methods fail safely — LLM failures always produce UNKNOWN results,
     never APPROVE/PEND/REQUEST_MORE_INFORMATION.
@@ -59,10 +59,37 @@ class LLMClient:
         self.temperature = self._settings.llm_temperature
         self.enabled = self._settings.llm_enabled
 
+        self._bedrock_client = None
+        if self.provider == "bedrock":
+            try:
+                import boto3
+                region = getattr(self._settings, "aws_region", "us-east-1") or "us-east-1"
+                ak = getattr(self._settings, "aws_access_key_id", None)
+                sk = getattr(self._settings, "aws_secret_access_key", None)
+                st = getattr(self._settings, "aws_session_token", None)
+                profile = getattr(self._settings, "aws_profile", None)
+
+                if ak and sk:
+                    client_kwargs = {
+                        "aws_access_key_id": ak,
+                        "aws_secret_access_key": sk,
+                        "region_name": region,
+                    }
+                    if st:
+                        client_kwargs["aws_session_token"] = st
+                    self._bedrock_client = boto3.client("bedrock-runtime", **client_kwargs)
+                elif profile:
+                    session = boto3.Session(profile_name=profile)
+                    self._bedrock_client = session.client("bedrock-runtime", region_name=region)
+                else:
+                    self._bedrock_client = boto3.client("bedrock-runtime", region_name=region)
+
+                logger.info("Initialized AWS Bedrock client in region %s", region)
+            except Exception as exc:
+                logger.warning("Failed to initialize boto3 Bedrock client: %s", exc)
+
         base = self._settings.llm_base_url
-        if self.provider == "bedrock" or (self.api_key and "127.0.0.1" in base):
-            self.endpoint_url = f"https://bedrock-runtime.us-east-1.amazonaws.com/model/{self.model}/invoke"
-        elif base.endswith("/chat/completions"):
+        if base.endswith("/chat/completions"):
             self.endpoint_url = base
         else:
             self.endpoint_url = f"{base.rstrip('/')}/chat/completions"
@@ -72,9 +99,52 @@ class LLMClient:
     def raw_chat(self, system: str, user: str) -> str:
         """Low-level LLM call used by individual agents.
 
-        Sends a system + user message pair and returns the raw response
-        content string with markdown fences stripped.
+        Supports both AWS Bedrock and OpenAI-compatible HTTP providers (LM Studio).
         """
+        if self.provider == "bedrock":
+            if self._bedrock_client is None:
+                raise RuntimeError("AWS Bedrock client is not initialized.")
+
+            # Try unified Bedrock Converse API first
+            try:
+                messages = [{"role": "user", "content": [{"text": user}]}]
+                system_prompts = [{"text": system}] if system else []
+                response = self._bedrock_client.converse(
+                    modelId=self.model,
+                    messages=messages,
+                    system=system_prompts,
+                    inferenceConfig={"temperature": self.temperature},
+                )
+                output_text = response["output"]["message"]["content"][0]["text"]
+                return _strip_fences(output_text)
+            except Exception as converse_exc:
+                logger.warning("Bedrock converse() failed (%s); trying invoke_model()", converse_exc)
+                # Fallback to invoke_model for models or custom profiles
+                body = json.dumps({
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user}
+                    ],
+                    "temperature": self.temperature,
+                })
+                res = self._bedrock_client.invoke_model(
+                    modelId=self.model,
+                    body=body,
+                    contentType="application/json",
+                    accept="application/json",
+                )
+                res_body = json.loads(res["body"].read())
+                if "choices" in res_body:
+                    content = res_body["choices"][0]["message"]["content"]
+                elif "content" in res_body:
+                    content = res_body["content"][0]["text"] if isinstance(res_body["content"], list) else res_body["content"]
+                elif "generation" in res_body:
+                    content = res_body["generation"]
+                else:
+                    content = str(res_body)
+                return _strip_fences(content)
+
+        # Standard OpenAI / LM Studio / Local HTTP LLM
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
@@ -115,7 +185,12 @@ class LLMClient:
         _SYSTEM = (
             "You are a deterministic healthcare policy evaluator. "
             "Evaluate whether the patient evidence satisfies the policy criterion. "
-            "Output only valid JSON. "
+            "Output ONLY a valid JSON object with the following schema:\n"
+            "{\n"
+            '  "result": "SATISFIED" | "NOT_SATISFIED" | "UNKNOWN",\n'
+            '  "evidence_cited": ["string quoting supporting or contradicting patient evidence"],\n'
+            '  "explanation": "concise explanation string"\n'
+            "}\n"
             "NEVER return APPROVE, DENY, PEND, or REQUEST_MORE_INFORMATION — "
             "only SATISFIED, NOT_SATISFIED, or UNKNOWN."
         )

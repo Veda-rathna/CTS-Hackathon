@@ -51,8 +51,15 @@ export default function PAHistory() {
     const matchesDecision =
       decisionFilter === 'ALL' ||
       (decisionFilter === 'APPROVE' && (decision === 'APPROVE' || decision.includes('APPROV'))) ||
-      (decisionFilter === 'PEND' && (decision === 'PEND' || decision.includes('PEND'))) ||
-      (decisionFilter === 'REQUEST_MORE_INFORMATION' && (decision === 'REQUEST_MORE_INFORMATION' || decision.includes('MORE_INFO') || decision.includes('ADDITIONAL')));
+      (decisionFilter === 'DENY' && (decision === 'DENY' || decision.includes('DENI') || decision === 'POLICY_EXPIRED')) ||
+      (decisionFilter === 'NEED_MORE_INFORMATION' && (
+        decision === 'NEED_MORE_INFORMATION' ||
+        decision === 'REQUEST_MORE_INFORMATION' ||
+        decision === 'PEND' ||
+        decision.includes('MORE_INFO') ||
+        decision.includes('ADDITIONAL') ||
+        decision.includes('PEND')
+      ));
 
     return matchesSearch && matchesDecision;
   });
@@ -173,8 +180,8 @@ export default function PAHistory() {
             >
               <option value="ALL">All Decision Statuses</option>
               <option value="APPROVE">Approved (APPROVE)</option>
-              <option value="PEND">Pended (PEND)</option>
-              <option value="REQUEST_MORE_INFORMATION">Additional Info (RMI)</option>
+              <option value="DENY">Denied (DENY)</option>
+              <option value="NEED_MORE_INFORMATION">Need More Information (NEED_MORE_INFO)</option>
             </select>
           </div>
         </div>

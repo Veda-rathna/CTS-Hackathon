@@ -131,12 +131,12 @@ def test_TC09_noncovered_z00_00(client: TestClient) -> None:
 
 
 def test_TC10_noncovered_z00_01(client: TestClient) -> None:
-    """TC-10: Z00.01 is unknown/unlisted in article → NEED_MORE_INFORMATION."""
+    """TC-10: Z00.01 is explicitly non-covered in article → DENY."""
     r = client.post("/api/v1/triage", json={
         "procedure_code": "64483", "diagnosis_codes": ["Z00.01"], "state": "TX",
     })
     assert r.status_code == 200
-    assert r.json()["decision"] == "PEND"
+    assert r.json()["decision"] == "DENY"
 
 
 def test_TC11_noncovered_different_j5_state(client: TestClient) -> None:

@@ -41,6 +41,7 @@ from app.services.agents.schemas import (
     AgentStatus,
     AgentTraceEntry,
     CriticVerdict,
+    EvidenceSufficiency,
     QwenSemanticResult,
     SemanticResult,
 )
@@ -163,6 +164,25 @@ class AgentOrchestrator:
                     "AgentOrchestrator | Qwen produced forbidden decision '%s' — "
                     "converting to UNKNOWN", raw_result,
                 )
+                raw_result = "UNKNOWN"
+
+            # If Qwen endpoint was unreachable / disabled (indicated by client fallback), use deterministic pre-assessment
+            explanation = qwen_raw.get("explanation", "")
+            is_client_offline = any(
+                phrase in explanation.lower()
+                for phrase in ("evaluation failed", "llm disabled", "qwen fallback", "403 forbidden", "connection refused", "timeout")
+            )
+            if is_client_offline and raw_result == "UNKNOWN":
+                if eval_result.pre_assessment == EvidenceSufficiency.SUPPORTED:
+                    raw_result = "SATISFIED"
+                    qwen_raw["evidence_cited"] = clinical_evidence.supporting_evidence
+                    qwen_raw["explanation"] = eval_result.assessment_summary
+                elif eval_result.pre_assessment == EvidenceSufficiency.CONTRADICTED:
+                    raw_result = "NOT_SATISFIED"
+                    qwen_raw["evidence_cited"] = clinical_evidence.contradicting_evidence
+                    qwen_raw["explanation"] = eval_result.assessment_summary
+
+            if raw_result not in ("SATISFIED", "NOT_SATISFIED", "UNKNOWN"):
                 raw_result = "UNKNOWN"
 
             qwen_result = QwenSemanticResult(

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   FilePlus2,
   CheckCircle2,
+  XCircle,
   Clock,
   HelpCircle,
   Files,
@@ -29,7 +30,7 @@ export default function Dashboard() {
     });
   }, []);
 
-  // Compute metrics from decision values (only 3 public decisions allowed)
+  // Compute metrics from decision values (3 canonical outcomes: APPROVE, DENY, NEED_MORE_INFORMATION)
   const totalRequests = requests.length;
 
   const approvedCount = requests.filter((r) => {
@@ -37,14 +38,22 @@ export default function Dashboard() {
     return d === 'APPROVE' || d === 'APPROVED' || d.includes('APPROV');
   }).length;
 
-  const pendingCount = requests.filter((r) => {
+  const deniedCount = requests.filter((r) => {
     const d = (r.decision || '').toUpperCase();
-    return d === 'PEND' || d === 'PENDED' || d.includes('PEND');
+    return d === 'DENY' || d === 'DENIED' || d.includes('DENI') || d === 'POLICY_EXPIRED';
   }).length;
 
-  const rmiCount = requests.filter((r) => {
+  const needInfoCount = requests.filter((r) => {
     const d = (r.decision || '').toUpperCase();
-    return d === 'REQUEST_MORE_INFORMATION' || d.includes('MORE_INFO') || d.includes('ADDITIONAL');
+    return (
+      d === 'NEED_MORE_INFORMATION' ||
+      d === 'REQUEST_MORE_INFORMATION' ||
+      d === 'PEND' ||
+      d === 'PENDED' ||
+      d.includes('MORE_INFO') ||
+      d.includes('ADDITIONAL') ||
+      d.includes('PEND')
+    );
   }).length;
 
   return (
@@ -102,18 +111,18 @@ export default function Dashboard() {
           subtitle="All mandatory criteria satisfied"
         />
         <StatCard
-          title="Pended (Manual Review)"
-          value={pendingCount}
-          icon={Clock}
-          color="amber"
-          subtitle="Requires clinical reviewer adjudication"
+          title="Denied"
+          value={deniedCount}
+          icon={XCircle}
+          color="rose"
+          subtitle="Mandatory criteria not met or excluded"
         />
         <StatCard
-          title="Additional Info Required"
-          value={rmiCount}
+          title="Need More Information"
+          value={needInfoCount}
           icon={HelpCircle}
-          color="purple"
-          subtitle="Missing code mapping or records"
+          color="sky"
+          subtitle="Missing clinical documentation or unlisted codes"
         />
       </div>
 

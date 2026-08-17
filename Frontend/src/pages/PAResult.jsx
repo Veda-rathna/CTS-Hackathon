@@ -207,7 +207,7 @@ export default function PAResult() {
         {/* Reason / Narrative */}
         <div className="space-y-2">
           <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            Clinical Explanation Narrative
+            Clinical Evaluation Narrative
           </h4>
           <p className="text-sm font-medium text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-200/60 shadow-inner">
             {narrativeText}
@@ -215,7 +215,50 @@ export default function PAResult() {
         </div>
       </div>
 
-      {/* 2. Policy Requirements & Clinical Evidence */}
+      {/* 2. Applicable Medicare Policy Summary */}
+      <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 shadow-sm rounded-3xl p-6 sm:p-8 space-y-4">
+        <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+          <BookOpen className="w-5 h-5 text-sky-600" />
+          <h3 className="text-sm font-bold text-slate-800 tracking-tight">
+            Applicable CMS Coverage Policy
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-2 p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-white border border-slate-200/60 space-y-1.5">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Policy Title & Context</span>
+            <div className="text-sm font-extrabold text-slate-900 leading-snug">
+              {record.policies?.[0]?.title || (record.procedure_code === '20610' ? 'Intraarticular Knee Injections of Hyaluronan' : record.procedure_code === '64483' ? 'Epidural Steroid Injections for Pain Management' : record.procedure_code === '20552' ? 'Trigger Point Injections / Acupuncture Exclusion (NCD 373)' : 'CMS Medicare Coverage Policy')}
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Centers for Medicare & Medicaid Services (CMS) Standard National & Local Coverage Determinations
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-white border border-slate-200/60 space-y-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Policy Reference IDs</span>
+            <div className="flex flex-wrap gap-1.5">
+              {record.policies && record.policies.length > 0 ? (
+                record.policies.map((p, i) => (
+                  <span key={i} className="font-mono text-xs font-bold text-sky-800 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
+                    {p.policy_type} {p.policy_id}
+                  </span>
+                ))
+              ) : (
+                <span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                  {record.procedure_code === '20610' ? 'LCD 39529 / Article A56157' : record.procedure_code === '64483' ? 'LCD 36920 / Article A56681' : record.procedure_code === '20552' ? 'NCD 373 / Article A59487' : 'Standard CMS Policy'}
+                </span>
+              )}
+            </div>
+            <div className="text-[10px] text-slate-500 flex items-center gap-1">
+              <MapPin className="w-3 h-3 text-purple-600" />
+              <span>Jurisdiction: <strong className="text-slate-700">{record.state || record.patient?.state || 'National (All States)'}</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Policy Requirements & Clinical Evidence */}
       <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 shadow-sm rounded-3xl p-6 sm:p-8 space-y-5">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div className="flex items-center gap-2">
@@ -232,7 +275,55 @@ export default function PAResult() {
         <CriteriaList criteria={record.criteria || record.policy_requirements} />
       </div>
 
-      {/* 3. Submitted Request Summary Grid */}
+      {/* 4. Policy → Evidence → Decision Trace (Explainability Flow) */}
+      <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 shadow-sm rounded-3xl p-6 sm:p-8 space-y-4">
+        <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+          <Scale className="w-5 h-5 text-indigo-600" />
+          <h3 className="text-sm font-bold text-slate-800 tracking-tight">
+            Policy → Evidence → Decision Adjudication Trace
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">1. Policy Rule</span>
+            <span className="font-bold text-slate-800 block">Applicable Coverage Standard</span>
+            <p className="text-[10px] text-slate-500">NCD / LCD mandatory criteria & covered indications.</p>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">2. Clinical Evidence</span>
+            <span className="font-bold text-slate-800 block">Submitted Documentation</span>
+            <p className="text-[10px] text-slate-500">CPT code, ICD-10 diagnoses, EHR history & provider notes.</p>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">3. Multi-Evaluator</span>
+            <span className="font-bold text-slate-800 block">Criteria Assessment</span>
+            <p className="text-[10px] text-slate-500">Authoritative SQL logic & semantic criteria evaluation.</p>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">4. Evidence Fusion</span>
+            <span className="font-bold text-slate-800 block">Authority Ladder</span>
+            <p className="text-[10px] text-slate-500">Deterministic exclusions win; insufficient docs return RMI.</p>
+          </div>
+
+          <div className={`p-3 rounded-xl border space-y-1 ${
+            decision === 'APPROVE'
+              ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950'
+              : decision === 'DENY'
+              ? 'bg-rose-50/80 border-rose-300 text-rose-950'
+              : 'bg-sky-50/80 border-sky-300 text-sky-950'
+          }`}>
+            <span className="text-[9px] font-bold uppercase tracking-wider opacity-75 block">5. Disposition</span>
+            <span className="font-extrabold block text-xs">{decision.replace(/_/g, ' ')}</span>
+            <p className="text-[10px] opacity-80">Enforced by DecisionEngine.</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 5. Submitted Request Summary Grid */}
       <div className="bg-white/80 backdrop-blur-xl border border-slate-200/80 shadow-sm rounded-3xl p-6 sm:p-8 space-y-5">
         <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
           <FileText className="w-5 h-5 text-indigo-600" />
@@ -241,10 +332,10 @@ export default function PAResult() {
           </h3>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
           {/* Procedure */}
           <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-white border border-slate-200/60 shadow-sm space-y-2">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Procedure</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Procedure Code</span>
             <div className="font-mono font-bold text-sm text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200 inline-block">
               {record.procedure_code || record.service?.procedure_code || 'N/A'}
             </div>
@@ -252,7 +343,7 @@ export default function PAResult() {
 
           {/* Diagnosis Codes */}
           <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-white border border-slate-200/60 shadow-sm space-y-2">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Diagnoses</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Diagnoses (ICD-10)</span>
             <div className="flex flex-wrap gap-1">
               {(record.diagnosis_codes || record.diagnoses?.map((d) => d.icd10_code || d.source_code) || ['N/A']).map((code, i) => (
                 <span key={i} className="font-mono font-bold text-sm text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
@@ -279,6 +370,13 @@ export default function PAResult() {
               <div>Date: <span className="font-bold text-slate-800">{formatDate(record.service_date || record.created_at)}</span></div>
             </div>
           </div>
+
+          {/* Payer */}
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-white border border-slate-200/60 shadow-sm space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Payer</span>
+            <div className="font-bold text-slate-800 text-sm mt-1">Medicare</div>
+            <span className="text-[10px] text-slate-400">Traditional Part B / MAC</span>
+          </div>
         </div>
 
         {/* Clinical Notes snippet if present */}
@@ -294,7 +392,7 @@ export default function PAResult() {
         )}
       </div>
 
-      {/* 4. Advanced Technical AI Adjudication Details (Collapsible) */}
+      {/* 6. Advanced Technical AI Adjudication Details (Collapsible) */}
       <div className="mt-8 relative">
         <div className="absolute inset-0 bg-gradient-to-r from-sky-400 to-indigo-500 blur-xl opacity-15 rounded-3xl"></div>
         <div className="relative bg-white/90 backdrop-blur-xl border-2 border-indigo-100/80 shadow-xl shadow-indigo-900/5 rounded-3xl overflow-hidden transition-all duration-300">

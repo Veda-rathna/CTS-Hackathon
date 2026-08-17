@@ -63,6 +63,13 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.0
     llm_api_key: str | None = None
 
+    # ── AWS Bedrock Specific Settings ─────────────────────────────────────
+    aws_region: str = "us-east-1"
+    aws_access_key_id: str | None = None
+    aws_secret_access_key: str | None = None
+    aws_session_token: str | None = None
+    aws_profile: str | None = None
+
     # ── Agentic Semantic Evaluation Configuration ──────────────────────────────
     # Controls the 4-agent pipeline: PolicyAgent → ClinicalEvidenceAgent →
     # EvaluationAgent → Qwen → CriticAgent
