@@ -36,7 +36,6 @@ def print_db_counts(lcd_id: str):
 
 from app.services.llm.client import LLMClient
 from app.services.evaluation.structured_evaluator import StructuredEvaluator
-from app.services.evaluation.rule_evaluator import RuleEvaluator
 from app.services.evaluation.semantic_evaluator import SemanticEvaluator
 from app.repositories.postgres.lcd_repository import PostgresLCDRepository
 
@@ -54,9 +53,8 @@ def run_test():
     
     llm_client = LLMClient()
     structured = StructuredEvaluator(article_repo, lcd_repo, ncd_repo)
-    rule = RuleEvaluator()
     semantic = SemanticEvaluator(llm_client)
-    evaluator = MultiEvaluator(structured, rule, semantic)
+    evaluator = MultiEvaluator(structured, semantic)
     
     triage = TriageService(
         policy_repository=policy_repo,
