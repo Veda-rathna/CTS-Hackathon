@@ -1,16 +1,16 @@
 import React from 'react';
-import { CheckCircle2, XCircle, HelpCircle, Clock, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, Clock, HelpCircle, AlertTriangle } from 'lucide-react';
 
 export default function DecisionBadge({ decision, size = 'md' }) {
   const norm = (decision || '').toUpperCase().trim();
 
-  // Default: Pending / unknown
+  // Exactly 3 Canonical Nurse-Facing Dispositions: APPROVE, PEND, NEED MORE INFORMATION
   let config = {
-    label: 'Pending Review',
+    label: 'NEED MORE INFORMATION',
     bg: 'bg-amber-50',
     border: 'border-amber-200',
     text: 'text-amber-700',
-    icon: Clock,
+    icon: HelpCircle,
   };
 
   if (norm === 'APPROVE' || norm === 'APPROVED') {
@@ -21,37 +21,29 @@ export default function DecisionBadge({ decision, size = 'md' }) {
       text: 'text-emerald-700',
       icon: CheckCircle2,
     };
-  } else if (norm === 'DENY' || norm === 'DENIED') {
+  } else if (
+    norm === 'PEND' ||
+    norm === 'PENDED' ||
+    norm === 'DENY' ||
+    norm === 'DENIED' ||
+    norm === 'POLICY_EXPIRED' ||
+    norm === 'EXCLUDED' ||
+    norm === 'POLICY_EXCLUSION'
+  ) {
     config = {
-      label: 'DENY',
-      bg: 'bg-rose-50',
-      border: 'border-rose-200',
-      text: 'text-rose-700',
-      icon: XCircle,
+      label: 'PEND',
+      bg: 'bg-purple-50',
+      border: 'border-purple-200',
+      text: 'text-purple-700',
+      icon: AlertTriangle,
     };
   } else if (norm === 'NEED_MORE_INFORMATION' || norm === 'REQUEST_MORE_INFORMATION') {
     config = {
       label: 'NEED MORE INFORMATION',
-      bg: 'bg-sky-50',
-      border: 'border-sky-200',
-      text: 'text-sky-700',
-      icon: HelpCircle,
-    };
-  } else if (norm === 'PEND' || norm === 'PENDED') {
-    config = {
-      label: 'Pended — Manual Review',
       bg: 'bg-amber-50',
       border: 'border-amber-200',
-      text: 'text-amber-700',
-      icon: Clock,
-    };
-  } else if (norm === 'POLICY_EXPIRED') {
-    config = {
-      label: 'DENY (Policy Expired)',
-      bg: 'bg-rose-50',
-      border: 'border-rose-200',
-      text: 'text-rose-700',
-      icon: AlertTriangle,
+      text: 'text-amber-800',
+      icon: HelpCircle,
     };
   }
 
@@ -68,10 +60,8 @@ export default function DecisionBadge({ decision, size = 'md' }) {
     <span
       className={`inline-flex items-center rounded-full border ${config.bg} ${config.border} ${config.text} ${sizeClasses}`}
     >
-      <IconComponent className={size === 'xl' ? 'w-5 h-5' : size === 'lg' ? 'w-4 h-4' : 'w-3.5 h-3.5'} />
+      <IconComponent className="w-3.5 h-3.5 flex-shrink-0" />
       <span>{config.label}</span>
     </span>
   );
 }
-
-

@@ -166,6 +166,17 @@ _POLICIES: list[PolicyMatch] = [
         jurisdiction_match=False,
         effective=True,
     ),
+    # 10 — NCD 158 IVIG for Autoimmune Mucocutaneous Blistering Diseases
+    PolicyMatch(
+        policy_type="NCD",
+        policy_id="158",
+        title="Intravenous Immune Globulin for the Treatment of Autoimmune Mucocutaneous Blistering Diseases",
+        effective_date=date(2002, 10, 1),
+        procedure_match=False,
+        diagnosis_match=False,
+        jurisdiction_match=False,
+        effective=True,
+    ),
 ]
 
 # ── HCPCS → policy index mapping ──────────────────────────────────────────────
@@ -191,6 +202,8 @@ _HCPCS_TO_POLICY_IDX: dict[str, list[int]] = {
     # Trigger Point Injections — LCD L39662 + NCD 373
     "20552": [8, 9],
     "20553": [8, 9],
+    # IVIG — NCD 158
+    "J1561": [10],
     # TENS neurostimulator — NCD N123 (160.7.1) path (index 6)
     "64550": [6],
     # Stem Cell Transplantation — NCD path (index 4 = NCD-110.23)

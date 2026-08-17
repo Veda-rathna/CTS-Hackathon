@@ -50,12 +50,15 @@ _POLICY_AGENT_SYSTEM = (
     "CRITICAL RULES:\n"
     "1. List ONLY evidence categories that are EXPLICITLY stated in the policy criterion text. "
     "Do NOT invent, infer, or extrapolate sub-requirements.\n"
-    "2. When the policy criterion contains an OR list (e.g., 'condition A or condition B or condition C'), "
+    "2. CONSOLIDATE COMPOSITE CRITERIA: When a criterion describes a clinical diagnosis supported by exam/imaging "
+    "(e.g., 'Diagnosis of X supported by physical exam and concordant imaging'), create ONE unified evidence category for "
+    "'diagnostic_confirmation' (diagnosis of X supported by clinical presentation or imaging).\n"
+    "3. When the policy criterion contains an OR list (e.g., 'condition A or condition B or condition C'), "
     "create ONE combined evidence item covering all the OR alternatives together — "
     "do NOT create a separate item for each alternative.\n"
-    "3. Generate at most 3 required_evidence items. If you have more, consolidate them.\n"
-    "4. If the policy criterion is simple and self-contained (e.g., single condition), "
-    "return at most 1 or 2 items."
+    "4. Generate at most 2 required_evidence items per criterion. If you have more, consolidate them.\n"
+    "5. If the policy criterion is simple and self-contained (e.g., single condition), "
+    "return 1 item."
 )
 
 
@@ -218,11 +221,11 @@ class PolicyAgent:
         c_lower = criterion_text.lower()
         required_items: list[RequiredEvidenceItem] = []
 
-        if any(k in c_lower for k in ("conservative", "physical therapy", "trial", "failed", "drug", "nsaid")):
+        if any(k in c_lower for k in ("conservative", "physical therapy", "trial", "failed", "drug", "nsaid", "conventional", "refractory", "contraindicated")):
             required_items.append(
                 RequiredEvidenceItem(
                     category="conservative_therapy",
-                    description="Documentation of completed conservative therapy, physical therapy, or medication trial.",
+                    description="Documentation of completed conservative therapy, physical therapy, or conventional medication trial failure/contraindication.",
                 )
             )
         if any(k in c_lower for k in ("mri", "imaging", "x-ray", "radiograph", "scan")):
@@ -230,6 +233,13 @@ class PolicyAgent:
                 RequiredEvidenceItem(
                     category="diagnostic_imaging",
                     description="Diagnostic imaging reports or radiographic confirmation of the condition.",
+                )
+            )
+        if any(k in c_lower for k in ("biopsy", "pemphigus", "blistering", "pathology")):
+            required_items.append(
+                RequiredEvidenceItem(
+                    category="diagnostic_confirmation",
+                    description="Biopsy-proven pathology confirmation or confirmed clinical diagnosis of pemphigus vulgaris/blistering disease.",
                 )
             )
         if any(k in c_lower for k in ("symptom", "pain", "indication", "radiculopathy", "osteoarthritis", "exam", "trigger point", "joint")):

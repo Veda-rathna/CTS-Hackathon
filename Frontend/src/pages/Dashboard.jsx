@@ -30,7 +30,7 @@ export default function Dashboard() {
     });
   }, []);
 
-  // Compute metrics from decision values (3 canonical outcomes: APPROVE, DENY, NEED_MORE_INFORMATION)
+  // Compute metrics from decision values (3 canonical outcomes: APPROVE, PEND, NEED_MORE_INFORMATION)
   const totalRequests = requests.length;
 
   const approvedCount = requests.filter((r) => {
@@ -38,9 +38,18 @@ export default function Dashboard() {
     return d === 'APPROVE' || d === 'APPROVED' || d.includes('APPROV');
   }).length;
 
-  const deniedCount = requests.filter((r) => {
+  const pendedCount = requests.filter((r) => {
     const d = (r.decision || '').toUpperCase();
-    return d === 'DENY' || d === 'DENIED' || d.includes('DENI') || d === 'POLICY_EXPIRED';
+    return (
+      d === 'PEND' ||
+      d === 'PENDED' ||
+      d === 'DENY' ||
+      d === 'DENIED' ||
+      d.includes('DENI') ||
+      d === 'POLICY_EXPIRED' ||
+      d === 'EXCLUDED' ||
+      d === 'POLICY_EXCLUSION'
+    );
   }).length;
 
   const needInfoCount = requests.filter((r) => {
@@ -48,11 +57,8 @@ export default function Dashboard() {
     return (
       d === 'NEED_MORE_INFORMATION' ||
       d === 'REQUEST_MORE_INFORMATION' ||
-      d === 'PEND' ||
-      d === 'PENDED' ||
       d.includes('MORE_INFO') ||
-      d.includes('ADDITIONAL') ||
-      d.includes('PEND')
+      d.includes('ADDITIONAL')
     );
   }).length;
 
@@ -68,11 +74,24 @@ export default function Dashboard() {
             </div>
 
             {/* Backend API Health Status Indicator */}
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
-              <span className="relative flex h-2 w-2">
-                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${apiStatus.online ? 'bg-emerald-400' : 'bg-amber-400'} opacity-75`}></span>
-                <span className={`relative inline-flex rounded-full h-2 w-2 ${apiStatus.online ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
-              </span>
+            <div
+              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold transition-all border ${
+                apiStatus.checking
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-400/30'
+                  : apiStatus.online
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30'
+                  : 'bg-rose-500/20 text-rose-300 border-rose-400/30'
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  apiStatus.checking
+                    ? 'bg-amber-400 animate-ping'
+                    : apiStatus.online
+                    ? 'bg-emerald-400 animate-pulse'
+                    : 'bg-rose-400'
+                }`}
+              ></span>
               <span>{apiStatus.checking ? 'Checking API...' : apiStatus.online ? 'Backend API Connected' : 'API Standby'}</span>
             </div>
           </div>
@@ -111,17 +130,17 @@ export default function Dashboard() {
           subtitle="All mandatory criteria satisfied"
         />
         <StatCard
-          title="Denied"
-          value={deniedCount}
-          icon={XCircle}
-          color="rose"
-          subtitle="Mandatory criteria not met or excluded"
+          title="Pended for Review"
+          value={pendedCount}
+          icon={Clock}
+          color="purple"
+          subtitle="Requires nurse/UM clinical review"
         />
         <StatCard
           title="Need More Information"
           value={needInfoCount}
           icon={HelpCircle}
-          color="sky"
+          color="amber"
           subtitle="Missing clinical documentation or unlisted codes"
         />
       </div>

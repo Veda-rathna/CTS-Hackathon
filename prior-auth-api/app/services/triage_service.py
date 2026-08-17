@@ -166,13 +166,13 @@ class TriageService:
         active_policies = _filter_latest_effective_policies(all_policies)
         if not active_policies:
             return TriageResponse(
-                decision=TriageDecision.DENY,
-                evidence_score=0.0,
-                reason=f"All Medicare policies referencing procedure code '{procedure}' have expired and are no longer active. Coverage cannot be approved.",
+                decision=TriageDecision.PEND,
+                evidence_score=0.2,
+                reason=f"All Medicare policies referencing procedure code '{procedure}' have expired and are no longer active. The case requires nurse/UM review.",
                 reason_codes=["POLICY_EXPIRED"],
                 warnings=["All matching policies have expired."],
                 evidence_fusion_result="NOT_ADDRESSED",
-                decision_basis=f"All matching policies for procedure '{procedure}' have expired. Decision: DENY."
+                decision_basis=f"All matching policies for procedure '{procedure}' have expired. Pended for nurse/UM review."
             )
 
         ncd_candidates = [p for p in active_policies if p.policy_type.upper() == "NCD"]
@@ -503,7 +503,7 @@ class TriageService:
                             policy_type="LCD",
                             policy_id=active_lcd.policy_id,
                             section="indications_limitations",
-                            chunk_text=text_content.strip()[:1500]
+                            chunk_text=text_content.strip()[:4000]
                         )
                         lcd_chunks = [(synthetic_chunk, 0.2)]
 
@@ -621,12 +621,12 @@ class TriageService:
                     missing.append("Missing explicitly covered diagnosis codes.")
                 policy_path["article"] = {"policy_id": active_lcd.article_id, "result": article_result}
 
-        # Populate missing information from all mandatory criteria that are UNKNOWN
+        # Populate clean, structured missing information from mandatory UNKNOWN criteria
         for c in all_criteria:
             if c.mandatory and c.status == EvaluationStatus.UNKNOWN:
-                req_text = c.requirement or c.criterion
-                if req_text and req_text not in missing:
-                    missing.append(req_text)
+                clean_item = _format_missing_criterion(c)
+                if clean_item and clean_item not in missing:
+                    missing.append(clean_item)
 
         # Deduplicate missing information
         missing = list(dict.fromkeys(m for m in missing if m and str(m).strip()))
@@ -678,7 +678,7 @@ class TriageService:
             decision, reason_codes, fusion_result, criteria
         )
 
-        score = 0.9 if decision == TriageDecision.APPROVE else (0.5 if decision == TriageDecision.NEED_MORE_INFORMATION else 0.0)
+        score = 0.9 if decision == TriageDecision.APPROVE else (0.5 if decision == TriageDecision.NEED_MORE_INFORMATION else 0.2)
 
         dx_evals = [DiagnosisEvaluation(code=d, status="COVERED") for d in diagnoses]
 
@@ -720,18 +720,18 @@ def _build_reason_narrative(
             return "All applicable policy criteria were satisfied. The submitted procedure meets National Coverage Determination criteria."
         return "All mandatory policy requirements were satisfied by the clinical documentation. The authorization request is approved."
 
-    if decision == TriageDecision.DENY:
+    if decision in (TriageDecision.PEND, TriageDecision.DENY):
         if "POLICY_EXPIRED" in reason_codes:
-            return "All matching coverage policies for this procedure code have expired and are no longer in effect. Coverage cannot be approved."
+            return "All matching coverage policies for this procedure code have expired and are no longer in effect. The case requires nurse/UM review."
         if "NCD_EXCLUDES_PROCEDURE" in reason_codes:
-            return "The requested procedure is explicitly excluded from coverage by the applicable National Coverage Determination (NCD)."
+            return "The requested service conflicts with an applicable National Coverage Determination (NCD) policy exclusion. The case requires nurse/UM review to determine the appropriate disposition."
         if "LCD_EXCLUDES_PROCEDURE" in reason_codes:
-            return "The requested procedure is explicitly excluded from coverage by the applicable Local Coverage Determination (LCD)."
+            return "The requested service conflicts with an applicable Local Coverage Determination (LCD) policy exclusion. The case requires nurse/UM review to determine the appropriate disposition."
         if "ARTICLE_EXCLUDES_PROCEDURE" in reason_codes:
-            return "The submitted diagnosis code is explicitly listed as non-covered under the applicable Medicare policy."
+            return "The submitted diagnosis code conflicts with policy coverage rules. The case requires nurse/UM review to determine the appropriate disposition."
         if "MANDATORY_CRITERIA_NOT_SATISFIED" in reason_codes:
-            return "One or more mandatory clinical policy requirements were not satisfied based on available documentation."
-        return "The authorization request does not meet required clinical coverage criteria."
+            return "One or more mandatory clinical policy requirements were not satisfied based on available documentation. The case requires nurse/UM review."
+        return "The request conflicts with an applicable coverage policy or requires clinical adjudication. The case requires nurse/UM review to determine the appropriate disposition."
 
     # NEED_MORE_INFORMATION
     if "POLICY_NOT_FOUND" in reason_codes:
@@ -755,8 +755,8 @@ def _build_decision_basis(
 
     if decision == TriageDecision.APPROVE:
         lines.append("All mandatory policy requirements were satisfied by clinical evidence.")
-    elif decision == TriageDecision.DENY:
-        lines.append("The request was denied because one or more mandatory policy requirements were not met or explicitly non-covered.")
+    elif decision in (TriageDecision.PEND, TriageDecision.DENY):
+        lines.append("The requested service conflicts with an applicable policy exclusion or requires human adjudication. The case has been pended for nurse/UM review.")
     else:
         lines.append("Additional clinical information or documentation is required before an approval can be issued.")
 
@@ -768,5 +768,27 @@ def _build_decision_basis(
         lines.append("  • Evaluated via deterministic code and coverage rules.")
 
     return "\n".join(lines)
+
+
+def _format_missing_criterion(c: EvaluatedCriterion) -> str:
+    """Format clean, concise provider-facing missing clinical information."""
+    txt = (c.requirement or c.criterion or "").strip()
+    txt_lower = txt.lower()
+    if any(k in txt_lower for k in ("conservative", "physical therapy", "trial", "failed", "drug", "nsaid")):
+        return "Evidence of failed conservative physical therapy or medication trial."
+    if any(k in txt_lower for k in ("mri", "imaging", "radiograph", "x-ray", "scan")):
+        return "Diagnostic imaging report or radiographic confirmation (MRI / X-ray)."
+    if any(k in txt_lower for k in ("radiculopathy", "nerve root", "straight leg raise")):
+        return "Documentation of confirmed lumbar or cervical radiculopathy."
+    if any(k in txt_lower for k in ("biopsy",)):
+        return "Biopsy confirmation of diagnosis."
+    if any(k in txt_lower for k in ("osteoarthritis", "joint space", "kellgren")):
+        return "Clinical documentation of documented joint disease severity."
+    # Clean fallback: strip bullets and truncate if too long
+    import re
+    clean = re.sub(r'^(?:[-*•]|\d+\.)\s*', '', txt)
+    if len(clean) > 100:
+        clean = clean[:97].rstrip() + "..."
+    return f"Clinical documentation for: {clean}"
 
 

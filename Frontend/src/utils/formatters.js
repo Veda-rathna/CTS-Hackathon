@@ -40,18 +40,18 @@ export function formatStatusLabel(status) {
     case 'APPROVE':
     case 'APPROVED':
       return 'Approved';
-    case 'DENY':
-    case 'DENIED':
-      return 'Denied';
     case 'PEND':
+    case 'PENDED':
     case 'PENDING':
     case 'PENDING_REVIEW':
-      return 'Pending Review';
+    case 'DENY':
+    case 'DENIED':
+    case 'POLICY_EXPIRED':
+      return 'Pended for Review';
+    case 'NEED_MORE_INFORMATION':
     case 'REQUEST_MORE_INFORMATION':
     case 'ADDITIONAL_EVIDENCE_REQUIRED':
-      return 'Additional Evidence Required';
-    case 'POLICY_EXPIRED':
-      return 'Policy Expired';
+      return 'Need More Information';
     default:
       return status.replace(/_/g, ' ');
   }

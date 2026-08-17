@@ -82,13 +82,22 @@ _NCDS: dict[str, NCDResponse] = {
         description="Acupuncture is explicitly non-covered for non-indicated procedures.",
         decision="EXCLUDED",
     ),
-    "NCD-373": NCDResponse(
-        id="NCD-373",
-        title="Acupuncture for Chronic Lower Back Pain (cLBP)",
-        effective_date=date(2020, 1, 21),
+    # NCD 158 — IVIG for Autoimmune Mucocutaneous Blistering Diseases
+    "158": NCDResponse(
+        id="158",
+        title="Intravenous Immune Globulin for the Treatment of Autoimmune Mucocutaneous Blistering Diseases",
+        effective_date=date(2002, 10, 1),
         end_date=None,
-        description="Acupuncture is explicitly non-covered for non-indicated procedures.",
-        decision="EXCLUDED",
+        description="Intravenous immune globulin (IVIG) is covered for biopsy-proven pemphigus vulgaris refractory to standard systemic corticosteroid therapy.",
+        decision="COVERED",
+    ),
+    "NCD-158": NCDResponse(
+        id="NCD-158",
+        title="Intravenous Immune Globulin for the Treatment of Autoimmune Mucocutaneous Blistering Diseases",
+        effective_date=date(2002, 10, 1),
+        end_date=None,
+        description="Intravenous immune globulin (IVIG) is covered for biopsy-proven pemphigus vulgaris refractory to standard systemic corticosteroid therapy.",
+        decision="COVERED",
     ),
 }
 
@@ -123,6 +132,12 @@ _NCD_HCPCS: dict[str, list[CodeEntry]] = {
     "NCD-373": [
         CodeEntry(code="20552", description="Injection(s), single or multiple trigger point(s), 1 or 2 muscle(s)"),
         CodeEntry(code="20553", description="Injection(s), single or multiple trigger point(s), 3 or more muscle(s)"),
+    ],
+    "158": [
+        CodeEntry(code="J1561", description="Injection, immune globulin, (Gammaplex), intravenous, non-lyophilized (e.g., liquid), 500 mg"),
+    ],
+    "NCD-158": [
+        CodeEntry(code="J1561", description="Injection, immune globulin, (Gammaplex), intravenous, non-lyophilized (e.g., liquid), 500 mg"),
     ],
 }
 

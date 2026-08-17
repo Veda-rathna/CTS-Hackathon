@@ -69,9 +69,11 @@ CONTRADICTING PATIENT EVIDENCE:
 MISSING EVIDENCE:
 {missing_list}
 
+DETERMINISTIC EVIDENCE PRE-ASSESSMENT:
+{pre_assessment}
+
 TASK:
-Determine whether the available patient evidence satisfies this specific \
-policy criterion.
+Determine whether the available patient evidence satisfies this specific policy criterion.
 
 ALLOWED RESULTS (respond with exactly one):
 SATISFIED — the available evidence clearly satisfies the policy requirement
@@ -170,6 +172,7 @@ class EvaluationAgent:
             supporting_list=supporting_list,
             contradicting_list=contradicting_list,
             missing_list=missing_list,
+            pre_assessment=pre_assessment.value,
         )
 
         latency = round((time.monotonic() - start) * 1000)

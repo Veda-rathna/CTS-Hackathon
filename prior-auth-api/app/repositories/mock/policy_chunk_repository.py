@@ -172,6 +172,30 @@ _CHUNKS: list[MockPolicyChunk] = [
             "Patient must have failed conservative therapy for >= 6 weeks."
         ),
     ),
+
+    # ── NCD 158 — IVIG for Autoimmune Mucocutaneous Blistering Diseases ───────
+    MockPolicyChunk(
+        id=10,
+        policy_type="NCD",
+        policy_id="158",
+        policy_version=1,
+        section="Coverage Indications",
+        chunk_text=(
+            "Intravenous immune globulin (IVIG) is covered for the treatment of biopsy-proven "
+            "pemphigus vulgaris when refractory to standard systemic corticosteroid therapy."
+        ),
+    ),
+    MockPolicyChunk(
+        id=11,
+        policy_type="NCD",
+        policy_id="NCD-158",
+        policy_version=1,
+        section="Coverage Indications",
+        chunk_text=(
+            "Intravenous immune globulin (IVIG) is covered for the treatment of biopsy-proven "
+            "pemphigus vulgaris when refractory to standard systemic corticosteroid therapy."
+        ),
+    ),
 ]
 
 # ── Index: (policy_type.upper(), policy_id.upper()) → list of chunk ids ───────

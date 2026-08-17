@@ -13,12 +13,13 @@ from pydantic import BaseModel, Field, field_validator
 class TriageDecision(str, Enum):
     """Deterministic triage outcome values.
 
-    These values describe the final decision result.
+    These values describe the final decision result (APPROVE, PEND, NEED_MORE_INFORMATION).
     """
 
     APPROVE = "APPROVE"
-    DENY = "DENY"
+    PEND = "PEND"
     NEED_MORE_INFORMATION = "NEED_MORE_INFORMATION"
+    DENY = "DENY"  # Retained for internal/backward compatibility; mapped to PEND in nurse-facing flow
 
 
 # ── Request ───────────────────────────────────────────────────────────────────

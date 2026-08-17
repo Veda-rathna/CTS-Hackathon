@@ -51,14 +51,20 @@ export default function PAHistory() {
     const matchesDecision =
       decisionFilter === 'ALL' ||
       (decisionFilter === 'APPROVE' && (decision === 'APPROVE' || decision.includes('APPROV'))) ||
-      (decisionFilter === 'DENY' && (decision === 'DENY' || decision.includes('DENI') || decision === 'POLICY_EXPIRED')) ||
+      (decisionFilter === 'PEND' && (
+        decision === 'PEND' ||
+        decision === 'PENDED' ||
+        decision === 'DENY' ||
+        decision.includes('DENI') ||
+        decision === 'POLICY_EXPIRED' ||
+        decision === 'EXCLUDED' ||
+        decision === 'POLICY_EXCLUSION'
+      )) ||
       (decisionFilter === 'NEED_MORE_INFORMATION' && (
         decision === 'NEED_MORE_INFORMATION' ||
         decision === 'REQUEST_MORE_INFORMATION' ||
-        decision === 'PEND' ||
         decision.includes('MORE_INFO') ||
-        decision.includes('ADDITIONAL') ||
-        decision.includes('PEND')
+        decision.includes('ADDITIONAL')
       ));
 
     return matchesSearch && matchesDecision;
@@ -178,10 +184,10 @@ export default function PAHistory() {
               }}
               className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50/50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-bold"
             >
-              <option value="ALL">All Decision Statuses</option>
+              <option value="ALL">All Decisions</option>
               <option value="APPROVE">Approved (APPROVE)</option>
-              <option value="DENY">Denied (DENY)</option>
-              <option value="NEED_MORE_INFORMATION">Need More Information (NEED_MORE_INFO)</option>
+              <option value="PEND">Pended for Review (PEND)</option>
+              <option value="NEED_MORE_INFORMATION">Need More Information (NEED MORE INFORMATION)</option>
             </select>
           </div>
         </div>

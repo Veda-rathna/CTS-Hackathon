@@ -102,13 +102,13 @@ class EvidenceFusion:
             structured_res.status == EvaluationStatus.SATISFIED
             and semantic_res.status == EvaluationStatus.UNKNOWN
         ):
-            if is_code_check:
-                # Deterministic code list match
+            if is_code_check or not criterion.mandatory:
+                # Deterministic code list match or informational criterion
                 fused_status = EvaluationStatus.SATISFIED
                 evaluator = EvaluatorType.SQL
-                explanation = structured_res.explanation or "Structured code requirement is satisfied."
+                explanation = structured_res.explanation or "Requirement is satisfied."
             else:
-                # Clinical requirement: Structured cannot override missing clinical evidence
+                # Mandatory clinical requirement: Structured cannot override missing clinical evidence
                 fused_status = EvaluationStatus.UNKNOWN
                 evaluator = EvaluatorType.AGENTIC_QWEN
                 explanation = (
@@ -160,7 +160,7 @@ class EvidenceFusion:
         for crit in criteria:
             logger.info(
                 f"Fusion Log | Criterion: {crit.criterion_id} | Type: {crit.criterion_type.value} "
-                f"| Evaluator: {crit.evaluator.value} | Status: {crit.status.value}"
+                f"| Evaluator: {crit.evaluator.value} | Status: {crit.status.value} | Mandatory: {crit.mandatory}"
             )
         return matrix
 
@@ -173,19 +173,15 @@ class EvidenceFusion:
         if not matrix.criteria:
             return "NOT_ADDRESSED"
 
-        has_not_satisfied = False
-        has_unknown = False
-        has_satisfied = False
+        mandatory_criteria = [c for c in matrix.criteria if c.mandatory]
+        if not mandatory_criteria:
+            if any(c.status == EvaluationStatus.SATISFIED for c in matrix.criteria):
+                return "COVERED"
+            return "NOT_ADDRESSED"
 
-        for c in matrix.criteria:
-            if not c.mandatory:
-                continue
-            if c.status == EvaluationStatus.NOT_SATISFIED:
-                has_not_satisfied = True
-            elif c.status == EvaluationStatus.UNKNOWN:
-                has_unknown = True
-            elif c.status == EvaluationStatus.SATISFIED:
-                has_satisfied = True
+        has_not_satisfied = any(c.status == EvaluationStatus.NOT_SATISFIED for c in mandatory_criteria)
+        has_unknown = any(c.status == EvaluationStatus.UNKNOWN for c in mandatory_criteria)
+        has_satisfied = any(c.status == EvaluationStatus.SATISFIED for c in mandatory_criteria)
 
         # 1. Any mandatory NOT_SATISFIED ➔ EXCLUDED
         if has_not_satisfied:

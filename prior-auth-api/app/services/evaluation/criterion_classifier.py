@@ -32,5 +32,6 @@ class CriterionClassifier:
             type=c_type,
             policy_type=criterion_dict["policy_type"],
             policy_id=criterion_dict["policy_id"],
+            source_text=criterion_dict.get("source_text"),
             mandatory=criterion_dict.get("mandatory", True),
         )

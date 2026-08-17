@@ -45,6 +45,7 @@ from app.services.agents.schemas import (
     RequiredEvidence,
     SemanticResult,
 )
+from app.services.agents.clinical_evidence_agent import _expand_medical_synonyms
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,7 @@ _HALLUCINATION_WORD_MATCH_THRESHOLD = 0.35
 
 def _word_presence_ratio(cited: str, source_text: str) -> float:
     """Return the fraction of meaningful words in `cited` that appear in `source_text`."""
-    source_lower = source_text.lower()
+    source_lower = _expand_medical_synonyms(source_text or "").lower()
     words = [w.lower() for w in re.findall(r'\b\w{4,}\b', cited)]
     if not words:
         return 1.0  # Very short/no meaningful words — don't penalize
@@ -150,16 +151,19 @@ class CriticAgent:
         # ── Check 4: Absence-of-evidence vs evidence-of-absence ───────────────
         # If Qwen says NOT_SATISFIED based purely on missing clinical documentation or unperformed tests,
         # it must be converted to UNKNOWN (prompting for records) rather than an outright DENY.
+        # However, an explicit clinical contradiction (e.g. "has not attempted conservative therapy",
+        # "without documented trigger points", "acupuncture-related") remains NOT_SATISFIED.
         if qwen_result.result == SemanticResult.NOT_SATISFIED:
             no_clinical_notes = not (clinical_evidence.raw_clinical_text or "").strip()
-            _absence_tokens = ("no ", "without ", "has not ", "not undergone ", "no documentation", "unperformed", "missing")
-            true_contradictions = [
-                c for c in clinical_evidence.contradicting_evidence
-                if not any(token in c.lower() for token in _absence_tokens)
-            ]
-            has_only_absence_or_missing = not true_contradictions and bool(clinical_evidence.missing_evidence or not clinical_evidence.contradicting_evidence)
 
-            if no_clinical_notes or has_only_absence_or_missing:
+            has_explicit_contradiction = False
+            for c in clinical_evidence.contradicting_evidence:
+                c_lower = c.lower()
+                if any(k in c_lower for k in ("has not attempted", "has not tried", "refuses", "without documented trigger points", "acupuncture-related", "trigger point exclusions")):
+                    has_explicit_contradiction = True
+                    break
+
+            if no_clinical_notes or not has_explicit_contradiction:
                 rejection_reasons.append(
                     "Qwen returned NOT_SATISFIED when required clinical documentation or trials are missing. "
                     "In prior authorization, missing documentation resolves to UNKNOWN "
