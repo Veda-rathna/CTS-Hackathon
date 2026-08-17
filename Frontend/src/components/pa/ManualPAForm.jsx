@@ -626,8 +626,9 @@ export default function ManualPAForm() {
                     onChange={(e) => setNested('request', 'review_type', e.target.value)}
                     className={inputCls(false)}
                   >
-                    <option value="NON_URGENT">Standard Review (72h)</option>
                     <option value="URGENT">Expedited Review (24h)</option>
+                    <option value="NON_URGENT">Standard Review (72h)</option>
+                    <option value="ROUTINE">Routine Review (14d)</option>
                   </select>
                 </div>
                 <div>

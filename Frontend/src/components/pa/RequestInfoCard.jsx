@@ -62,8 +62,9 @@ export default function RequestInfoCard({ request, onChange, errors = {} }) {
               errors['request.review_type'] ? 'border-rose-400 bg-rose-50/40' : 'border-slate-200'
             } text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 bg-white font-medium`}
           >
-            <option value="NON_URGENT">NON_URGENT (Standard 72h)</option>
             <option value="URGENT">URGENT (Expedited 24h)</option>
+            <option value="NON_URGENT">NON_URGENT (Standard 72h)</option>
+            <option value="ROUTINE">ROUTINE (Standard 14d)</option>
           </select>
           {errors['request.review_type'] && (
             <p className="text-[11px] text-rose-600 mt-1">{errors['request.review_type']}</p>

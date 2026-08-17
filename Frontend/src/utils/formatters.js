@@ -89,7 +89,9 @@ export function getRequestPriority(record) {
   if (rawPriority === 'LOW') return 'LOW';
 
   const reviewType = (pa.request?.review_type || pa.review_type || record.request?.review_type || '').toUpperCase();
-  if (reviewType === 'URGENT') return 'URGENT';
+  if (reviewType === 'URGENT' || reviewType === 'EXPEDITED') return 'URGENT';
+  if (reviewType === 'NON_URGENT' || reviewType === 'STANDARD') return 'MEDIUM';
+  if (reviewType === 'ROUTINE' || reviewType === 'LOW') return 'LOW';
 
   const urgencyReason = pa.request?.urgency_reason || pa.urgency_reason || record.request?.urgency_reason;
   if (urgencyReason && typeof urgencyReason === 'string' && urgencyReason.trim().length > 0) return 'URGENT';

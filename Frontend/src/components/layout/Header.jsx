@@ -42,8 +42,8 @@ export default function Header({ isCollapsed }) {
 
   return (
     <header
-      className={`fixed top-0 right-0 z-20 h-14 bg-white/95 backdrop-blur-sm border-b border-slate-200/90 flex items-center justify-between px-5 transition-all duration-200 ${
-        isCollapsed ? 'left-16' : 'left-60'
+      className={`fixed top-0 right-0 z-20 h-16 bg-white/95 backdrop-blur-sm border-b border-slate-200/90 flex items-center justify-between px-5 transition-all duration-200 ${
+        isCollapsed ? 'left-16' : 'left-64'
       }`}
     >
       {/* Page Title */}
@@ -110,10 +110,10 @@ export default function Header({ isCollapsed }) {
         {/* User Identity */}
         <div className="flex items-center gap-2.5 pl-3 border-l border-slate-200">
           <div className="w-7 h-7 rounded-lg bg-slate-900 text-white font-bold text-[11px] flex items-center justify-center shadow-sm">
-            VR
+            XYZ
           </div>
           <div className="hidden md:flex flex-col text-left">
-            <span className="text-xs font-bold text-slate-800 leading-tight">Dr. Vedarathna</span>
+            <span className="text-xs font-bold text-slate-800 leading-tight">Dr. XYZ</span>
             <span className="text-[10px] text-slate-500 font-medium leading-tight">Senior Clinical Reviewer</span>
           </div>
         </div>
