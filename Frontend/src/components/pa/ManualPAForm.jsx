@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  RotateCcw, Plus, X, RefreshCw, AlertCircle, Zap, Sparkles, User, Stethoscope, Building2
+  RotateCcw, Plus, X, RefreshCw, AlertCircle, ShieldCheck, User, Stethoscope, Building2, ChevronRight, ChevronLeft
 } from 'lucide-react';
 import { createPARequest } from '../../services/api';
 import { savePARequest } from '../../utils/storage';
@@ -144,7 +144,7 @@ const REALISTIC_SCENARIOS = [
     label: 'PA-REAL-006',
     name: 'Knee - Unlisted Exam Code',
     expected: 'NEED_MORE_INFORMATION',
-    expectedBadge: 'bg-sky-50 text-sky-700 border-sky-200',
+    expectedBadge: 'bg-amber-50 text-amber-800 border-amber-200',
     description: 'Administrative exam code (ICD-10 Z00.00) lacking knee osteoarthritis clinical documentation (CPT 20610).',
     data: {
       pa_request_id: 'PA-REAL-006',
@@ -185,15 +185,15 @@ const DEFAULT_FORM = {
 function validate(form) {
   const errors = {};
   const proc = (form.service?.procedure_code || '').trim();
-  if (!proc) errors['service.procedure_code'] = 'Req';
+  if (!proc) errors['service.procedure_code'] = 'Procedure code is required';
   
   const validDx = (form.diagnoses || []).filter((d) => d.icd10_code && d.icd10_code.trim());
-  if (validDx.length === 0) errors['diagnoses'] = 'Req';
+  if (validDx.length === 0) errors['diagnoses'] = 'At least one ICD-10 diagnosis code is required';
   
   const age = form.patient?.age;
   if (age !== '' && age !== null && age !== undefined) {
     const n = Number(age);
-    if (isNaN(n) || n < 0 || n > 130) errors['patient.age'] = 'Inv';
+    if (isNaN(n) || n < 0 || n > 130) errors['patient.age'] = 'Invalid age';
   }
   return errors;
 }
@@ -232,7 +232,7 @@ export default function ManualPAForm() {
     setSelectedScenarioId(scenario.id);
     setErrors({});
     setSubmitError(null);
-    setActiveTab(2); // Jump straight to clinical data tab to show populated codes & notes
+    setActiveTab(2); // Jump to clinical data tab to show populated codes & notes
   };
   const reset = () => {
     setForm(DEFAULT_FORM);
@@ -248,7 +248,6 @@ export default function ManualPAForm() {
     const validationErrors = validate(form);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      // Auto switch tab if error exists
       if (validationErrors['patient.age']) setActiveTab(1);
       else if (validationErrors['service.procedure_code'] || validationErrors['diagnoses']) setActiveTab(2);
       return;
@@ -321,39 +320,38 @@ export default function ManualPAForm() {
   };
 
   const inputCls = (hasErr) =>
-    `w-full px-3 py-2 text-sm rounded-lg border ${hasErr ? 'border-rose-400 bg-rose-50 text-rose-900' : 'border-slate-300 bg-white hover:border-slate-400 focus:bg-white focus:border-sky-500'} focus:outline-none focus:ring-4 focus:ring-sky-500/10 transition-all shadow-sm`;
+    `w-full px-3 py-2 text-xs rounded-lg border ${hasErr ? 'border-rose-400 bg-rose-50 text-rose-900' : 'border-slate-200 bg-white hover:border-slate-300 focus:bg-white focus:border-sky-600'} focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all`;
   
-  const lblCls = "block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5";
+  const lblCls = "block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1";
 
   return (
-    <div className="relative flex flex-col h-[calc(100vh-100px)] w-full max-w-5xl mx-auto overflow-hidden bg-white/80 backdrop-blur-xl rounded-3xl border border-slate-200/90 shadow-xl">
+    <div className="relative healthcare-card overflow-hidden bg-white">
       
       {/* EVALUATION LOADING OVERLAY */}
       {submitting && (
-        <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex flex-col items-center justify-center p-6 text-white text-center animate-in fade-in duration-200">
-          <div className="p-6 rounded-3xl bg-slate-900/95 border border-slate-800 shadow-2xl max-w-md w-full space-y-5">
-            <div className="relative flex items-center justify-center">
-              <div className="w-16 h-16 rounded-full border-4 border-sky-500/20 border-t-sky-400 animate-spin" />
-              <Zap className="w-6 h-6 text-sky-400 fill-sky-400 absolute" />
+        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex flex-col items-center justify-center p-6 text-white text-center">
+          <div className="p-6 rounded-xl bg-slate-900 border border-slate-800 shadow-xl max-w-sm w-full space-y-4">
+            <div className="w-10 h-10 mx-auto rounded-full bg-sky-900/60 border border-sky-600 flex items-center justify-center text-sky-400">
+              <RefreshCw className="w-5 h-5 animate-spin" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-base font-extrabold text-white tracking-tight">Evaluating Prior Authorization</h3>
-              <p className="text-xs text-slate-300 font-medium">
-                Evaluating policy and clinical evidence against CMS Medicare rules...
+              <h4 className="text-sm font-bold text-white">Evaluating Prior Authorization</h4>
+              <p className="text-xs text-slate-400">
+                Evaluating clinical evidence against CMS Medicare policies...
               </p>
             </div>
-            <div className="space-y-2 pt-3 text-left text-[11px] text-slate-300 border-t border-slate-800">
-              <div className="flex items-center gap-2 text-sky-300 font-medium">
-                <RefreshCw className="w-3.5 h-3.5 flex-shrink-0 animate-spin text-sky-400" />
-                <span>1. Matching CMS NCD, LCD & Article coverage policies</span>
+            <div className="space-y-1.5 pt-2 text-left text-[11px] text-slate-400 border-t border-slate-800">
+              <div className="flex items-center gap-2 text-sky-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-ping" />
+                <span>1. Matching CMS NCD/LCD & Article rules</span>
               </div>
-              <div className="flex items-center gap-2 text-slate-300 font-medium">
-                <Sparkles className="w-3.5 h-3.5 flex-shrink-0 text-indigo-400 animate-pulse" />
-                <span>2. Evaluating patient clinical documentation & Synthea EHR</span>
+              <div className="flex items-center gap-2 text-slate-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+                <span>2. Evaluating patient clinical documentation</span>
               </div>
-              <div className="flex items-center gap-2 text-slate-400 font-medium">
-                <Building2 className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />
-                <span>3. Synthesizing evidence matrix with DecisionEngine</span>
+              <div className="flex items-center gap-2 text-slate-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+                <span>3. Adjudicating final coverage determination</span>
               </div>
             </div>
           </div>
@@ -361,29 +359,29 @@ export default function ManualPAForm() {
       )}
 
       {/* HEADER / DEMO SCENARIO SELECTOR */}
-      <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 via-sky-50/30 to-indigo-50/20 flex-shrink-0 space-y-2.5">
+      <div className="p-4 border-b border-slate-200/90 bg-slate-50/50 space-y-2.5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-sky-600" />
-            <h2 className="text-sm font-extrabold text-slate-800 tracking-tight">
+            <ShieldCheck className="w-4 h-4 text-sky-700" />
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
               Prior Authorization Intake Form
-            </h2>
+            </h3>
           </div>
           <button
             type="button"
             onClick={reset}
-            className="self-end sm:self-auto inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-slate-200 transition-colors"
+            className="self-end sm:self-auto inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-rose-700 hover:bg-rose-50 rounded-md border border-slate-200 transition-colors"
             title="Clear and reset form"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset</span>
+            <span>Clear Form</span>
           </button>
         </div>
 
         {/* Demo Scenarios Quick-Picker */}
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-            Demo Scenarios (Click to auto-populate test request):
+            Demo Scenarios (Select to auto-populate test payload):
           </span>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
             {REALISTIC_SCENARIOS.map((s) => {
@@ -393,16 +391,16 @@ export default function ManualPAForm() {
                   key={s.id}
                   type="button"
                   onClick={() => loadScenario(s)}
-                  className={`p-2 text-left rounded-xl border transition-all text-xs flex flex-col justify-between gap-1 shadow-2xs ${
+                  className={`p-2 text-left rounded-lg border transition-all text-xs flex flex-col justify-between gap-1 ${
                     isSelected
-                      ? 'bg-sky-50/90 border-sky-400 ring-2 ring-sky-500/20 text-sky-950 font-bold'
+                      ? 'bg-sky-50 border-sky-400 ring-1 ring-sky-500/30 text-sky-950 font-bold'
                       : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 font-medium'
                   }`}
                   title={`${s.name} - ${s.description}`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-[10px] font-bold text-slate-900">{s.label}</span>
-                    <span className={`text-[9px] font-extrabold px-1 rounded border ${s.expectedBadge}`}>
+                    <span className={`text-[9px] font-bold px-1 rounded border ${s.expectedBadge}`}>
                       {s.expected === 'NEED_MORE_INFORMATION' ? 'NEED INFO' : s.expected}
                     </span>
                   </div>
@@ -417,18 +415,18 @@ export default function ManualPAForm() {
       </div>
 
       {submitError && (
-        <div className="mx-4 mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3 flex-shrink-0">
-          <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
+        <div className="mx-4 mt-3 p-3 rounded-lg bg-rose-50 border border-rose-200 flex items-center gap-2.5">
+          <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
           <span className="text-xs font-semibold text-rose-800">{submitError}</span>
         </div>
       )}
 
       {/* TABS NAVIGATION */}
-      <div className="flex px-4 pt-3 gap-2 flex-shrink-0">
+      <div className="flex px-4 pt-2.5 gap-1.5 border-b border-slate-200 bg-slate-50/30">
         {[
-          { id: 1, label: 'Patient Info', icon: User },
-          { id: 2, label: 'Clinical Data', icon: Stethoscope },
-          { id: 3, label: 'Admin Details', icon: Building2 },
+          { id: 1, label: 'Patient Information', icon: User },
+          { id: 2, label: 'Clinical & Service Details', icon: Stethoscope },
+          { id: 3, label: 'Provider & Organization', icon: Building2 },
         ].map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -437,14 +435,14 @@ export default function ManualPAForm() {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 px-2 rounded-t-xl text-sm font-bold border-t border-x transition-all ${
+              className={`flex items-center gap-1.5 py-2 px-3.5 rounded-t-lg text-xs font-bold border-t border-x transition-all ${
                 isActive 
-                  ? 'bg-white border-slate-200 text-sky-700' 
-                  : 'bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                  ? 'bg-white border-slate-200 text-sky-800 border-b-white' 
+                  : 'bg-transparent border-transparent text-slate-500 hover:text-slate-800'
               }`}
-              style={isActive ? { marginBottom: '-1px', zIndex: 10 } : {}}
+              style={isActive ? { marginBottom: '-1px' } : {}}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-3.5 h-3.5" />
               <span>{tab.label}</span>
             </button>
           );
@@ -452,185 +450,309 @@ export default function ManualPAForm() {
       </div>
 
       {/* MAIN CONTENT AREA */}
-      <div className="flex-1 overflow-hidden flex flex-col bg-white border-t border-slate-200">
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden" noValidate>
-          
-          <div className="flex-1 p-6 sm:p-8 overflow-y-auto">
-            {/* TAB 1: PATIENT */}
-            {activeTab === 1 && (
-              <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in duration-300">
-                <div className="space-y-1 mb-6">
-                  <h3 className="text-lg font-extrabold text-slate-800">Patient Demographics</h3>
-                  <p className="text-sm text-slate-500">Enter patient ID to automatically trigger Synthea AI history linking.</p>
-                </div>
-                
+      <div className="p-4 sm:p-6 bg-white">
+        <form onSubmit={handleSubmit} noValidate>
+          {/* TAB 1: PATIENT */}
+          {activeTab === 1 && (
+            <div className="max-w-2xl mx-auto space-y-4">
+              <div className="space-y-0.5 pb-2 border-b border-slate-100">
+                <h4 className="text-sm font-bold text-slate-800">Patient Demographics</h4>
+                <p className="text-xs text-slate-500">Patient identification and Medicare beneficiary jurisdiction.</p>
+              </div>
+              
+              <div>
+                <label className={lblCls}>Patient ID</label>
+                <input
+                  type="text"
+                  value={form.patient.patient_id}
+                  onChange={(e) => setNested('patient', 'patient_id', e.target.value)}
+                  className={inputCls(false) + " font-mono font-bold"}
+                  placeholder="e.g. p-sample-1"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={lblCls}>Patient ID</label>
-                  <input type="text" value={form.patient.patient_id} onChange={(e) => setNested('patient', 'patient_id', e.target.value)} className={inputCls(false) + " font-mono font-bold"} placeholder="p-sample-1" />
-                  {form.patient.patient_id && (
-                    <div className="mt-2 text-xs font-bold text-purple-700 bg-purple-50 px-3 py-2 rounded-lg border border-purple-100 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4" /> Synthea Medical History Merging Active
-                    </div>
-                  )}
+                  <label className={lblCls}>Date of Birth</label>
+                  <input
+                    type="date"
+                    value={form.patient.date_of_birth}
+                    onChange={(e) => setNested('patient', 'date_of_birth', e.target.value)}
+                    className={inputCls(false)}
+                  />
                 </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className={lblCls}>Date of Birth</label>
-                    <input type="date" value={form.patient.date_of_birth} onChange={(e) => setNested('patient', 'date_of_birth', e.target.value)} className={inputCls(false)} />
-                  </div>
-                  <div>
-                    <label className={lblCls}>Age</label>
-                    <input type="number" value={form.patient.age} onChange={(e) => setNested('patient', 'age', e.target.value)} className={inputCls(!!errors['patient.age'])} />
-                  </div>
-                  <div>
-                    <label className={lblCls}>Gender</label>
-                    <select value={form.patient.gender} onChange={(e) => setNested('patient', 'gender', e.target.value)} className={inputCls(false)}>
-                      <option value="">Select Gender</option><option value="M">Male (M)</option><option value="F">Female (F)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className={lblCls}>Patient State</label>
-                    <select value={form.patient.state} onChange={(e) => setNested('patient', 'state', e.target.value)} className={inputCls(false)}>
-                      <option value="">Select State</option>
-                      {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
+                <div>
+                  <label className={lblCls}>Age</label>
+                  <input
+                    type="number"
+                    value={form.patient.age}
+                    onChange={(e) => setNested('patient', 'age', e.target.value)}
+                    className={inputCls(!!errors['patient.age'])}
+                    placeholder="e.g. 68"
+                  />
+                </div>
+                <div>
+                  <label className={lblCls}>Gender</label>
+                  <select
+                    value={form.patient.gender}
+                    onChange={(e) => setNested('patient', 'gender', e.target.value)}
+                    className={inputCls(false)}
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="M">Male (M)</option>
+                    <option value="F">Female (F)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={lblCls}>Patient State</label>
+                  <select
+                    value={form.patient.state}
+                    onChange={(e) => setNested('patient', 'state', e.target.value)}
+                    className={inputCls(false)}
+                  >
+                    <option value="">Select State</option>
+                    {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* TAB 2: CLINICAL */}
-            {activeTab === 2 && (
-              <div className="max-w-3xl mx-auto flex flex-col h-full animate-in fade-in duration-300">
-                <div className="space-y-1 mb-5 flex-shrink-0">
-                  <h3 className="text-lg font-extrabold text-slate-800">Clinical Evaluation Data</h3>
-                  <p className="text-sm text-slate-500">Provide the codes and clinical notes required for policy matching.</p>
+          {/* TAB 2: CLINICAL */}
+          {activeTab === 2 && (
+            <div className="max-w-3xl mx-auto space-y-4">
+              <div className="space-y-0.5 pb-2 border-b border-slate-100">
+                <h4 className="text-sm font-bold text-slate-800">Clinical & Service Details</h4>
+                <p className="text-xs text-slate-500">Provide the procedure code, ICD-10 diagnoses, and medical documentation for policy matching.</p>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={lblCls}>CPT / HCPCS Procedure Code <span className="text-rose-500">*</span></label>
+                  <input
+                    type="text"
+                    value={form.service.procedure_code}
+                    onChange={(e) => setNested('service', 'procedure_code', e.target.value.toUpperCase())}
+                    className={inputCls(!!errors['service.procedure_code']) + " font-mono uppercase font-bold"}
+                    placeholder="e.g. 64483"
+                  />
+                  {errors['service.procedure_code'] && (
+                    <p className="text-[10px] text-rose-600 mt-1 font-medium">{errors['service.procedure_code']}</p>
+                  )}
                 </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5 flex-shrink-0">
-                  <div>
-                    <label className={lblCls}>CPT / HCPCS Code <span className="text-rose-500">*</span></label>
-                    <input type="text" value={form.service.procedure_code} onChange={(e) => setNested('service', 'procedure_code', e.target.value.toUpperCase())} className={inputCls(!!errors['service.procedure_code']) + " font-mono uppercase font-bold"} placeholder="e.g. 64483" />
-                  </div>
-                  <div>
-                    <label className={lblCls}>Place of Service</label>
-                    <input type="text" value={form.service.place_of_service} onChange={(e) => setNested('service', 'place_of_service', e.target.value)} className={inputCls(false)} placeholder="Outpatient" />
-                  </div>
-                </div>
-
-                <div className="mb-5 flex-shrink-0">
-                  <label className={lblCls}>Diagnoses (ICD-10) <span className="text-rose-500">*</span></label>
-                  <div className="space-y-2">
-                    {form.diagnoses.map((dx, idx) => (
-                      <div key={idx} className="flex gap-2 items-start">
-                        <input type="text" value={dx.icd10_code} onChange={(e) => setDiagnosis(idx, 'icd10_code', e.target.value)} placeholder="Code" maxLength={8} className={inputCls(errors['diagnoses'] && idx===0) + " w-32 font-mono uppercase"} />
-                        <input type="text" value={dx.description} onChange={(e) => setDiagnosis(idx, 'description', e.target.value)} placeholder="Diagnosis Description" className={inputCls(false) + " flex-1"} />
-                        {form.diagnoses.length > 1 && (
-                          <button type="button" onClick={() => removeDiagnosis(idx)} className="p-2 text-slate-400 hover:text-rose-500 bg-slate-50 hover:bg-rose-50 rounded-lg transition-colors border border-slate-200 mt-0.5"><X className="w-4 h-4" /></button>
-                        )}
-                      </div>
-                    ))}
-                    <button type="button" onClick={addDiagnosis} className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-sky-700 bg-sky-50 border border-sky-100 rounded-lg hover:bg-sky-100 transition-colors">
-                      <Plus className="w-4 h-4" /> Add Diagnosis
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex-1 flex flex-col min-h-0">
-                  <label className={lblCls}>Clinical Documentation / Justification</label>
-                  <textarea 
-                    value={form.clinical_notes} 
-                    onChange={(e) => setFlat('clinical_notes', e.target.value)}
-                    placeholder="Provide medical justification, previous treatments failed..."
-                    className="flex-1 w-full p-4 text-sm rounded-xl bg-slate-50 border border-slate-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none resize-none text-slate-800 leading-relaxed shadow-inner" 
+                <div>
+                  <label className={lblCls}>Place of Service</label>
+                  <input
+                    type="text"
+                    value={form.service.place_of_service}
+                    onChange={(e) => setNested('service', 'place_of_service', e.target.value)}
+                    className={inputCls(false)}
+                    placeholder="e.g. Outpatient Clinic"
                   />
                 </div>
               </div>
-            )}
 
-            {/* TAB 3: ADMIN */}
-            {activeTab === 3 && (
-              <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in duration-300">
-                <div className="space-y-1 mb-6">
-                  <h3 className="text-lg font-extrabold text-slate-800">Administrative Metadata</h3>
-                  <p className="text-sm text-slate-500">Provider, coverage, and request routing details.</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-5 p-5 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div>
-                    <label className={lblCls}>Review Type</label>
-                    <select value={form.request.review_type} onChange={(e) => setNested('request', 'review_type', e.target.value)} className={inputCls(false)}>
-                      <option value="NON_URGENT">Standard</option><option value="URGENT">Expedited</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className={lblCls}>Request Type</label>
-                    <select value={form.request.request_type} onChange={(e) => setNested('request', 'request_type', e.target.value)} className={inputCls(false)}>
-                      <option value="INITIAL">Initial</option><option value="REAUTHORIZATION">Reauthorization</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className={lblCls}>PA Request ID</label>
-                    <input type="text" value={form.pa_request_id} onChange={(e) => setFlat('pa_request_id', e.target.value)} className={inputCls(false)} placeholder="Auto-generated" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-5 p-5 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div>
-                    <label className={lblCls}>Payer</label>
-                    <input type="text" value={form.coverage.payer} onChange={(e) => setNested('coverage', 'payer', e.target.value)} className={inputCls(false)} placeholder="e.g. Medicare" />
-                  </div>
-                  <div>
-                    <label className={lblCls}>Plan ID</label>
-                    <input type="text" value={form.coverage.plan_id} onChange={(e) => setNested('coverage', 'plan_id', e.target.value)} className={inputCls(false)} />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-5 p-5 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div>
-                    <label className={lblCls}>Provider Organization</label>
-                    <input type="text" value={form.provider.organization_name} onChange={(e) => setNested('provider', 'organization_name', e.target.value)} className={inputCls(false)} />
-                  </div>
-                  <div>
-                    <label className={lblCls}>Provider Specialty</label>
-                    <input type="text" value={form.provider.specialty} onChange={(e) => setNested('provider', 'specialty', e.target.value)} className={inputCls(false)} />
-                  </div>
+              <div>
+                <label className={lblCls}>Diagnoses (ICD-10) <span className="text-rose-500">*</span></label>
+                <div className="space-y-2">
+                  {form.diagnoses.map((dx, idx) => (
+                    <div key={idx} className="flex gap-2 items-start">
+                      <input
+                        type="text"
+                        value={dx.icd10_code}
+                        onChange={(e) => setDiagnosis(idx, 'icd10_code', e.target.value)}
+                        placeholder="ICD-10 Code"
+                        maxLength={8}
+                        className={inputCls(errors['diagnoses'] && idx===0) + " w-28 font-mono uppercase"}
+                      />
+                      <input
+                        type="text"
+                        value={dx.description}
+                        onChange={(e) => setDiagnosis(idx, 'description', e.target.value)}
+                        placeholder="Diagnosis Description (e.g. Lumbar radiculopathy)"
+                        className={inputCls(false) + " flex-1"}
+                      />
+                      {form.diagnoses.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeDiagnosis(idx)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-lg transition-colors border border-slate-200"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {errors['diagnoses'] && (
+                    <p className="text-[10px] text-rose-600 font-medium">{errors['diagnoses']}</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={addDiagnosis}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-sky-800 bg-sky-50 border border-sky-200 rounded-lg hover:bg-sky-100 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Secondary Diagnosis</span>
+                  </button>
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* CONDITIONAL FOOTER */}
-          <div className="p-4 border-t border-slate-200 bg-slate-50 flex-shrink-0 flex items-center justify-between">
-            {activeTab > 1 ? (
-              <button 
-                type="button" 
-                onClick={() => setActiveTab(prev => prev - 1)}
-                className="px-6 py-3 rounded-xl text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 hover:text-slate-900 transition-colors shadow-sm"
-              >
-                Previous Step
-              </button>
-            ) : <div />}
+              <div>
+                <label className={lblCls}>Clinical Documentation & Medical Notes</label>
+                <textarea 
+                  value={form.clinical_notes} 
+                  onChange={(e) => setFlat('clinical_notes', e.target.value)}
+                  placeholder="Provide clinical justification, conservative treatment trials failed, imaging findings, exam severity..."
+                  rows={6}
+                  className="w-full p-3 text-xs rounded-lg bg-slate-50 border border-slate-200 focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 focus:outline-none resize-y text-slate-800 leading-relaxed font-sans" 
+                />
+              </div>
+            </div>
+          )}
 
-            {activeTab < 3 ? (
-              <button 
-                type="button" 
-                onClick={() => setActiveTab(prev => prev + 1)}
-                className="px-8 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-sm font-extrabold text-white shadow-md transition-all"
+          {/* TAB 3: ADMIN */}
+          {activeTab === 3 && (
+            <div className="max-w-2xl mx-auto space-y-4">
+              <div className="space-y-0.5 pb-2 border-b border-slate-100">
+                <h4 className="text-sm font-bold text-slate-800">Administrative & Provider Details</h4>
+                <p className="text-xs text-slate-500">Provider specialty, coverage plan, and review urgency classification.</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 bg-slate-50 rounded-lg border border-slate-200/80">
+                <div>
+                  <label className={lblCls}>Review Type (Urgency)</label>
+                  <select
+                    value={form.request.review_type}
+                    onChange={(e) => setNested('request', 'review_type', e.target.value)}
+                    className={inputCls(false)}
+                  >
+                    <option value="NON_URGENT">Standard Review (72h)</option>
+                    <option value="URGENT">Expedited Review (24h)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={lblCls}>Request Type</label>
+                  <select
+                    value={form.request.request_type}
+                    onChange={(e) => setNested('request', 'request_type', e.target.value)}
+                    className={inputCls(false)}
+                  >
+                    <option value="INITIAL">Initial Authorization</option>
+                    <option value="REAUTHORIZATION">Reauthorization / Renewal</option>
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={lblCls}>PA Request ID (Optional)</label>
+                  <input
+                    type="text"
+                    value={form.pa_request_id}
+                    onChange={(e) => setFlat('pa_request_id', e.target.value)}
+                    className={inputCls(false) + " font-mono"}
+                    placeholder="Leave empty to auto-generate (e.g. PA-REAL-001)"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 bg-slate-50 rounded-lg border border-slate-200/80">
+                <div>
+                  <label className={lblCls}>Payer</label>
+                  <input
+                    type="text"
+                    value={form.coverage.payer}
+                    onChange={(e) => setNested('coverage', 'payer', e.target.value)}
+                    className={inputCls(false)}
+                    placeholder="e.g. Medicare"
+                  />
+                </div>
+                <div>
+                  <label className={lblCls}>Plan ID</label>
+                  <input
+                    type="text"
+                    value={form.coverage.plan_id}
+                    onChange={(e) => setNested('coverage', 'plan_id', e.target.value)}
+                    className={inputCls(false)}
+                    placeholder="e.g. MED-TX-001"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 bg-slate-50 rounded-lg border border-slate-200/80">
+                <div>
+                  <label className={lblCls}>Provider Organization</label>
+                  <input
+                    type="text"
+                    value={form.provider.organization_name}
+                    onChange={(e) => setNested('provider', 'organization_name', e.target.value)}
+                    className={inputCls(false)}
+                    placeholder="e.g. Texas Spine Specialists"
+                  />
+                </div>
+                <div>
+                  <label className={lblCls}>Provider Specialty</label>
+                  <input
+                    type="text"
+                    value={form.provider.specialty}
+                    onChange={(e) => setNested('provider', 'specialty', e.target.value)}
+                    className={inputCls(false)}
+                    placeholder="e.g. Interventional Pain Management"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ACTIONS FOOTER */}
+          <div className="mt-6 pt-4 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              {activeTab > 1 ? (
+                <button 
+                  type="button" 
+                  onClick={() => setActiveTab(prev => prev - 1)}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition-colors shadow-2xs"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <span>Previous</span>
+                </button>
+              ) : <div />}
+
+              {activeTab < 3 && (
+                <button 
+                  type="button" 
+                  onClick={() => setActiveTab(prev => prev + 1)}
+                  className="inline-flex items-center gap-1 px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-xs font-bold text-white transition-colors"
+                >
+                  <span>Next Step</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={reset}
+                className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
               >
-                Next Step
+                Clear
               </button>
-            ) : (
-              <button type="submit" disabled={submitting}
-                className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-sm font-extrabold text-white shadow-lg transition-all flex items-center justify-center gap-2">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-sky-700 hover:bg-sky-800 disabled:bg-slate-400 text-xs font-bold text-white shadow-2xs transition-all"
+              >
                 {submitting ? (
-                  <><RefreshCw className="w-5 h-5 animate-spin" /> Adjudicating Request...</>
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Evaluating Request...</span>
+                  </>
                 ) : (
-                  <><Zap className="w-5 h-5 text-sky-400 fill-sky-400" /> Submit to AI Engine</>
+                  <>
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Evaluate Prior Authorization</span>
+                  </>
                 )}
               </button>
-            )}
+            </div>
           </div>
 
         </form>

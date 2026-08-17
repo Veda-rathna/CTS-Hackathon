@@ -2,15 +2,13 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   UploadCloud,
-  FileCheck2,
   RefreshCw,
   Trash2,
-  ArrowRight,
   AlertCircle,
   CheckCircle2,
   FileText,
   Edit3,
-  Zap,
+  ShieldCheck,
 } from 'lucide-react';
 import { extractFromPDF, runTriage } from '../../services/api';
 import { savePARequest } from '../../utils/storage';
@@ -159,7 +157,7 @@ export default function PDFUploader() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Upload Drag & Drop Dropzone */}
       {!file ? (
         <div
@@ -167,9 +165,9 @@ export default function PDFUploader() {
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
           onDrop={handleDrop}
-          className={`relative border-2 border-dashed rounded-2xl p-8 sm:p-12 text-center transition-all ${
+          className={`relative border-2 border-dashed rounded-xl p-8 sm:p-12 text-center transition-all ${
             dragActive
-              ? 'border-sky-500 bg-sky-50/60 scale-[1.01]'
+              ? 'border-sky-500 bg-sky-50/50'
               : 'border-slate-300 hover:border-sky-400 bg-white'
           }`}
         >
@@ -182,62 +180,60 @@ export default function PDFUploader() {
             id="pdf-file-upload"
           />
 
-          <div className="flex flex-col items-center justify-center space-y-3">
-            <div className="w-16 h-16 rounded-full bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 shadow-sm">
-              <UploadCloud className="w-8 h-8" />
+          <div className="flex flex-col items-center justify-center space-y-2.5">
+            <div className="w-12 h-12 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-700">
+              <UploadCloud className="w-6 h-6" />
             </div>
 
             <div>
-              <h3 className="text-base font-semibold text-slate-800">Upload Prior Authorization PDF</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Drag and drop your PA medical request document here, or browse files
+              <h4 className="text-sm font-bold text-slate-800">Upload Prior Authorization Packet</h4>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Drag and drop your PA medical packet here, or browse files
               </p>
             </div>
 
             <label
               htmlFor="pdf-file-upload"
-              className="mt-2 inline-flex items-center px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-lg shadow-sm cursor-pointer transition-colors"
+              className="mt-1 inline-flex items-center px-3.5 py-1.5 text-xs font-bold text-white bg-sky-700 hover:bg-sky-800 rounded-lg shadow-sm cursor-pointer transition-colors"
             >
               Browse PDF File
             </label>
 
-            <span className="text-[11px] text-slate-400 font-medium">Supported format: PDF only (max 15MB)</span>
+            <span className="text-[11px] text-slate-400">Supported format: PDF only (maximum 15MB)</span>
           </div>
         </div>
       ) : (
         /* Uploaded File + Human-Verification Card */
-        <div className="healthcare-card p-6 space-y-5">
+        <div className="healthcare-card p-5 space-y-4">
           {/* File Header */}
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-600">
-                <FileText className="w-5 h-5" />
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-700">
+                <FileText className="w-4 h-4" />
               </div>
               <div>
-                <h4 className="text-sm font-semibold text-slate-800">{file.name}</h4>
-                <p className="text-xs text-slate-400">
+                <h4 className="text-xs font-bold text-slate-800">{file.name}</h4>
+                <p className="text-[11px] text-slate-400">
                   {(file.size / 1024 / 1024).toFixed(2)} MB • Ingested document
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleRemove}
-                disabled={status === 'evaluating'}
-                className="p-1.5 text-xs text-rose-600 hover:text-rose-700 rounded-lg hover:bg-rose-50 transition-colors flex items-center gap-1 font-medium"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Remove</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleRemove}
+              disabled={status === 'evaluating'}
+              className="px-2.5 py-1 text-xs text-rose-700 hover:text-rose-800 rounded-md hover:bg-rose-50 border border-slate-200 transition-colors flex items-center gap-1 font-semibold"
+            >
+              <Trash2 className="w-3 h-3" />
+              <span>Remove</span>
+            </button>
           </div>
 
           {/* Extracting Indicator */}
           {status === 'extracting' && (
-            <div className="p-4 bg-sky-50 border border-sky-200 rounded-xl flex items-center justify-center gap-3 text-sky-800 text-xs font-medium">
-              <RefreshCw className="w-4 h-4 animate-spin text-sky-600" />
+            <div className="p-3 bg-sky-50 border border-sky-200 rounded-lg flex items-center justify-center gap-2 text-sky-800 text-xs font-semibold">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin text-sky-700" />
               <span>Extracting clinical data fields from PDF document...</span>
             </div>
           )}
@@ -245,37 +241,37 @@ export default function PDFUploader() {
           {/* Extracted Data — Human Verification Form */}
           {status === 'extracted' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50/80 border border-emerald-200 text-xs text-emerald-800">
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs">
                 <div className="flex items-center gap-2 font-semibold">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Document Extracted — Please verify clinical values before evaluation</span>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Document Extracted — Verify clinical values prior to evaluation</span>
                 </div>
                 {extractionMeta && (
-                  <span className="font-mono text-[11px] font-bold bg-white px-2 py-0.5 rounded border border-emerald-200">
+                  <span className="font-mono text-[10px] font-bold bg-white px-2 py-0.5 rounded border border-emerald-200">
                     Confidence: {Math.round(extractionMeta.confidence * 100)}%
                   </span>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                 {/* Procedure Code */}
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                    <Edit3 className="w-3 h-3 text-sky-600" /> Procedure Code (CPT/HCPCS) *
+                  <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1 text-[11px] uppercase">
+                    <Edit3 className="w-3 h-3 text-sky-700" /> Procedure Code (CPT/HCPCS) *
                   </label>
                   <input
                     type="text"
                     value={extracted.procedure_code}
                     onChange={(e) => setExtracted({ ...extracted, procedure_code: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-2 font-mono font-bold text-sm rounded-lg border border-slate-300 focus:border-sky-500 focus:outline-none"
+                    className="w-full px-2.5 py-1.5 font-mono font-bold text-xs rounded-lg border border-slate-200 focus:border-sky-600 focus:outline-none"
                     placeholder="e.g. 64483"
                   />
                 </div>
 
                 {/* Diagnosis Code */}
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                    <Edit3 className="w-3 h-3 text-emerald-600" /> Primary Diagnosis (ICD-10) *
+                  <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1 text-[11px] uppercase">
+                    <Edit3 className="w-3 h-3 text-emerald-700" /> Primary Diagnosis (ICD-10) *
                   </label>
                   <input
                     type="text"
@@ -285,21 +281,21 @@ export default function PDFUploader() {
                       next[0] = e.target.value.toUpperCase();
                       setExtracted({ ...extracted, diagnosis_codes: next });
                     }}
-                    className="w-full px-3 py-2 font-mono font-bold text-sm rounded-lg border border-slate-300 focus:border-emerald-500 focus:outline-none"
+                    className="w-full px-2.5 py-1.5 font-mono font-bold text-xs rounded-lg border border-slate-200 focus:border-emerald-600 focus:outline-none"
                     placeholder="e.g. M54.16"
                   />
                 </div>
 
                 {/* State */}
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                    <Edit3 className="w-3 h-3 text-purple-600" /> Patient State
+                  <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1 text-[11px] uppercase">
+                    <Edit3 className="w-3 h-3 text-purple-700" /> Patient State
                   </label>
                   <input
                     type="text"
                     value={extracted.state}
                     onChange={(e) => setExtracted({ ...extracted, state: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-2 font-bold text-sm rounded-lg border border-slate-300 focus:border-purple-500 focus:outline-none"
+                    className="w-full px-2.5 py-1.5 font-bold text-xs rounded-lg border border-slate-200 focus:border-purple-600 focus:outline-none"
                     placeholder="e.g. TX"
                     maxLength={2}
                   />
@@ -308,14 +304,14 @@ export default function PDFUploader() {
 
               {/* Clinical Notes */}
               <div>
-                <label className="block font-semibold text-slate-700 text-xs mb-1">
+                <label className="block font-bold text-slate-700 text-[11px] uppercase mb-1">
                   Extracted Clinical Notes / Medical Justification
                 </label>
                 <textarea
                   value={extracted.clinical_notes}
                   onChange={(e) => setExtracted({ ...extracted, clinical_notes: e.target.value })}
                   rows={4}
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:border-sky-500 focus:outline-none leading-relaxed"
+                  className="w-full p-2.5 text-xs rounded-lg border border-slate-200 focus:border-sky-600 focus:outline-none leading-relaxed"
                 />
               </div>
 
@@ -324,10 +320,10 @@ export default function PDFUploader() {
                 <button
                   type="button"
                   onClick={handleEvaluate}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-700 hover:bg-sky-800 text-white font-bold text-xs rounded-lg shadow-sm transition-all"
                 >
-                  <Zap className="w-4 h-4" />
-                  <span>Submit Verified Request for Policy Evaluation</span>
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Evaluate Prior Authorization</span>
                 </button>
               </div>
             </div>
@@ -335,8 +331,8 @@ export default function PDFUploader() {
 
           {/* Evaluating State */}
           {status === 'evaluating' && (
-            <div className="p-4 bg-sky-50 border border-sky-200 rounded-xl flex items-center justify-center gap-3 text-sky-800 text-sm font-medium">
-              <RefreshCw className="w-4 h-4 animate-spin text-sky-600" />
+            <div className="p-3 bg-sky-50 border border-sky-200 rounded-lg flex items-center justify-center gap-2 text-sky-800 text-xs font-semibold">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin text-sky-700" />
               <span>Evaluating verified clinical data against CMS Coverage Policies...</span>
             </div>
           )}
@@ -345,7 +341,7 @@ export default function PDFUploader() {
 
       {/* Error Message */}
       {error && (
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-3 text-rose-800 text-xs">
+        <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 flex items-start gap-2.5 text-rose-800 text-xs">
           <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
           <div>
             <span className="font-semibold block">Notice:</span>
