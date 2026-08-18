@@ -9,11 +9,11 @@
 export const DEMO_PROVIDERS = [
   {
     id: 'PROV-001',
-    name: 'Dr. Veda Rathna',
+    name: 'Dr. John wick',
     role: 'Clinical Reviewer',
     username: 'provider1@pa-demo.local',
     password: 'Provider@123',
-    initials: 'VR',
+    initials: 'JW',
     organization: 'Prior Auth Review Board',
     specialty: 'Clinical UM Reviewer',
   },
