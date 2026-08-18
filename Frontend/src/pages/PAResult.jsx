@@ -17,14 +17,12 @@ import EvidenceFusionPanel from '../components/result/EvidenceFusionPanel';
 import AgentEvaluationPanel from '../components/result/AgentEvaluationPanel';
 import ImpactMetricsSection from '../components/result/ImpactMetricsSection';
 import PrintableClinicalReport from '../components/result/PrintableClinicalReport';
-import { generatePAReportPDF, openPAReportPDF } from '../utils/pdfGenerator';
+import { openPAReportPDF } from '../utils/pdfGenerator';
 import {
   Activity,
   ArrowLeft,
   Printer,
-  Download,
   ExternalLink,
-  Loader2,
   AlertTriangle,
   ChevronDown,
   ChevronUp,
@@ -45,7 +43,6 @@ export default function PAResult() {
   const [record, setRecord] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -79,18 +76,6 @@ export default function PAResult() {
 
   const handlePrint = () => {
     window.print();
-  };
-
-  const handleDownloadPDF = () => {
-    try {
-      setIsGeneratingPdf(true);
-      generatePAReportPDF(record);
-    } catch (err) {
-      console.error('Error generating PDF:', err);
-      window.print();
-    } finally {
-      setTimeout(() => setIsGeneratingPdf(false), 800);
-    }
   };
 
   const handleCopyPrompt = () => {
@@ -441,35 +426,15 @@ export default function PAResult() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={handleDownloadPDF}
-            disabled={isGeneratingPdf}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-sky-700 hover:bg-sky-800 disabled:opacity-50 rounded-lg shadow-sm transition-colors"
-            title="Download official CMS-0057-F PDF Prior Authorization Report"
-          >
-            {isGeneratingPdf ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Generating PDF...</span>
-              </>
-            ) : (
-              <>
-                <Download className="w-3.5 h-3.5" />
-                <span>Download PDF Summary</span>
-              </>
-            )}
-          </button>
-
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => openPAReportPDF(record)}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-sky-800 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg shadow-2xs transition-colors"
-            title="Open generated PDF report in a new browser tab"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-sky-700 hover:bg-sky-800 rounded-lg shadow-sm transition-colors"
+            title="Open generated CMS-0057-F PDF Prior Authorization Report in a new browser tab"
           >
-            <ExternalLink className="w-3.5 h-3.5 text-sky-700" />
-            <span>Open PDF</span>
+            <ExternalLink className="w-3.5 h-3.5 text-white" />
+            <span>Open PDF Report</span>
           </button>
 
           <button
