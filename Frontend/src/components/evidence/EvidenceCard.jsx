@@ -23,7 +23,7 @@ export default function EvidenceCard({ evidence }) {
   };
 
   return (
-    <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs hover:border-slate-300 transition-all space-y-2.5">
+    <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-sm hover:border-slate-300 transition-all space-y-2.5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-slate-100">{getTypeIcon()}</div>

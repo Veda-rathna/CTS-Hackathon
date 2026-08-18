@@ -27,9 +27,6 @@ from app.repositories.mock.lcd_repository import MockLCDRepository
 from app.repositories.mock.policy_chunk_repository import MockPolicyChunkRepository
 from app.services.llm.client import LLMClient
 from app.services.evaluation.structured_evaluator import StructuredEvaluator
-from app.services.evaluation.rule_evaluator import RuleEvaluator
-from app.services.agents.agent_orchestrator import AgentOrchestrator
-
 from app.services.evaluation.multi_evaluator import MultiEvaluator
 from app.services.evaluation.semantic_evaluator import SemanticEvaluator
 
@@ -63,9 +60,8 @@ async def main():
     llm_client = LLMClient()
     
     structured_evaluator = StructuredEvaluator(article_repo, lcd_repo, ncd_repo)
-    rule_eval = RuleEvaluator()
     semantic_eval = SemanticEvaluator(llm_client)
-    multi_eval = MultiEvaluator(structured_evaluator, rule_eval, semantic_eval)
+    multi_eval = MultiEvaluator(structured_evaluator, semantic_eval)
 
     svc = TriageService(
         policy_repository=policy_repo,

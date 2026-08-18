@@ -18,7 +18,6 @@ from app.services.llm.client import LLMClient
 from app.services.rag.embedding_service import EmbeddingService
 from app.services.evaluation.multi_evaluator import MultiEvaluator
 from app.services.evaluation.structured_evaluator import StructuredEvaluator
-from app.services.evaluation.rule_evaluator import RuleEvaluator
 from app.services.evaluation.semantic_evaluator import SemanticEvaluator
 from app.core.config import get_settings
 
@@ -70,10 +69,9 @@ def run_tests():
         embedding_service = EmbeddingService()
         
         structured_eval = StructuredEvaluator(article_repo, lcd_repo, ncd_repo)
-        rule_eval = RuleEvaluator()
         semantic_eval = SemanticEvaluator(llm_client)
         
-        evaluator = MultiEvaluator(structured_eval, rule_eval, semantic_eval)
+        evaluator = MultiEvaluator(structured_eval, semantic_eval)
         
         for i, req_data in enumerate(TEST_REQUESTS, 1):
             print(f"\n{'='*60}\nTEST #{i}\n{'='*60}\n")
