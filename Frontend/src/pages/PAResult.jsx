@@ -325,6 +325,61 @@ export default function PAResult() {
 
   const nurseEvaluation = getNurseEvaluation();
 
+  // Parse synthesized narrative into structured points
+  const parseEvaluationNarrative = (rawText) => {
+    if (!rawText) return { intro: '', items: [] };
+
+    const parts = rawText
+      .split(/(?:•|\n-|\n\*|\n•|\r?\n)/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (parts.length <= 1 && !rawText.includes('•')) {
+      return { intro: rawText, items: [] };
+    }
+
+    let intro = '';
+    const items = [];
+
+    parts.forEach((part, index) => {
+      // Check if the first part is an introductory summary sentence
+      const isFirstAndIntro =
+        index === 0 &&
+        !part.match(/:\s*(?:SATISFIED|NOT_SATISFIED|UNKNOWN|MATCHED|NOT_MATCHED|MET|UNMET|COVERED|EXCLUDED|PENDING)/i) &&
+        !part.includes('—') &&
+        !part.includes('--');
+
+      if (isFirstAndIntro) {
+        intro = part;
+        return;
+      }
+
+      // Try parsing: "<ID>: <STATUS> — <Description>" or "<STATUS> — <Description>"
+      const match = part.match(
+        /^(?:([^:]+):\s*)?(SATISFIED|NOT_SATISFIED|UNKNOWN|MATCHED|NOT_MATCHED|MET|UNMET|COVERED|EXCLUDED|PENDING|APPROVED|DENIED|PENDED)\s*(?:[—–-]+\s*(.*))?$/i
+      );
+
+      if (match && (match[1] || match[3])) {
+        items.push({
+          id: match[1]?.trim() || null,
+          status: match[2]?.trim().toUpperCase(),
+          text: match[3]?.trim() || '',
+        });
+      } else {
+        // General bullet point
+        items.push({
+          id: null,
+          status: null,
+          text: part.replace(/^[•\-*]\s*/, '').trim(),
+        });
+      }
+    });
+
+    return { intro, items };
+  };
+
+  const parsedNarrative = parseEvaluationNarrative(nurseEvaluation);
+
   return (
     <div className="space-y-5 max-w-4xl mx-auto pb-10">
       {/* Navigation & Action Bar */}
@@ -558,60 +613,65 @@ export default function PAResult() {
           </span>
         </div>
 
-        {/* 7. CRITIC AGENT VALIDATION SUMMARY */}
-        <div className="p-3.5 rounded-lg bg-purple-50/50 border border-purple-200 space-y-2.5">
-          <div className="flex items-center justify-between pb-1.5 border-b border-purple-200/80">
-            <div className="flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-purple-700" />
-              <h4 className="text-xs font-bold text-purple-950 uppercase tracking-wider">
-                AI Validation
-              </h4>
-            </div>
-            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-              criticValidation.verdict === 'VALIDATED' || criticValidation.verdict === 'DETERMINISTIC_EVALUATION'
-                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                : 'bg-amber-100 text-amber-800 border-amber-300'
-            }`}>
-              Critic: {criticValidation.verdictLabel || criticValidation.verdict}
-            </span>
-          </div>
-
-          <p className="text-xs text-purple-900 font-medium">
-            {criticValidation.summary}
-          </p>
-
-          {/* Individual Grounded Checks */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
-            {criticValidation.checks.map((chk, i) => (
-              <div key={i} className="p-2 rounded-lg bg-white border border-purple-100 text-xs space-y-0.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-800">{chk.name}</span>
-                  <span className={`px-1.5 py-0.2 text-[10px] font-bold rounded ${
-                    chk.status === 'PASSED'
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      : chk.status === 'WARNING'
-                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                      : 'bg-rose-50 text-rose-700 border border-rose-200'
-                  }`}>
-                    {chk.status}
-                  </span>
-                </div>
-                {chk.detail && (
-                  <p className="text-[10px] text-slate-500 line-clamp-2">{chk.detail}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 8. EVALUATION NARRATIVE */}
-        <div className="space-y-1 pt-2 border-t border-slate-100">
+        {/* 7. EVALUATION NARRATIVE */}
+        <div className="space-y-2 pt-2 border-t border-slate-100">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
             Synthesized Clinical Evaluation Narrative
           </span>
-          <p className="text-xs font-medium text-slate-700 leading-relaxed">
-            {nurseEvaluation}
-          </p>
+
+          {parsedNarrative.intro && (
+            <p className="text-xs font-semibold text-slate-800 leading-relaxed bg-slate-50/80 p-2.5 rounded-lg border border-slate-200/70">
+              {parsedNarrative.intro}
+            </p>
+          )}
+
+          {parsedNarrative.items.length > 0 ? (
+            <div className="space-y-1.5 pt-0.5">
+              {parsedNarrative.items.map((item, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-start gap-2.5 p-2 rounded-lg bg-slate-50/50 hover:bg-slate-50 border border-slate-200/60 text-xs transition-colors"
+                >
+                  {item.status ? (
+                    <span
+                      className={`px-1.5 py-0.5 text-[10px] font-bold rounded flex-shrink-0 mt-0.5 border ${
+                        item.status === 'SATISFIED' || item.status === 'MATCHED' || item.status === 'MET' || item.status === 'COVERED' || item.status === 'APPROVED'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : item.status === 'NOT_SATISFIED' || item.status === 'EXCLUDED' || item.status === 'DENIED' || item.status === 'UNMET'
+                          ? 'bg-rose-50 text-rose-700 border-rose-200'
+                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                      }`}
+                    >
+                      {item.status === 'SATISFIED' || item.status === 'MET' || item.status === 'COVERED'
+                        ? '✓ ' + item.status
+                        : item.status === 'NOT_SATISFIED' || item.status === 'EXCLUDED'
+                        ? '✗ ' + item.status
+                        : '⚠ ' + item.status}
+                    </span>
+                  ) : (
+                    <span className="text-sky-600 font-bold select-none mt-0.5">•</span>
+                  )}
+
+                  <div className="flex-1 space-y-0.5 min-w-0">
+                    {item.id && (
+                      <span className="inline-block text-[10px] font-mono font-semibold text-slate-600 bg-white px-1.5 py-0.2 rounded border border-slate-200 mr-1.5">
+                        {item.id}
+                      </span>
+                    )}
+                    <span className="text-slate-700 leading-relaxed font-medium">
+                      {item.text || item.id}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            !parsedNarrative.intro && (
+              <p className="text-xs font-medium text-slate-700 leading-relaxed">
+                {nurseEvaluation}
+              </p>
+            )
+          )}
         </div>
 
       </div>
@@ -647,6 +707,52 @@ export default function PAResult() {
 
           {showAdvanced && (
             <div className="p-5 sm:p-6 space-y-6 bg-white border-t border-slate-200">
+              {/* AI Validation / Critic Multi-Agent Audit */}
+              <div className="p-3.5 rounded-lg bg-purple-50/50 border border-purple-200 space-y-2.5">
+                <div className="flex items-center justify-between pb-1.5 border-b border-purple-200/80">
+                  <div className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-purple-700" />
+                    <h4 className="text-xs font-bold text-purple-950 uppercase tracking-wider">
+                      AI Validation & Grounding Audit
+                    </h4>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                    criticValidation.verdict === 'VALIDATED' || criticValidation.verdict === 'DETERMINISTIC_EVALUATION'
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      : 'bg-amber-100 text-amber-800 border-amber-300'
+                  }`}>
+                    Critic: {criticValidation.verdictLabel || criticValidation.verdict}
+                  </span>
+                </div>
+
+                <p className="text-xs text-purple-900 font-medium">
+                  {criticValidation.summary}
+                </p>
+
+                {/* Individual Grounded Checks */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
+                  {criticValidation.checks.map((chk, i) => (
+                    <div key={i} className="p-2 rounded-lg bg-white border border-purple-100 text-xs space-y-0.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-800">{chk.name}</span>
+                        <span className={`px-1.5 py-0.2 text-[10px] font-bold rounded ${
+                          chk.status === 'PASSED'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : chk.status === 'WARNING'
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                            : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        }`}>
+                          {chk.status}
+                        </span>
+                      </div>
+                      {chk.detail && (
+                        <p className="text-[10px] text-slate-500 line-clamp-2">{chk.detail}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Governing Policy Hierarchy Path */}
               <PolicyPathDisplay policyPath={record.policy_path} policies={record.policies} />
 
