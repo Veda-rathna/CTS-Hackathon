@@ -23,7 +23,6 @@ import StatCard from '../components/dashboard/StatCard';
 import RecentRequestsTable from '../components/dashboard/RecentRequestsTable';
 import PriorityBadge from '../components/common/PriorityBadge';
 import { getStoredPARequests } from '../utils/storage';
-import { checkHealth } from '../services/api';
 import { getRequestPriority } from '../utils/formatters';
 import { sortPriorityQueue, PROCESSING_STATUS } from '../utils/queueEngine';
 
@@ -31,16 +30,11 @@ const BATCH_QUEUE_STORAGE_KEY = 'pa_batch_work_queue_state_v1';
 
 export default function Dashboard() {
   const [requests, setRequests] = useState([]);
-  const [apiStatus, setApiStatus] = useState({ online: false, checking: true });
   const [queueState, setQueueState] = useState({ batchId: null, items: [] });
 
   useEffect(() => {
     const loaded = getStoredPARequests();
     setRequests(loaded);
-
-    checkHealth().then((status) => {
-      setApiStatus({ online: status.online, checking: false, data: status.data });
-    });
 
     try {
       const savedQueue = sessionStorage.getItem(BATCH_QUEUE_STORAGE_KEY);

@@ -5,7 +5,6 @@ import {
   FilePlus2,
   Layers,
   History,
-  Settings,
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
@@ -51,16 +50,6 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
           path: '/history',
           icon: History,
           description: 'Historical Determinations',
-        },
-      ],
-    },
-    {
-      group: 'System',
-      items: [
-        {
-          name: 'Settings & Health',
-          path: '/settings',
-          icon: Settings,
         },
       ],
     },
