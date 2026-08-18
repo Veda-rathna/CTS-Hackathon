@@ -17,10 +17,13 @@ import EvidenceFusionPanel from '../components/result/EvidenceFusionPanel';
 import AgentEvaluationPanel from '../components/result/AgentEvaluationPanel';
 import ImpactMetricsSection from '../components/result/ImpactMetricsSection';
 import PrintableClinicalReport from '../components/result/PrintableClinicalReport';
+import { generatePAReportPDF } from '../utils/pdfGenerator';
 import {
   Activity,
   ArrowLeft,
   Printer,
+  Download,
+  Loader2,
   AlertTriangle,
   ChevronDown,
   ChevronUp,
@@ -41,6 +44,7 @@ export default function PAResult() {
   const [record, setRecord] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -74,6 +78,18 @@ export default function PAResult() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadPDF = () => {
+    try {
+      setIsGeneratingPdf(true);
+      generatePAReportPDF(record);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      window.print();
+    } finally {
+      setTimeout(() => setIsGeneratingPdf(false), 800);
+    }
   };
 
   const handleCopyPrompt = () => {
@@ -427,11 +443,32 @@ export default function PAResult() {
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={handleDownloadPDF}
+            disabled={isGeneratingPdf}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-sky-700 hover:bg-sky-800 disabled:opacity-50 rounded-lg shadow-sm transition-colors"
+            title="Download official CMS-0057-F PDF Prior Authorization Report"
+          >
+            {isGeneratingPdf ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Generating PDF...</span>
+              </>
+            ) : (
+              <>
+                <Download className="w-3.5 h-3.5" />
+                <span>Download PDF Summary</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
             onClick={handlePrint}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg shadow-sm transition-colors"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg shadow-2xs transition-colors"
+            title="Open Print Dialog"
           >
             <Printer className="w-3.5 h-3.5 text-slate-500" />
-            <span>Print Summary</span>
+            <span>Print</span>
           </button>
         </div>
       </div>
@@ -650,10 +687,10 @@ export default function PAResult() {
 
               {/* Standardized Provider Prompt Template & 1-Click Copy */}
               {needInfoDiag.promptTemplate && (
-                <div className="mt-2 p-3 rounded-lg bg-slate-900 text-white space-y-2 border border-slate-800">
+                <div className="mt-2 p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-sky-400">
-                      <Send className="w-3.5 h-3.5" />
+                    <div className="flex items-center gap-1.5 text-sky-800">
+                      <Send className="w-3.5 h-3.5 text-sky-700" />
                       <span className="text-[11px] font-bold uppercase tracking-wider">
                         Standardized Provider Request Prompt
                       </span>
@@ -665,7 +702,7 @@ export default function PAResult() {
                       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-bold transition-all ${
                         copiedPrompt
                           ? 'bg-emerald-600 text-white'
-                          : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                          : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 shadow-2xs'
                       }`}
                       title="Copy provider prompt to clipboard"
                     >
@@ -676,17 +713,17 @@ export default function PAResult() {
                         </>
                       ) : (
                         <>
-                          <Copy className="w-3.5 h-3.5 text-slate-400" />
+                          <Copy className="w-3.5 h-3.5 text-slate-500" />
                           <span>Copy Provider Prompt</span>
                         </>
                       )}
                     </button>
                   </div>
 
-                  <pre className="text-[11px] font-mono text-slate-300 bg-slate-950/80 p-2.5 rounded-md overflow-x-auto whitespace-pre-wrap leading-relaxed border border-slate-800">
+                  <pre className="text-[11px] font-mono text-slate-800 bg-white p-3 rounded-lg overflow-x-auto whitespace-pre-wrap leading-relaxed border border-slate-200 shadow-2xs">
                     {needInfoDiag.promptTemplate}
                   </pre>
-                  <p className="text-[10px] text-slate-400 italic">
+                  <p className="text-[10.5px] text-slate-500 italic">
                     Nurses and UM coordinators can copy this standardized communication directly to request missing documentation from the clinic.
                   </p>
                 </div>
@@ -696,17 +733,17 @@ export default function PAResult() {
         )}
 
         {/* 6. SUGGESTED NEXT STEP (Workflow Guidance, NOT Medical Advice) */}
-        <div className="p-3.5 rounded-lg bg-slate-900 text-white space-y-1.5">
+        <div className="p-4 rounded-xl bg-sky-50/70 border border-sky-200 text-sky-950 space-y-1.5 shadow-2xs">
           <div className="flex items-center gap-1.5">
-            <Compass className="w-3.5 h-3.5 text-sky-400" />
-            <h4 className="text-xs font-bold text-sky-300 uppercase tracking-wider">
+            <Compass className="w-4 h-4 text-sky-700" />
+            <h4 className="text-xs font-bold text-sky-900 uppercase tracking-wider">
               Suggested Next Step (Workflow Guidance)
             </h4>
           </div>
-          <p className="text-xs font-semibold text-slate-100 leading-relaxed">
+          <p className="text-xs font-semibold text-slate-800 leading-relaxed">
             {suggestedNextStep}
           </p>
-          <span className="text-[10px] text-slate-400 block pt-1 border-t border-slate-800">
+          <span className="text-[10px] text-slate-500 block pt-1 border-t border-sky-200/80">
             Administrative workflow guidance for utilization management personnel; not a clinical medical recommendation.
           </span>
         </div>
