@@ -1,34 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { checkHealth } from '../../services/api';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import {
   PlusCircle,
   ShieldCheck,
   User,
-  Activity,
-  Server,
   Layers,
+  LogOut,
+  ChevronDown,
 } from 'lucide-react';
 
 export default function Header({ isCollapsed }) {
   const location = useLocation();
-  const [apiStatus, setApiStatus] = useState({ online: false, checking: true });
+  const navigate = useNavigate();
+  const { provider, logout } = useAuth();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const profileMenuRef = useRef(null);
 
+  // Handle click outside to close profile dropdown
   useEffect(() => {
-    let mounted = true;
-    async function verifyHealth() {
-      const res = await checkHealth();
-      if (mounted) {
-        setApiStatus({ online: res.online, checking: false });
+    function handleClickOutside(event) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setIsProfileOpen(false);
       }
     }
-    verifyHealth();
-    const interval = setInterval(verifyHealth, 12000);
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleLogout = () => {
+    setIsProfileOpen(false);
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   const getPageTitle = (path) => {
     if (path === '/') return 'Prior Authorization Command Center';
@@ -36,9 +40,14 @@ export default function Header({ isCollapsed }) {
     if (path === '/queue') return 'Prior Authorization Work Queue & Batch Orchestration';
     if (path === '/history') return 'Prior Authorization Clinical History & Audit Worklist';
     if (path.startsWith('/pa/')) return 'Prior Authorization Clinical Decision Summary';
-    if (path === '/settings') return 'Platform Settings & Environment Health';
     return 'Prior Authorization Intelligence';
   };
+
+  const providerName = provider?.name || 'Dr. Veda Rathna';
+  const providerRole = provider?.role || 'Clinical Reviewer';
+  const providerInitials = provider?.initials || 'VR';
+  const providerId = provider?.id || 'PROV-001';
+  const providerEmail = provider?.username || 'provider1@pa-demo.local';
 
   return (
     <header
@@ -55,36 +64,6 @@ export default function Header({ isCollapsed }) {
 
       {/* Right Actions & User Profile */}
       <div className="flex items-center gap-3.5">
-        {/* Live Backend Status Indicator */}
-        <div
-          className={`flex items-center gap-2 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
-            apiStatus.online
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-              : 'bg-amber-50 text-amber-800 border-amber-200'
-          }`}
-          title={
-            apiStatus.online
-              ? 'FastAPI Backend Active (port 8001)'
-              : 'FastAPI Backend Offline'
-          }
-        >
-          <span className="relative flex h-2 w-2">
-            <span
-              className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                apiStatus.online ? 'bg-emerald-400' : 'bg-amber-400'
-              }`}
-            />
-            <span
-              className={`relative inline-flex rounded-full h-2 w-2 ${
-                apiStatus.online ? 'bg-emerald-500' : 'bg-amber-500'
-              }`}
-            />
-          </span>
-          <span className="hidden sm:inline font-mono font-bold">
-            {apiStatus.checking ? 'Connecting...' : apiStatus.online ? 'API Online :8001' : 'Offline'}
-          </span>
-        </div>
-
         {/* Quick Batch Queue Link */}
         {location.pathname !== '/queue' && (
           <Link
@@ -107,15 +86,67 @@ export default function Header({ isCollapsed }) {
           </Link>
         )}
 
-        {/* User Identity */}
-        <div className="flex items-center gap-2.5 pl-3 border-l border-slate-200">
-          <div className="w-7 h-7 rounded-lg bg-slate-900 text-white font-bold text-[11px] flex items-center justify-center shadow-sm">
-            XYZ
-          </div>
-          <div className="hidden md:flex flex-col text-left">
-            <span className="text-xs font-bold text-slate-800 leading-tight">Dr. XYZ</span>
-            <span className="text-[10px] text-slate-500 font-medium leading-tight">Senior Clinical Reviewer</span>
-          </div>
+        {/* Authenticated Provider Identity Dropdown */}
+        <div className="relative pl-3 border-l border-slate-200" ref={profileMenuRef}>
+          <button
+            type="button"
+            onClick={() => setIsProfileOpen(!isProfileOpen)}
+            className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-100/80 transition-all text-left focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+            aria-expanded={isProfileOpen}
+            aria-haspopup="true"
+          >
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-900 to-slate-800 text-white font-bold text-xs flex items-center justify-center shadow-sm ring-1 ring-slate-900/10">
+              {providerInitials}
+            </div>
+            <div className="hidden md:flex flex-col text-left">
+              <span className="text-xs font-bold text-slate-800 leading-tight flex items-center gap-1">
+                {providerName}
+                <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isProfileOpen ? 'rotate-180' : ''}`} />
+              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-slate-500 font-medium leading-tight">
+                  {providerRole}
+                </span>
+                <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                  {providerId}
+                </span>
+              </div>
+            </div>
+          </button>
+
+          {/* Dropdown Popover */}
+          {isProfileOpen && (
+            <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200/90 py-2 z-50 animate-fadeIn">
+              <div className="px-4 py-2.5 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-md bg-sky-50 text-sky-700 font-bold text-[11px] flex items-center justify-center border border-sky-200/60">
+                    {providerInitials}
+                  </div>
+                  <div className="overflow-hidden">
+                    <p className="text-xs font-bold text-slate-900 truncate">{providerName}</p>
+                    <p className="text-[11px] text-slate-500 truncate">{providerEmail}</p>
+                  </div>
+                </div>
+                <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+                  <span className="text-slate-500 font-medium">Role: {providerRole}</span>
+                  <span className="font-mono font-bold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-100">
+                    {providerId}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-1.5">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                >
+                  <LogOut className="w-4 h-4 text-rose-500" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>

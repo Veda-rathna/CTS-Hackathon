@@ -23,7 +23,6 @@ import StatCard from '../components/dashboard/StatCard';
 import RecentRequestsTable from '../components/dashboard/RecentRequestsTable';
 import PriorityBadge from '../components/common/PriorityBadge';
 import { getStoredPARequests } from '../utils/storage';
-import { checkHealth } from '../services/api';
 import { getRequestPriority } from '../utils/formatters';
 import { sortPriorityQueue, PROCESSING_STATUS } from '../utils/queueEngine';
 
@@ -31,16 +30,11 @@ const BATCH_QUEUE_STORAGE_KEY = 'pa_batch_work_queue_state_v1';
 
 export default function Dashboard() {
   const [requests, setRequests] = useState([]);
-  const [apiStatus, setApiStatus] = useState({ online: false, checking: true });
   const [queueState, setQueueState] = useState({ batchId: null, items: [] });
 
   useEffect(() => {
     const loaded = getStoredPARequests();
     setRequests(loaded);
-
-    checkHealth().then((status) => {
-      setApiStatus({ online: status.online, checking: false, data: status.data });
-    });
 
     try {
       const savedQueue = sessionStorage.getItem(BATCH_QUEUE_STORAGE_KEY);
@@ -118,31 +112,9 @@ export default function Dashboard() {
       {/* Executive Command Center Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/90">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-              Prior Authorization Command Center
-            </h2>
-            <div
-              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                apiStatus.checking
-                  ? 'bg-amber-50 text-amber-800 border-amber-200'
-                  : apiStatus.online
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                  : 'bg-rose-50 text-rose-800 border-rose-200'
-              }`}
-            >
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  apiStatus.checking
-                    ? 'bg-amber-500 animate-ping'
-                    : apiStatus.online
-                    ? 'bg-emerald-500 animate-pulse'
-                    : 'bg-rose-500'
-                }`}
-              />
-              <span className="font-mono">{apiStatus.checking ? 'Connecting...' : apiStatus.online ? 'API Online :8001' : 'Offline'}</span>
-            </div>
-          </div>
+          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+            Prior Authorization Command Center
+          </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             Clinical policy evaluation and utilization management overview
           </p>

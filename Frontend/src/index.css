@@ -61,3 +61,18 @@ pre code, code {
 .focus-ring {
   @apply focus:outline-none focus:ring-2 focus:ring-sky-500/25 focus:border-sky-600;
 }
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.18s ease-out forwards;
+}
