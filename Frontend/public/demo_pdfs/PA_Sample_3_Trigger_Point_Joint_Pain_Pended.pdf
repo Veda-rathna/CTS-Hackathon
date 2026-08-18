@@ -1,0 +1,61 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 1915 >>
+stream
+BT
+/F1 10 Tf
+40 760 Td
+14 TL
+(================================================================================) '
+(             PRIOR AUTHORIZATION CLINICAL INTAKE PACKET) '
+(================================================================================) '
+(DOCUMENT: Clinical Review Packet                    DATE: 2026-08-18) '
+(PATIENT NAME: Arthur Pendelton     AGE: 61        GENDER: Male) '
+(PATIENT STATE: TX                   PAYER: Medicare Part B \(Novitas J5\)) '
+(--------------------------------------------------------------------------------) '
+(ORDERING PROVIDER INFORMATION:) '
+(PROVIDER: Dr. David Miller, MD      NPI: 1982736450) '
+(ORGANIZATION: Dallas Pain Institute \(Dallas, TX\)) '
+(--------------------------------------------------------------------------------) '
+(REQUESTED SERVICE & CLINICAL CODING:) '
+(PROCEDURE CODE \(HCPCS/CPT\): 20552) '
+(SERVICE DESCRIPTION: Injection\(s\), single or multiple trigger point\(s\), 1 or 2 muscle\(s\)) '
+(PRIMARY DIAGNOSIS \(ICD-10\): M25.50 - Pain in unspecified joint) '
+(--------------------------------------------------------------------------------) '
+(CLINICAL DOCUMENTATION & HISTORY OF PRESENT ILLNESS:) '
+(  Patient is a 61-year-old male presenting with acute, non-localized generalized joint pain \(M25.50\)) '
+(  that began 5 days ago following yard work.) '
+(  Clinical Examination: Generalized tenderness noted; no discrete trigger points or taut bands documented.) '
+(  Prior Conservative Treatments: Patient has not yet attempted physical therapy or first-line oral NSAIDs.) '
+(  Plan: Requesting trigger point injection \(20552\) for acute non-specific joint discomfort relief.) '
+(--------------------------------------------------------------------------------) '
+(PHYSICIAN SIGNATURE: Electronically Signed by Dr. David Miller, MD, MD) '
+(================================================================================) '
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000244 00000 n 
+0000002199 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+2279
+%%EOF

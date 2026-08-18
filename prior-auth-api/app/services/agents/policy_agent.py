@@ -71,6 +71,7 @@ class PolicyAgent:
 
     def __init__(self, llm_client: LLMClient) -> None:
         self._client = llm_client
+        self._policy_cache: dict[str, RequiredEvidence] = {}
 
     def run(
         self,
@@ -84,6 +85,25 @@ class PolicyAgent:
         """
         start = time.monotonic()
         criterion_id = criterion.criterion_id
+
+        # Cache check for static CMS policy criteria
+        cache = getattr(self, "_policy_cache", None)
+        if cache is None:
+            self._policy_cache = {}
+            cache = self._policy_cache
+
+        cache_key = f"{criterion_id}::{criterion.criterion}"
+        if cache_key in cache:
+            cached_result = cache[cache_key]
+            logger.info("PolicyAgent | cache hit for criterion=%s", criterion_id)
+            trace = AgentTraceEntry(
+                agent="POLICY_AGENT",
+                status=AgentStatus.COMPLETED,
+                output_summary=f"Cached {len(cached_result.required_evidence)} required evidence categories (0ms).",
+                result=cached_result.requirement,
+                duration_ms=0.0,
+            )
+            return cached_result, trace
 
         # Build structured context — NO patient clinical notes here
         # Only policy text and structured code facts
@@ -185,6 +205,7 @@ class PolicyAgent:
                 requirement=requirement,
                 required_evidence=required_items,
             )
+            cache[cache_key] = result
 
             latency = round((time.monotonic() - start) * 1000)
             summary = (

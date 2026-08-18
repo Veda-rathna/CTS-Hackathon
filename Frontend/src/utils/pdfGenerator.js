@@ -1,8 +1,9 @@
-import { jsPDF } from 'jspdf';
 import { formatDate, getRequestPriority, categorizeNeedMoreInfo } from './formatters';
 
-export function buildPDFDocument(record) {
+export async function buildPDFDocument(record) {
   if (!record) return null;
+
+  const { jsPDF } = await import('jspdf');
 
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -280,8 +281,8 @@ export function buildPDFDocument(record) {
 /**
  * Downloads the Prior Authorization Determination Report as a named .pdf file.
  */
-export function generatePAReportPDF(record) {
-  const doc = buildPDFDocument(record);
+export async function generatePAReportPDF(record) {
+  const doc = await buildPDFDocument(record);
   if (!doc) return;
 
   const pa = record.pa_requests ? record.pa_requests[0] : record;
@@ -317,8 +318,8 @@ export function generatePAReportPDF(record) {
 /**
  * Opens the Prior Authorization Determination PDF directly in a new browser tab.
  */
-export function openPAReportPDF(record) {
-  const doc = buildPDFDocument(record);
+export async function openPAReportPDF(record) {
+  const doc = await buildPDFDocument(record);
   if (!doc) return;
 
   try {

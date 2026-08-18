@@ -5,6 +5,121 @@
 
 export const INITIAL_PA_REQUESTS = [
   {
+    pa_request_id: "PA-OPT-001",
+    patient: {
+      patient_id: "1f2982d5-e5da-6d4a-38d7-d7e7323880bb",
+      date_of_birth: "1958-04-12",
+      age: 68,
+      gender: "F",
+      state: "TX",
+      payer: "Medicare"
+    },
+    request: {
+      request_date: "2026-08-18",
+      review_type: "NON_URGENT",
+      request_type: "INITIAL",
+      urgency_reason: null,
+      previous_authorization_number: null,
+      mock_request_field: false
+    },
+    provider: {
+      provider_id: "PRV-ORTHO-01",
+      specialty: "ORTHOPEDIC SURGERY",
+      organization_id: "ORG-TX-01",
+      organization_name: "AUSTIN ORTHOPEDIC INSTITUTE",
+      state: "TX"
+    },
+    service: {
+      service_description: "Intraarticular Knee Injections of Hyaluronan (Viscosupplementation)",
+      procedure_code: "20610",
+      procedure_code_system: "HCPCS/CPT",
+      start_date: "2026-08-18",
+      end_date: "2026-08-18",
+      place_of_service: "Outpatient Clinic",
+      number_of_sessions: 1,
+      duration: "1 day",
+      frequency: "Once"
+    },
+    diagnoses: [
+      {
+        description: "Unilateral primary osteoarthritis, right knee",
+        source_code: "M17.11",
+        source_code_system: "ICD-10-CM",
+        icd10_code: "M17.11",
+        icd10_mapping_required: false
+      }
+    ],
+    status: "COMPLETED",
+    decision: "APPROVED",
+    evidence_score: 0.96,
+    requires_prior_authorization: true,
+    reason: "The procedure and diagnosis match an active applicable policy (LCD L39529 / Article A56157).",
+    decision_basis: "High-volume procedure 20610 with ICD-10 M17.11 satisfied conservative management and imaging criteria via fast-path cache.",
+    policies: [
+      {
+        policy_type: "LCD",
+        policy_id: "L39529",
+        title: "Hyaluronan Acid Therapies for Knee Osteoarthritis",
+        article_id: "A56157"
+      }
+    ],
+    evidence: [
+      {
+        type: "HCPCS",
+        identifier: "A56157",
+        code: "20610",
+        result: "MATCHED",
+        explanation: "Procedure code 20610 is listed in Article A56157 covered CPT/HCPCS list."
+      },
+      {
+        type: "ICD10",
+        identifier: "A56157",
+        code: "M17.11",
+        result: "COVERED",
+        explanation: "Diagnosis code M17.11 is covered under Article A56157."
+      },
+      {
+        type: "JURISDICTION",
+        identifier: "J5",
+        state: "TX",
+        result: "MATCHED",
+        explanation: "State TX falls within Medicare Administrative Contractor Novitas Jurisdiction J5."
+      }
+    ],
+    criteria: [
+      {
+        criterion_id: "CRIT-OPT-01",
+        policy_type: "LCD",
+        policy_id: "L39529",
+        criterion: "Symptomatic primary osteoarthritis of the knee documented on exam and imaging.",
+        criterion_type: "SEMANTIC",
+        evaluator: "AGENTIC_QWEN",
+        status: "SATISFIED",
+        patient_evidence: ["Grade 3 joint space narrowing on plain radiographs."],
+        policy_evidence: ["LCD L39529 Section 2 Clinical Indication"],
+        mandatory: true,
+        authoritative: false,
+        explanation: "Documentation confirms symptomatic osteoarthritis with radiographic grading."
+      },
+      {
+        criterion_id: "CRIT-OPT-02",
+        policy_type: "LCD",
+        policy_id: "L39529",
+        criterion: "Failure of a trial of conservative therapy for at least 6 weeks.",
+        criterion_type: "SEMANTIC",
+        evaluator: "AGENTIC_QWEN",
+        status: "SATISFIED",
+        patient_evidence: ["Completed 12-week structured physical therapy and oral NSAIDs."],
+        policy_evidence: ["LCD L39529 Conservative Management Protocol"],
+        mandatory: true,
+        authoritative: false,
+        explanation: "Patient completed 12 weeks of supervised physical therapy, exceeding the 6-week minimum."
+      }
+    ],
+    missing_information: [],
+    warnings: []
+  },
+  {
     pa_request_id: "PA-001",
     patient: {
       patient_id: "p001",

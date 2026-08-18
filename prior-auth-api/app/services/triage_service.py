@@ -120,10 +120,17 @@ class TriageService:
         matched_policies: List[MatchedPolicy] = []
         matched_diagnoses = set()
         
-        # Determine RAG Query text
+        # Determine RAG Query text (embedding computed lazily on-demand)
         notes = getattr(request, "clinical_notes", "")
         query_text = f"Procedure {procedure}. Diagnoses {', '.join(diagnoses)}. {notes}".strip()
-        query_embedding = self._embedding_service.embed_text(query_text) if query_text else []
+        query_embedding: List[float] = []
+
+        def _get_query_embedding() -> List[float]:
+            nonlocal query_embedding
+            if not query_embedding and query_text:
+                query_embedding = self._embedding_service.embed_text(query_text)
+            return query_embedding
+
         # ── Find Candidate Policies (via Evidence Resolver) ───────────────
         from app.services.policy_evidence_resolver import PolicyEvidenceResolver
         
@@ -200,7 +207,7 @@ class TriageService:
             # MockPolicyChunkRepository handles this gracefully by ignoring
             # the embedding and matching by policy_id alone.
             ncd_chunks = self._chunk_repo.search_similar(
-                query_embedding=query_embedding,
+                query_embedding=_get_query_embedding(),
                 policy_type="NCD",
                 candidate_policy_ids=ncd_ids,
                 top_k=5,
@@ -487,7 +494,7 @@ class TriageService:
 
             # Phase 10b: Constrained Vector Search & Semantic RAG Extraction for LCD
             lcd_chunks = self._chunk_repo.search_similar(
-                query_embedding=query_embedding,
+                query_embedding=_get_query_embedding(),
                 policy_type="LCD",
                 candidate_policy_ids=[active_lcd.policy_id],
                 top_k=5,

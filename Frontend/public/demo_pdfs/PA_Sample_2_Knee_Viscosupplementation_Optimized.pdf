@@ -1,0 +1,63 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 2105 >>
+stream
+BT
+/F1 10 Tf
+40 760 Td
+14 TL
+(================================================================================) '
+(             PRIOR AUTHORIZATION CLINICAL INTAKE PACKET) '
+(================================================================================) '
+(DOCUMENT: Clinical Review Packet                    DATE: 2026-08-18) '
+(PATIENT NAME: Robert Chen          AGE: 68        GENDER: Male) '
+(PATIENT STATE: TX                   PAYER: Medicare Part B \(Novitas J5\)) '
+(--------------------------------------------------------------------------------) '
+(ORDERING PROVIDER INFORMATION:) '
+(PROVIDER: Dr. Sarah Jenkins, MD     NPI: 1982736450) '
+(ORGANIZATION: Austin Orthopedic & Joint Institute \(Austin, TX\)) '
+(--------------------------------------------------------------------------------) '
+(REQUESTED SERVICE & CLINICAL CODING:) '
+(PROCEDURE CODE \(HCPCS/CPT\): 20610) '
+(SERVICE DESCRIPTION: Intraarticular Knee Injections of Hyaluronan \(Viscosupplementation\)) '
+(PRIMARY DIAGNOSIS \(ICD-10\): M17.11 - Unilateral primary osteoarthritis, right knee) '
+(--------------------------------------------------------------------------------) '
+(CLINICAL DOCUMENTATION & HISTORY OF PRESENT ILLNESS:) '
+(  Patient is a 68-year-old male with chronic symptomatic osteoarthritis of the right knee) '
+(  causing functional limitation for over 8 months.) '
+(  Diagnostic Imaging: Plain weight-bearing radiographs demonstrate Kellgren-Lawrence Grade 3) '
+(  joint space narrowing and medial compartment subchondral sclerosis without joint infection.) '
+(  Prior Conservative Treatments: Completed a 12-week supervised physical therapy program,) '
+(  daily acetaminophen, and oral meloxicam with persistent severe functional impairment.) '
+(  Plan: Intra-articular hyaluronan injection \(20610\) requested for symptom relief and joint preservation.) '
+(--------------------------------------------------------------------------------) '
+(PHYSICIAN SIGNATURE: Electronically Signed by Dr. Sarah Jenkins, MD, MD) '
+(================================================================================) '
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000244 00000 n 
+0000002389 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+2469
+%%EOF

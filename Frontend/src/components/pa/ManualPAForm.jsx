@@ -15,14 +15,16 @@ const US_STATES = [
 
 const REALISTIC_SCENARIOS = [
   {
-    id: 'PA-REAL-001',
-    label: 'PA-REAL-001',
-    name: 'Knee Hyaluronan Injection',
+    id: 'PA-OPT-001',
+    label: 'PA-OPT-001',
+    badgeLabel: '⚡ OPTIMIZED',
+    name: 'Knee Viscosupplementation',
+    subtitle: '0ms Cache • 89% Token Cut',
     expected: 'APPROVE',
-    expectedBadge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    description: 'Covered primary knee osteoarthritis (CPT 20610, ICD-10 M17.11) with 12-week conservative therapy trial.',
+    expectedBadge: 'bg-emerald-100 text-emerald-800 border-emerald-300 font-extrabold',
+    description: 'High-volume repeat policy (CPT 20610 / M17.11) demonstrating 0ms Policy Cache hit, sub-second latency, and maximum token efficiency.',
     data: {
-      pa_request_id: 'PA-REAL-001',
+      pa_request_id: 'PA-OPT-001',
       patient: { patient_id: '1f2982d5-e5da-6d4a-38d7-d7e7323880bb', date_of_birth: '1958-04-12', age: 68, gender: 'F', state: 'TX' },
       coverage: { payer: 'Medicare', plan_id: 'MED-TX-001', plan_name: 'Medicare Traditional' },
       request: { review_type: 'NON_URGENT', request_type: 'INITIAL', urgency_reason: '', previous_authorization_number: '' },
@@ -40,14 +42,16 @@ const REALISTIC_SCENARIOS = [
     },
   },
   {
-    id: 'PA-REAL-002',
-    label: 'PA-REAL-002',
+    id: 'PA-REAL-001',
+    label: 'PA-REAL-001',
+    badgeLabel: 'APPROVE',
     name: 'Lumbar Epidural Steroid',
+    subtitle: '10-Wk PT & MRI Met',
     expected: 'APPROVE',
     expectedBadge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    description: 'Covered lumbar radiculopathy (CPT 64483, ICD-10 M54.16) with 10-week conservative trial & MRI confirmation.',
+    description: 'Covered lumbar radiculopathy (CPT 64483, ICD-10 M54.16) with 10-week conservative trial & MRI confirmation satisfying LCD L39054.',
     data: {
-      pa_request_id: 'PA-REAL-002',
+      pa_request_id: 'PA-REAL-001',
       patient: { patient_id: 'a1733070-046a-4506-bba6-47f32652e9d7', date_of_birth: '1962-09-18', age: 64, gender: 'F', state: 'TX' },
       coverage: { payer: 'Medicare', plan_id: 'MED-TX-001', plan_name: 'Medicare Traditional' },
       request: { review_type: 'NON_URGENT', request_type: 'INITIAL', urgency_reason: '', previous_authorization_number: '' },
@@ -65,14 +69,16 @@ const REALISTIC_SCENARIOS = [
     },
   },
   {
-    id: 'PA-REAL-003',
-    label: 'PA-REAL-003',
+    id: 'PA-REAL-002',
+    label: 'PA-REAL-002',
+    badgeLabel: 'PEND',
     name: 'Trigger Point - Joint Pain',
+    subtitle: 'Atypical Presentation',
     expected: 'PEND',
     expectedBadge: 'bg-purple-50 text-purple-700 border-purple-200',
-    description: 'Non-covered acute joint pain without trigger points (CPT 20552, ICD-10 M25.50). Pended for review.',
+    description: 'Non-covered acute joint pain without trigger points (CPT 20552, ICD-10 M25.50). Pended for Nurse/UM clinical review.',
     data: {
-      pa_request_id: 'PA-REAL-003',
+      pa_request_id: 'PA-REAL-002',
       patient: { patient_id: 'ba234ff2-cefe-dfee-935a-8ea2378da8c2', date_of_birth: '1965-02-14', age: 61, gender: 'M', state: 'TX' },
       coverage: { payer: 'Medicare', plan_id: 'MED-TX-001', plan_name: 'Medicare Traditional' },
       request: { review_type: 'NON_URGENT', request_type: 'INITIAL', urgency_reason: '', previous_authorization_number: '' },
@@ -90,14 +96,16 @@ const REALISTIC_SCENARIOS = [
     },
   },
   {
-    id: 'PA-REAL-004',
-    label: 'PA-REAL-004',
+    id: 'PA-REAL-003',
+    label: 'PA-REAL-003',
+    badgeLabel: 'NEED INFO',
     name: 'Epidural - Missing Spine Docs',
+    subtitle: 'Lacks MRI & Spine Exam',
     expected: 'NEED_MORE_INFORMATION',
     expectedBadge: 'bg-amber-50 text-amber-800 border-amber-200',
-    description: 'Missing spinal physical exam, conservative therapy, and spine imaging for epidural (CPT 64483, ICD-10 R51.9).',
+    description: 'Unlisted headache diagnosis (R51.9) lacking spinal physical exam and MRI. Generates actionable provider request checklist.',
     data: {
-      pa_request_id: 'PA-REAL-004',
+      pa_request_id: 'PA-REAL-003',
       patient: { patient_id: 'd20a36fc-23ba-8462-bf39-864000fbf25f', date_of_birth: '1959-11-03', age: 67, gender: 'M', state: 'TX' },
       coverage: { payer: 'Medicare', plan_id: 'MED-TX-001', plan_name: 'Medicare Traditional' },
       request: { review_type: 'NON_URGENT', request_type: 'INITIAL', urgency_reason: '', previous_authorization_number: '' },
@@ -115,14 +123,16 @@ const REALISTIC_SCENARIOS = [
     },
   },
   {
-    id: 'PA-REAL-005',
-    label: 'PA-REAL-005',
-    name: 'Trigger Point - NCD 373 Exclusion',
-    expected: 'PEND',
-    expectedBadge: 'bg-purple-50 text-purple-700 border-purple-200',
-    description: 'Explicit exclusion under NCD 373 for non-indicated acupuncture/dry needling trigger points (CPT 20552, ICD-10 M25.50). Pended for review.',
+    id: 'PA-REAL-004',
+    label: 'PA-REAL-004',
+    badgeLabel: 'REJECT',
+    name: 'Dry Needling - NCD Exclusion',
+    subtitle: 'NCD 373 Policy Exclusion',
+    expected: 'REJECTED',
+    expectedBadge: 'bg-rose-50 text-rose-700 border-rose-200',
+    description: 'Explicit Medicare policy exclusion under NCD 373 for non-indicated acupuncture/dry needling trigger points.',
     data: {
-      pa_request_id: 'PA-REAL-005',
+      pa_request_id: 'PA-REAL-004',
       patient: { patient_id: '80c747ab-dc05-2bca-dafa-e2aa58619442', date_of_birth: '1969-07-29', age: 57, gender: 'M', state: 'TX' },
       coverage: { payer: 'Medicare', plan_id: 'MED-TX-001', plan_name: 'Medicare Traditional' },
       request: { review_type: 'NON_URGENT', request_type: 'INITIAL', urgency_reason: '', previous_authorization_number: '' },
@@ -140,18 +150,20 @@ const REALISTIC_SCENARIOS = [
     },
   },
   {
-    id: 'PA-REAL-006',
-    label: 'PA-REAL-006',
-    name: 'Knee - Unlisted Exam Code',
+    id: 'PA-REAL-005',
+    label: 'PA-REAL-005',
+    badgeLabel: 'JURISDICTION',
+    name: 'Knee - Out of Jurisdiction',
+    subtitle: 'State Boundary Check (NY)',
     expected: 'NEED_MORE_INFORMATION',
-    expectedBadge: 'bg-amber-50 text-amber-800 border-amber-200',
-    description: 'Administrative exam code (ICD-10 Z00.00) lacking knee osteoarthritis clinical documentation (CPT 20610).',
+    expectedBadge: 'bg-slate-100 text-slate-700 border-slate-300',
+    description: 'Patient state outside regional Medicare Administrative Contractor (MAC) Novitas Jurisdiction J5.',
     data: {
-      pa_request_id: 'PA-REAL-006',
-      patient: { patient_id: '8a2af5b4-6f29-27d4-b5fd-bb687fa2169b', date_of_birth: '1956-01-25', age: 70, gender: 'M', state: 'TX' },
-      coverage: { payer: 'Medicare', plan_id: 'MED-TX-001', plan_name: 'Medicare Traditional' },
+      pa_request_id: 'PA-REAL-005',
+      patient: { patient_id: '8a2af5b4-6f29-27d4-b5fd-bb687fa2169b', date_of_birth: '1956-01-25', age: 70, gender: 'M', state: 'NY' },
+      coverage: { payer: 'Medicare', plan_id: 'MED-NY-001', plan_name: 'Medicare Traditional' },
       request: { review_type: 'NON_URGENT', request_type: 'INITIAL', urgency_reason: '', previous_authorization_number: '' },
-      provider: { provider_id: 'PRV-MED-06', specialty: 'Internal Medicine', organization_id: 'ORG-TX-06', organization_name: 'Fort Worth Medical Associates', state: 'TX' },
+      provider: { provider_id: 'PRV-MED-06', specialty: 'Internal Medicine', organization_id: 'ORG-NY-06', organization_name: 'New York Specialty Health', state: 'NY' },
       service: {
         service_description: 'Intra-articular knee viscosupplementation',
         procedure_code: '20610',
@@ -160,8 +172,8 @@ const REALISTIC_SCENARIOS = [
         place_of_service: 'Outpatient Clinic',
         number_of_sessions: 1, duration: '1 day', frequency: 'Once',
       },
-      diagnoses: [{ description: 'Encounter for general adult medical examination without abnormal findings', icd10_code: 'Z00.00' }],
-      clinical_notes: 'Patient is a 70-year-old male presenting for annual preventive medical examination without complaints (Z00.00). Provider requested knee viscosupplementation injection (20610) without documentation of knee osteoarthritis, duration of symptoms, conservative therapy attempts, or diagnostic imaging.',
+      diagnoses: [{ description: 'Unilateral primary osteoarthritis, right knee', icd10_code: 'M17.11' }],
+      clinical_notes: 'Patient is a 70-year-old male residing in New York requesting knee viscosupplementation (20610) for primary osteoarthritis (M17.11). Patient has failed 8 weeks of NSAIDs.',
     },
   },
 ];
@@ -379,11 +391,16 @@ export default function ManualPAForm() {
         </div>
 
         {/* Demo Scenarios Quick-Picker */}
-        <div className="space-y-1">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-            Demo Scenarios (Select to auto-populate test payload):
-          </span>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+              Demo Scenarios (Select to auto-populate test payload):
+            </span>
+            <span className="hidden sm:inline text-[10px] font-semibold text-slate-400">
+              Covers 4 Core Determinations + Live Optimization
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             {REALISTIC_SCENARIOS.map((s) => {
               const isSelected = selectedScenarioId === s.id;
               return (
@@ -391,21 +408,24 @@ export default function ManualPAForm() {
                   key={s.id}
                   type="button"
                   onClick={() => loadScenario(s)}
-                  className={`p-2 text-left rounded-lg border transition-all text-xs flex flex-col justify-between gap-1 ${
+                  className={`p-2.5 text-left rounded-xl border transition-all text-xs flex flex-col justify-between gap-1 ${
                     isSelected
-                      ? 'bg-sky-50 border-sky-400 ring-1 ring-sky-500/30 text-sky-950 font-bold'
-                      : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 font-medium'
+                      ? 'bg-sky-50 border-sky-500 ring-2 ring-sky-500/20 text-sky-950 font-bold shadow-2xs'
+                      : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 font-medium hover:border-slate-300'
                   }`}
                   title={`${s.name} - ${s.description}`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-[10px] font-bold text-slate-900">{s.label}</span>
-                    <span className={`text-[9px] font-bold px-1 rounded border ${s.expectedBadge}`}>
-                      {s.expected === 'NEED_MORE_INFORMATION' ? 'NEED INFO' : s.expected}
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="font-mono text-[10px] font-extrabold text-slate-900">{s.label}</span>
+                    <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-md border whitespace-nowrap ${s.expectedBadge}`}>
+                      {s.badgeLabel || (s.expected === 'NEED_MORE_INFORMATION' ? 'NEED INFO' : s.expected)}
                     </span>
                   </div>
-                  <span className="text-[11px] leading-tight line-clamp-1 text-slate-600">
+                  <span className="text-[11px] font-bold leading-snug line-clamp-1 text-slate-800">
                     {s.name}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium line-clamp-1">
+                    {s.subtitle || s.description}
                   </span>
                 </button>
               );

@@ -13,6 +13,45 @@ import {
 import { extractFromPDF, runTriage } from '../../services/api';
 import { savePARequest } from '../../utils/storage';
 
+const SAMPLE_PDFS = [
+  {
+    name: 'PA_Sample_1_Lumbar_Epidural_Approved.pdf',
+    url: '/demo_pdfs/PA_Sample_1_Lumbar_Epidural_Approved.pdf',
+    title: 'Lumbar Epidural Steroid',
+    code: 'CPT 64483 • M54.16',
+    badge: 'APPROVE',
+    badgeCls: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    desc: '10-wk PT & MRI documented',
+  },
+  {
+    name: 'PA_Sample_2_Knee_Viscosupplementation_Optimized.pdf',
+    url: '/demo_pdfs/PA_Sample_2_Knee_Viscosupplementation_Optimized.pdf',
+    title: 'Knee Viscosupplementation',
+    code: 'CPT 20610 • M17.11',
+    badge: '⚡ OPTIMIZED',
+    badgeCls: 'bg-emerald-100 text-emerald-800 border-emerald-300 font-extrabold',
+    desc: '0ms cache & 12-wk PT trial',
+  },
+  {
+    name: 'PA_Sample_3_Trigger_Point_Joint_Pain_Pended.pdf',
+    url: '/demo_pdfs/PA_Sample_3_Trigger_Point_Joint_Pain_Pended.pdf',
+    title: 'Trigger Point Joint Pain',
+    code: 'CPT 20552 • M25.50',
+    badge: 'PEND',
+    badgeCls: 'bg-purple-50 text-purple-700 border-purple-200',
+    desc: 'Non-indicated joint pain',
+  },
+  {
+    name: 'PA_Sample_4_Missing_Spine_Docs_NeedInfo.pdf',
+    url: '/demo_pdfs/PA_Sample_4_Missing_Spine_Docs_NeedInfo.pdf',
+    title: 'Epidural Missing Docs',
+    code: 'CPT 64483 • R51.9',
+    badge: 'NEED INFO',
+    badgeCls: 'bg-amber-50 text-amber-800 border-amber-200',
+    desc: 'Lacks exam and MRI',
+  },
+];
+
 export default function PDFUploader() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
@@ -31,6 +70,22 @@ export default function PDFUploader() {
     clinical_notes: '',
   });
   const [extractionMeta, setExtractionMeta] = useState(null);
+
+  const loadSamplePdf = async (sample) => {
+    try {
+      setStatus('extracting');
+      setError(null);
+      const res = await fetch(sample.url);
+      if (!res.ok) throw new Error('Could not load sample PDF.');
+      const blob = await res.blob();
+      const sampleFile = new File([blob], sample.name, { type: 'application/pdf' });
+      await processFile(sampleFile);
+    } catch (err) {
+      console.error('Error loading sample PDF:', err);
+      setError('Failed to load sample PDF: ' + err.message);
+      setStatus('idle');
+    }
+  };
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -160,46 +215,105 @@ export default function PDFUploader() {
     <div className="space-y-4">
       {/* Upload Drag & Drop Dropzone */}
       {!file ? (
-        <div
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-          className={`relative border-2 border-dashed rounded-xl p-8 sm:p-12 text-center transition-all ${
-            dragActive
-              ? 'border-sky-500 bg-sky-50/50'
-              : 'border-slate-300 hover:border-sky-400 bg-white'
-          }`}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,application/pdf"
-            onChange={handleFileInput}
-            className="hidden"
-            id="pdf-file-upload"
-          />
-
-          <div className="flex flex-col items-center justify-center space-y-2.5">
-            <div className="w-12 h-12 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-700">
-              <UploadCloud className="w-6 h-6" />
+        <div className="space-y-4">
+          {/* Quick Demo Sample PDF Packets Bar */}
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/90 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-sky-700" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Demo Sample Packets (1-Click Ingest & Extract)
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
+                Click any pre-generated clinical packet to demo live extraction
+              </span>
             </div>
 
-            <div>
-              <h4 className="text-sm font-bold text-slate-800">Upload Prior Authorization Packet</h4>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Drag and drop your PA medical packet here, or browse files
-              </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+              {SAMPLE_PDFS.map((sample) => (
+                <div
+                  key={sample.name}
+                  className="p-3 bg-white rounded-lg border border-slate-200 hover:border-sky-300 hover:shadow-xs transition-all flex flex-col justify-between gap-2"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <span className="font-mono text-[10px] font-bold text-slate-900">{sample.code}</span>
+                      <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded border ${sample.badgeCls}`}>
+                        {sample.badge}
+                      </span>
+                    </div>
+                    <h5 className="text-xs font-bold text-slate-800 line-clamp-1">{sample.title}</h5>
+                    <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">{sample.desc}</p>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 pt-1 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => loadSamplePdf(sample)}
+                      disabled={status === 'extracting'}
+                      className="flex-1 py-1 px-2 text-[11px] font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 rounded border border-sky-200 transition-colors text-center"
+                    >
+                      {status === 'extracting' ? 'Extracting...' : 'Load & Extract'}
+                    </button>
+                    <a
+                      href={sample.url}
+                      download={sample.name}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="py-1 px-2 text-[11px] font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded border border-slate-200 transition-colors"
+                      title="Download PDF file to test manual upload"
+                    >
+                      Download
+                    </a>
+                  </div>
+                </div>
+              ))}
             </div>
+          </div>
 
-            <label
-              htmlFor="pdf-file-upload"
-              className="mt-1 inline-flex items-center px-3.5 py-1.5 text-xs font-bold text-white bg-sky-700 hover:bg-sky-800 rounded-lg shadow-sm cursor-pointer transition-colors"
-            >
-              Browse PDF File
-            </label>
+          {/* Main Drag-and-Drop Area */}
+          <div
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+            className={`relative border-2 border-dashed rounded-xl p-8 sm:p-12 text-center transition-all ${
+              dragActive
+                ? 'border-sky-500 bg-sky-50/50'
+                : 'border-slate-300 hover:border-sky-400 bg-white'
+            }`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,application/pdf"
+              onChange={handleFileInput}
+              className="hidden"
+              id="pdf-file-upload"
+            />
 
-            <span className="text-[11px] text-slate-400">Supported format: PDF only (maximum 15MB)</span>
+            <div className="flex flex-col items-center justify-center space-y-2.5">
+              <div className="w-12 h-12 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-700">
+                <UploadCloud className="w-6 h-6" />
+              </div>
+
+              <div>
+                <h4 className="text-sm font-bold text-slate-800">Upload Prior Authorization Packet</h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Drag and drop any PA medical packet (.pdf) here, or choose from the samples above
+                </p>
+              </div>
+
+              <label
+                htmlFor="pdf-file-upload"
+                className="mt-1 inline-flex items-center px-3.5 py-1.5 text-xs font-bold text-white bg-sky-700 hover:bg-sky-800 rounded-lg shadow-sm cursor-pointer transition-colors"
+              >
+                Browse PDF File
+              </label>
+
+              <span className="text-[11px] text-slate-400">Supported format: PDF only (maximum 15MB)</span>
+            </div>
           </div>
         </div>
       ) : (

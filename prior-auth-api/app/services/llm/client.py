@@ -103,6 +103,15 @@ class LLMClient:
             self.endpoint_url = base
         else:
             self.endpoint_url = f"{base.rstrip('/')}/chat/completions"
+        self._http_client = httpx.Client(timeout=_make_timeout())
+
+    @property
+    def http_client(self) -> httpx.Client:
+        """Return persistent HTTP client with connection pooling."""
+        client = getattr(self, "_http_client", None)
+        if client is None:
+            self._http_client = httpx.Client(timeout=_make_timeout())
+        return self._http_client
 
     # ── Low-level primitive ───────────────────────────────────────────────────
 
@@ -159,22 +168,21 @@ class LLMClient:
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
-        with httpx.Client(timeout=_make_timeout()) as client:
-            response = client.post(
-                self.endpoint_url,
-                headers=headers,
-                json={
-                    "model": self.model,
-                    "messages": [
-                        {"role": "system", "content": system},
-                        {"role": "user", "content": user},
-                    ],
-                    "temperature": self.temperature,
-                },
-            )
-            response.raise_for_status()
-            content = response.json()["choices"][0]["message"]["content"]
-            return _strip_fences(content)
+        response = self.http_client.post(
+            self.endpoint_url,
+            headers=headers,
+            json={
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                "temperature": self.temperature,
+            },
+        )
+        response.raise_for_status()
+        content = response.json()["choices"][0]["message"]["content"]
+        return _strip_fences(content)
 
     # ── Agent Orchestrator — structured Qwen call ─────────────────────────────
 

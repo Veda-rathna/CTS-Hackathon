@@ -1,0 +1,60 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 1795 >>
+stream
+BT
+/F1 10 Tf
+40 760 Td
+14 TL
+(================================================================================) '
+(             PRIOR AUTHORIZATION CLINICAL INTAKE PACKET) '
+(================================================================================) '
+(DOCUMENT: Clinical Review Packet                    DATE: 2026-08-18) '
+(PATIENT NAME: Harold Sterling      AGE: 67        GENDER: Male) '
+(PATIENT STATE: TX                   PAYER: Medicare Part B \(Novitas J5\)) '
+(--------------------------------------------------------------------------------) '
+(ORDERING PROVIDER INFORMATION:) '
+(PROVIDER: Dr. James Wilson, MD      NPI: 1982736450) '
+(ORGANIZATION: Houston Neurological Clinic \(Houston, TX\)) '
+(--------------------------------------------------------------------------------) '
+(REQUESTED SERVICE & CLINICAL CODING:) '
+(PROCEDURE CODE \(HCPCS/CPT\): 64483) '
+(SERVICE DESCRIPTION: Epidural injection, lumbar or sacral) '
+(PRIMARY DIAGNOSIS \(ICD-10\): R51.9 - Headache, unspecified) '
+(--------------------------------------------------------------------------------) '
+(CLINICAL DOCUMENTATION & HISTORY OF PRESENT ILLNESS:) '
+(  Patient is a 67-year-old male presenting with intermittent diffuse tension headaches \(R51.9\).) '
+(  Provider submitted PA request for lumbar transforaminal epidural injection \(64483\).) '
+(  Documentation Review: Medical record contains no spinal physical examination, no documentation) '
+(  of lumbar radicular symptoms, no conservative physical therapy trial, and no lumbar MRI imaging.) '
+(--------------------------------------------------------------------------------) '
+(PHYSICIAN SIGNATURE: Electronically Signed by Dr. James Wilson, MD, MD) '
+(================================================================================) '
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000244 00000 n 
+0000002079 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+2159
+%%EOF

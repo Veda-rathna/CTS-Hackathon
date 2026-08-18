@@ -288,8 +288,14 @@ class ClinicalEvidenceAgent:
             parsed = json.loads(raw)
 
             def _clean_item(text: str) -> str:
-                cleaned = re.sub(r"-{5,}|PROVIDER NOTES:|--- SYNTHEA DATABASE PATIENT HISTORY ---", "", str(text))
-                return cleaned.strip()
+                cleaned = re.sub(r"-{3,}|={3,}|PROVIDER NOTES:|--- SYNTHEA DATABASE PATIENT HISTORY ---|PRIOR AUTHORIZATION CLINICAL INTAKE PACKET|ORDERING PROVIDER INFORMATION|DOCUMENT: Clinical Review Packet|PHYSICIAN SIGNATURE", "", str(text))
+                cleaned = re.sub(r"\s+", " ", cleaned).strip()
+                if not cleaned or len(cleaned) < 5:
+                    return ""
+                # Skip if text is purely administrative header data
+                if any(k in cleaned.upper() for k in ["PRIOR AUTHORIZATION CLINICAL", "ORDERING PROVIDER", "PATIENT NAME:", "PATIENT STATE:", "PHYSICIAN SIGNATURE"]):
+                    return ""
+                return cleaned
 
             supporting = [_clean_item(s) for s in parsed.get("supporting_evidence", []) if _clean_item(s)]
             contradicting = [_clean_item(s) for s in parsed.get("contradicting_evidence", []) if _clean_item(s)]

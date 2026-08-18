@@ -160,7 +160,58 @@ async def extract_pdf(file: UploadFile = File(...)) -> ExtractionResponse:
             pass
 
     # 5. Clinical notes extraction
-    clinical_notes = raw_text.strip() if raw_text.strip() else None
+    clinical_notes = None
+    if raw_text.strip():
+        # Look for explicit clinical notes section headers
+        header_patterns = [
+            r'(?:CLINICAL\s+DOCUMENTATION\s*(?:&|AND)?\s*HISTORY\s+OF\s+PRESENT\s+ILLNESS|CLINICAL\s+NOTES|HISTORY\s+OF\s+PRESENT\s+ILLNESS|CLINICAL\s+DOCUMENTATION|PROGRESS\s+NOTES|PHYSICIAN\s+NOTES)\s*:?',
+        ]
+        notes_text = None
+        for pattern in header_patterns:
+            match = re.search(pattern, raw_text, re.IGNORECASE)
+            if match:
+                start_idx = match.end()
+                remaining = raw_text[start_idx:]
+                # Stop before signatures or end dividers
+                stop_match = re.search(r'(?:PHYSICIAN\s+SIGNATURE|ELECTRONICALLY\s+SIGNED|={3,}|-{3,}\s*ORDERING)', remaining, re.IGNORECASE)
+                if stop_match:
+                    notes_text = remaining[:stop_match.start()].strip()
+                else:
+                    notes_text = remaining.strip()
+                break
+
+        if not notes_text:
+            # If no section header found, filter out administrative packet header lines
+            cleaned_lines = []
+            skip_patterns = [
+                r'^[=\-_#*]{3,}$',
+                r'PRIOR\s+AUTHORIZATION\s+CLINICAL\s+INTAKE\s+PACKET',
+                r'DOCUMENT:\s*Clinical\s+Review\s+Packet',
+                r'PATIENT\s+NAME:',
+                r'PATIENT\s+STATE:',
+                r'ORDERING\s+PROVIDER\s+INFORMATION:',
+                r'PROVIDER:',
+                r'ORGANIZATION:',
+                r'REQUESTED\s+SERVICE\s+&\s+CLINICAL\s+CODING:',
+                r'PROCEDURE\s+CODE',
+                r'SERVICE\s+DESCRIPTION:',
+                r'PRIMARY\s+DIAGNOSIS',
+                r'PHYSICIAN\s+SIGNATURE:',
+                r'ELECTRONICALLY\s+SIGNED\s+BY',
+            ]
+            for line in raw_text.splitlines():
+                line_str = line.strip()
+                if not line_str:
+                    continue
+                if any(re.search(pat, line_str, re.IGNORECASE) for pat in skip_patterns):
+                    continue
+                cleaned_lines.append(line_str)
+            notes_text = " ".join(cleaned_lines).strip()
+
+        # Clean up excess internal whitespace
+        if notes_text:
+            notes_text = re.sub(r'\s+', ' ', notes_text).strip()
+            clinical_notes = notes_text
 
     # Calculate missing fields
     missing = []

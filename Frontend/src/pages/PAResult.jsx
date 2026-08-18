@@ -231,10 +231,33 @@ export default function PAResult() {
     const list = [];
     const seen = new Set();
 
+    const isBoilerplate = (txt) => {
+      if (!txt || txt.length < 5) return true;
+      const upper = txt.toUpperCase();
+      return (
+        upper.includes('PRIOR AUTHORIZATION CLINICAL') ||
+        upper.includes('CLINICAL INTAKE PACKET') ||
+        upper.includes('ORDERING PROVIDER INFORMATION') ||
+        upper.includes('REQUESTED SERVICE & CLINICAL CODING') ||
+        upper.includes('DOCUMENT: CLINICAL REVIEW') ||
+        upper.includes('PHYSICIAN SIGNATURE') ||
+        upper.includes('ELECTRONICALLY SIGNED') ||
+        upper.includes('PATIENT NAME:') ||
+        upper.includes('PATIENT STATE:') ||
+        upper.includes('NPI:') ||
+        upper.includes('======') ||
+        upper.includes('------')
+      );
+    };
+
     const add = (item) => {
-      if (!item) return;
-      let clean = item.trim().replace(/^(?:[-*•]\s*|Submitted HCPCS:\s*|Submitted ICD-10:\s*|Patient Ev\.\s*:\s*|Evidence\s*:\s*)/i, '').trim();
-      if (clean.length > 5 && !seen.has(clean.toLowerCase())) {
+      if (!item || isBoilerplate(item)) return;
+      let clean = item
+        .trim()
+        .replace(/^(?:[-*•]\s*|Submitted HCPCS:\s*|Submitted ICD-10:\s*|Patient Ev\.\s*:\s*|Evidence\s*:\s*)/i, '')
+        .replace(/^[=\-_#*]{3,}\s*/, '')
+        .trim();
+      if (clean.length > 5 && !isBoilerplate(clean) && !seen.has(clean.toLowerCase())) {
         seen.add(clean.toLowerCase());
         if (!clean.endsWith('.')) clean += '.';
         list.push(clean);
@@ -249,8 +272,9 @@ export default function PAResult() {
     const notes = record.clinical_notes || record.service?.service_description || '';
     if (notes) {
       notes.split(/(?<=[.!?])\s+/).forEach(s => {
-        if (s.trim().length > 12 && !s.toLowerCase().includes('refuses') && !s.toLowerCase().includes('has not attempted')) {
-          add(s.trim());
+        const trimmed = s.trim();
+        if (trimmed.length > 12 && !isBoilerplate(trimmed) && !trimmed.toLowerCase().includes('refuses') && !trimmed.toLowerCase().includes('has not attempted')) {
+          add(trimmed);
         }
       });
     }
@@ -789,7 +813,7 @@ export default function PAResult() {
 
       {/* OPERATIONAL IMPACT METRICS SECTION */}
       <div className="print:hidden">
-        <ImpactMetricsSection compact={false} />
+        <ImpactMetricsSection compact={false} record={record} />
       </div>
 
       {/* SECONDARY VIEW: Detailed Technical Evaluation Trace (Collapsible) */}
