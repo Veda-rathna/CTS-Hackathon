@@ -17,12 +17,13 @@ import EvidenceFusionPanel from '../components/result/EvidenceFusionPanel';
 import AgentEvaluationPanel from '../components/result/AgentEvaluationPanel';
 import ImpactMetricsSection from '../components/result/ImpactMetricsSection';
 import PrintableClinicalReport from '../components/result/PrintableClinicalReport';
-import { generatePAReportPDF } from '../utils/pdfGenerator';
+import { generatePAReportPDF, openPAReportPDF } from '../utils/pdfGenerator';
 import {
   Activity,
   ArrowLeft,
   Printer,
   Download,
+  ExternalLink,
   Loader2,
   AlertTriangle,
   ChevronDown,
@@ -440,7 +441,7 @@ export default function PAResult() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={handleDownloadPDF}
@@ -463,9 +464,19 @@ export default function PAResult() {
 
           <button
             type="button"
+            onClick={() => openPAReportPDF(record)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-sky-800 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg shadow-2xs transition-colors"
+            title="Open generated PDF report in a new browser tab"
+          >
+            <ExternalLink className="w-3.5 h-3.5 text-sky-700" />
+            <span>Open PDF</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handlePrint}
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg shadow-2xs transition-colors"
-            title="Open Print Dialog"
+            title="Open standard browser print dialog"
           >
             <Printer className="w-3.5 h-3.5 text-slate-500" />
             <span>Print</span>

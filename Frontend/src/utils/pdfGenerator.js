@@ -1,8 +1,8 @@
 import { jsPDF } from 'jspdf';
 import { formatDate, getRequestPriority, categorizeNeedMoreInfo } from './formatters';
 
-export function generatePAReportPDF(record) {
-  if (!record) return;
+export function buildPDFDocument(record) {
+  if (!record) return null;
 
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -274,6 +274,62 @@ export function generatePAReportPDF(record) {
   doc.text(`Reviewer Verification Date: ${formatDate(new Date().toISOString())}`, left, y + 10);
   doc.text('CONFIDENTIAL: Contains Protected Health Information (PHI) under HIPAA.', right, y + 10, { align: 'right' });
 
-  // Save the PDF
-  doc.save(`Prior-Authorization-${paId}.pdf`);
+  return doc;
 }
+
+/**
+ * Downloads the Prior Authorization Determination Report as a named .pdf file.
+ */
+export function generatePAReportPDF(record) {
+  const doc = buildPDFDocument(record);
+  if (!doc) return;
+
+  const pa = record.pa_requests ? record.pa_requests[0] : record;
+  const paId = (record.pa_request_id || pa.pa_request_id || 'REPORT').toString().trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+  const filename = `Prior_Authorization_${paId}.pdf`;
+
+  try {
+    const pdfBlob = doc.output('blob');
+    const safeBlob = new Blob([pdfBlob], { type: 'application/pdf' });
+    const blobUrl = URL.createObjectURL(safeBlob);
+
+    const link = document.createElement('a');
+    link.style.display = 'none';
+    link.href = blobUrl;
+    link.download = filename;
+    link.setAttribute('download', filename);
+
+    document.body.appendChild(link);
+    link.click();
+
+    setTimeout(() => {
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+      URL.revokeObjectURL(blobUrl);
+    }, 1500);
+  } catch (err) {
+    console.error('Blob download failed, falling back to doc.save:', err);
+    doc.save(filename);
+  }
+}
+
+/**
+ * Opens the Prior Authorization Determination PDF directly in a new browser tab.
+ */
+export function openPAReportPDF(record) {
+  const doc = buildPDFDocument(record);
+  if (!doc) return;
+
+  try {
+    const pdfBlob = doc.output('blob');
+    const safeBlob = new Blob([pdfBlob], { type: 'application/pdf' });
+    const blobUrl = URL.createObjectURL(safeBlob);
+    window.open(blobUrl, '_blank');
+  } catch (err) {
+    console.error('Failed to open PDF in new tab:', err);
+    window.print();
+  }
+}
+
+
