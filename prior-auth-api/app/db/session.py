@@ -22,6 +22,7 @@ _settings = get_settings()
 engine = create_engine(
     _settings.database_url_normalized,
     pool_pre_ping=True,        # detect stale connections
+    pool_recycle=300,          # recycle connections every 5 min for Neon Postgres pooler
     pool_size=5,
     max_overflow=10,
     echo=False,                # set True to see SQL in development

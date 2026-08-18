@@ -27,17 +27,71 @@ class SyntheaRepository:
             return f"[System: No prior Synthea medical history found for patient {patient_id}]"
 
         try:
-            conditions = self._session.query(SyntheaCondition).filter_by(patient_id=patient_id).all()
-            procedures = self._session.query(SyntheaProcedure).filter_by(patient_id=patient_id).all()
+            non_clinical_patterns = [
+                "[prapare]", "survey", "social-history", "afraid", "transportation", "transport",
+                "partner", "armed forces", "living or staying", "stress",
+                "gender identity", "sexual orientation", "employment", "unemployed", "education",
+                "food insecurity", "housing", "language", "race", "ethnicity",
+                "unable to get", "felt safe", "physically and emotionally safe",
+                "violence", "review due", "screening", "dental", "gingiv", "plaque", "teeth",
+                "fluoride", "oral health", "assessment of", "medication review", "domestic abuse",
+                "alcohol use", "substance use", "drug abuse",
+            ]
+
+            raw_conditions = (
+                self._session.query(SyntheaCondition)
+                .filter_by(patient_id=patient_id)
+                .order_by(desc(SyntheaCondition.start_date))
+                .all()
+            )
+            conditions = []
+            for c in raw_conditions:
+                desc_lower = (c.description or "").lower()
+                if any(pat in desc_lower for pat in non_clinical_patterns):
+                    continue
+                conditions.append(c)
+                if len(conditions) >= 10:
+                    break
+
+            raw_procedures = (
+                self._session.query(SyntheaProcedure)
+                .filter_by(patient_id=patient_id)
+                .order_by(desc(SyntheaProcedure.start_date))
+                .all()
+            )
+            procedures = []
+            for p in raw_procedures:
+                desc_lower = (p.description or "").lower()
+                if any(pat in desc_lower for pat in non_clinical_patterns):
+                    continue
+                procedures.append(p)
+                if len(procedures) >= 10:
+                    break
             
-            # Limit observations to prevent token limit issues, sorted by most recent
-            observations = (
+            raw_observations = (
                 self._session.query(SyntheaObservation)
                 .filter_by(patient_id=patient_id)
                 .order_by(desc(SyntheaObservation.date))
-                .limit(30)
+                .limit(50)
                 .all()
             )
+
+            observations = []
+            for o in raw_observations:
+                cat = (o.category or "").lower()
+                desc_lower = (o.description or "").lower()
+                
+                # Exclude survey / social-history category
+                if cat in ("survey", "social-history"):
+                    continue
+                
+                # Exclude non-clinical observations by text
+                if any(pat in desc_lower for pat in non_clinical_patterns):
+                    continue
+                
+                observations.append(o)
+                if len(observations) >= 10:
+                    break
 
             lines = []
             if conditions:

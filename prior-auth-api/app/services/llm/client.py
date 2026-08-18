@@ -69,6 +69,16 @@ class LLMClient:
                 st = getattr(self._settings, "aws_session_token", None)
                 profile = getattr(self._settings, "aws_profile", None)
 
+                api_key = getattr(self._settings, "llm_api_key", None)
+                if not ak and api_key and api_key.startswith("ABSK"):
+                    try:
+                        import base64
+                        decoded = base64.b64decode(api_key[4:]).decode("utf-8")
+                        if ":" in decoded:
+                            ak, sk = decoded.split(":", 1)
+                    except Exception as e:
+                        logger.warning("Failed to decode ABSK api key: %s", e)
+
                 if ak and sk:
                     client_kwargs = {
                         "aws_access_key_id": ak,

@@ -166,11 +166,15 @@ class AgentOrchestrator:
                 )
                 raw_result = "UNKNOWN"
 
-            # If Qwen endpoint was unreachable / disabled (indicated by client fallback), use deterministic pre-assessment
+            # If Qwen endpoint was unreachable / disabled / failed auth, use deterministic pre-assessment
             explanation = qwen_raw.get("explanation", "")
-            is_client_offline = any(
+            is_client_offline = not self._llm.enabled or any(
                 phrase in explanation.lower()
-                for phrase in ("evaluation failed", "llm disabled", "qwen fallback", "403 forbidden", "connection refused", "timeout")
+                for phrase in (
+                    "evaluation failed", "llm disabled", "qwen fallback", "403 forbidden",
+                    "connection refused", "timeout", "credentials", "token", "clienterror",
+                    "unrecognizedclientexception", "not initialized"
+                )
             )
             if is_client_offline and raw_result == "UNKNOWN":
                 if eval_result.pre_assessment == EvidenceSufficiency.SUPPORTED:

@@ -100,8 +100,11 @@ class PARequestService:
             logger.info("PARequestService | Fetching Synthea history for patient_id=%s", patient_id)
             history = self._synthea_repo.get_patient_history(patient_id)
             if history:
-                # Combine Synthea history with any provider-supplied free text notes
-                clinical_notes = f"{history}\n\nPROVIDER NOTES:\n{clinical_notes}".strip()
+                # Combine Synthea history with provider notes, putting provider notes at the top
+                if clinical_notes:
+                    clinical_notes = f"PROVIDER NOTES:\n{clinical_notes}\n\n{history}".strip()
+                else:
+                    clinical_notes = history
                 
         triage_request = TriageRequest(
             procedure_code=triage_dict["procedure_code"],
