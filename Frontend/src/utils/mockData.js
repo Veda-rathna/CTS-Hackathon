@@ -374,6 +374,100 @@ export const INITIAL_PA_REQUESTS = [
     ],
     missing_information: ["Operative report showing surgical date and indication"],
     warnings: ["Ensure postoperative physician notes are submitted within 5 business days."]
+  },
+  {
+    pa_request_id: "PA-005",
+    patient: {
+      patient_id: "p005",
+      date_of_birth: "1965-03-12",
+      age: 61,
+      gender: "M",
+      state: "TX",
+      payer: "Medicare Part B"
+    },
+    request: {
+      request_date: "2026-08-16",
+      review_type: "NON_URGENT",
+      request_type: "INITIAL",
+      urgency_reason: null,
+      previous_authorization_number: null,
+      mock_request_field: false
+    },
+    provider: {
+      provider_id: "prov-tx-551",
+      specialty: "PHYSICAL MEDICINE & REHABILITATION",
+      organization_id: "org-houston-03",
+      organization_name: "LONE STAR PAIN & SPINE CLINIC",
+      state: "TX"
+    },
+    service: {
+      service_description: "Acupuncture, 1 or more needles; initial 15 minutes for acute cervical neck pain following athletic injury.",
+      procedure_code: "20552",
+      procedure_code_system: "HCPCS/CPT",
+      start_date: "2026-08-25",
+      end_date: "2026-08-25",
+      place_of_service: "Outpatient Clinic",
+      number_of_sessions: 5,
+      duration: "30 days",
+      frequency: "Weekly"
+    },
+    diagnoses: [
+      {
+        description: "Cervicalgia (acute neck pain)",
+        source_code: "M54.2",
+        source_code_system: "ICD-10-CM",
+        icd10_code: "M54.2",
+        icd10_mapping_required: false
+      }
+    ],
+    status: "COMPLETED",
+    decision: "REJECTED",
+    evidence_score: 0.10,
+    requires_prior_authorization: true,
+    reason: "Acupuncture for indications other than Chronic Low Back Pain (cLBP) is explicitly excluded from Medicare coverage under NCD 373.",
+    decision_basis: "NCD 373 limits acupuncture coverage strictly to Chronic Lower Back Pain lasting >12 weeks. Acute cervicalgia (M54.2) is a non-covered indication. Evidence Fusion: EXCLUDED.",
+    policies: [
+      {
+        policy_type: "NCD",
+        policy_id: "NCD 373",
+        title: "Acupuncture for Chronic Lower Back Pain (cLBP)",
+        article_id: null
+      }
+    ],
+    evidence: [
+      {
+        type: "HCPCS",
+        identifier: "NCD 373",
+        code: "20552",
+        result: "MATCHED",
+        explanation: "Procedure 20552 evaluated against NCD 373 National Coverage Determination."
+      },
+      {
+        type: "ICD10",
+        identifier: "NCD 373",
+        code: "M54.2",
+        result: "NON_COVERED",
+        explanation: "Diagnosis M54.2 (Cervicalgia) is not an approved indication under NCD 373."
+      }
+    ],
+    criteria: [
+      {
+        criterion_id: "NCD-373-INDICATION",
+        policy_type: "NCD",
+        policy_id: "NCD 373",
+        criterion: "Patient must have documented chronic lower back pain lasting >= 12 weeks.",
+        criterion_type: "SEMANTIC",
+        evaluator: "AGENTIC_QWEN",
+        status: "NOT_SATISFIED",
+        patient_evidence: ["Patient presents with acute neck pain (cervicalgia M54.2) following acute sports injury."],
+        policy_evidence: ["NCD 373 Section 1: Covered Indications"],
+        mandatory: true,
+        authoritative: true,
+        explanation: "The requested indication (acute neck pain) conflicts directly with the mandatory chronic lower back pain indication."
+      }
+    ],
+    missing_information: [],
+    warnings: ["Acupuncture for cervical/neck pain is non-covered nationwide under CMS policy."]
   }
 ];
 
@@ -513,6 +607,52 @@ export const SAMPLE_TEMPLATES = {
         source_code_system: "SNOMED-CT",
         icd10_code: null,
         icd10_mapping_required: true
+      }
+    ]
+  },
+  acupunctureRejected: {
+    pa_request_id: "PA-SAMPLE-04",
+    patient: {
+      patient_id: "PT-77201",
+      date_of_birth: "1965-03-12",
+      age: 61,
+      gender: "M",
+      state: "TX",
+      payer: "Medicare"
+    },
+    request: {
+      request_date: "2026-08-16",
+      review_type: "NON_URGENT",
+      request_type: "INITIAL",
+      urgency_reason: null,
+      previous_authorization_number: null,
+      mock_request_field: false
+    },
+    provider: {
+      provider_id: "PR-55109",
+      specialty: "PHYSICAL MEDICINE & REHABILITATION",
+      organization_id: "ORG-551",
+      organization_name: "LONE STAR PAIN & SPINE CLINIC",
+      state: "TX"
+    },
+    service: {
+      service_description: "Acupuncture, 1 or more needles; initial 15 minutes for acute cervical neck pain (cervicalgia) following sports injury.",
+      procedure_code: "20552",
+      procedure_code_system: "HCPCS/CPT",
+      start_date: "2026-08-25",
+      end_date: "2026-08-25",
+      place_of_service: "Outpatient Clinic",
+      number_of_sessions: 5,
+      duration: "30 days",
+      frequency: "Weekly"
+    },
+    diagnoses: [
+      {
+        description: "Cervicalgia (acute neck pain)",
+        source_code: "M54.2",
+        source_code_system: "ICD-10-CM",
+        icd10_code: "M54.2",
+        icd10_mapping_required: false
       }
     ]
   }

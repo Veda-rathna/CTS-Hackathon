@@ -15,6 +15,8 @@ import PolicyPathDisplay from '../components/result/PolicyPathDisplay';
 import RagEvidenceSection from '../components/result/RagEvidenceSection';
 import EvidenceFusionPanel from '../components/result/EvidenceFusionPanel';
 import AgentEvaluationPanel from '../components/result/AgentEvaluationPanel';
+import ImpactMetricsSection from '../components/result/ImpactMetricsSection';
+import PrintableClinicalReport from '../components/result/PrintableClinicalReport';
 import {
   Activity,
   ArrowLeft,
@@ -27,6 +29,10 @@ import {
   AlertCircle,
   Check,
   X,
+  Copy,
+  CheckCircle2,
+  Send,
+  FileCheck2,
 } from 'lucide-react';
 
 export default function PAResult() {
@@ -34,6 +40,7 @@ export default function PAResult() {
   const navigate = useNavigate();
   const [record, setRecord] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -67,6 +74,14 @@ export default function PAResult() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleCopyPrompt = () => {
+    if (needInfoDiag?.promptTemplate) {
+      navigator.clipboard.writeText(needInfoDiag.promptTemplate);
+      setCopiedPrompt(true);
+      setTimeout(() => setCopiedPrompt(false), 2500);
+    }
   };
 
   const priority = getRequestPriority(record);
@@ -557,40 +572,123 @@ export default function PAResult() {
 
         {/* 5. NEED MORE INFORMATION / EVIDENCE ISSUE DIAGNOSTIC PANEL */}
         {needInfoDiag.category !== 'NO_ADDITIONAL_INFORMATION_REQUIRED' && normalizedDecision !== 'APPROVE' && (
-          <div className="p-3.5 rounded-lg bg-amber-50/60 border border-amber-200 space-y-2.5">
-            <div className="flex items-center justify-between pb-1.5 border-b border-amber-200/80">
-              <div className="flex items-center gap-1.5">
-                <AlertCircle className="w-3.5 h-3.5 text-amber-700" />
-                <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wider">
-                  Issue Diagnostic & Reason Classification
-                </h4>
+          <div className={`p-4 rounded-xl border space-y-3 ${
+            needInfoDiag.subCategory === 'CONFLICTING_CLINICAL_EVIDENCE'
+              ? 'bg-rose-50/60 border-rose-200'
+              : needInfoDiag.subCategory === 'MISSING_CLINICAL_INFORMATION'
+              ? 'bg-sky-50/60 border-sky-200'
+              : 'bg-amber-50/60 border-amber-200'
+          }`}>
+            {/* Header with Sub-Category Classification */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200/80">
+              <div className="flex items-center gap-2">
+                <AlertCircle className={`w-4 h-4 ${
+                  needInfoDiag.subCategory === 'CONFLICTING_CLINICAL_EVIDENCE'
+                    ? 'text-rose-700'
+                    : needInfoDiag.subCategory === 'MISSING_CLINICAL_INFORMATION'
+                    ? 'text-sky-700'
+                    : 'text-amber-700'
+                }`} />
+                <div>
+                  <h4 className={`text-xs font-extrabold uppercase tracking-wider ${
+                    needInfoDiag.subCategory === 'CONFLICTING_CLINICAL_EVIDENCE'
+                      ? 'text-rose-950'
+                      : needInfoDiag.subCategory === 'MISSING_CLINICAL_INFORMATION'
+                      ? 'text-sky-950'
+                      : 'text-amber-950'
+                  }`}>
+                    Issue Diagnostic & Sub-Category Classification
+                  </h4>
+                  <span className="text-[11px] font-semibold text-slate-600 block">
+                    {needInfoDiag.title}
+                  </span>
+                </div>
               </div>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-200/70 text-amber-950 border border-amber-300">
-                {needInfoDiag.category}
-              </span>
+
+              <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Sub-Category:</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide border ${
+                  needInfoDiag.subCategory === 'CONFLICTING_CLINICAL_EVIDENCE'
+                    ? 'bg-rose-100 text-rose-800 border-rose-300'
+                    : needInfoDiag.subCategory === 'MISSING_CLINICAL_INFORMATION'
+                    ? 'bg-sky-100 text-sky-800 border-sky-300'
+                    : 'bg-amber-100 text-amber-900 border-amber-300'
+                }`}>
+                  {needInfoDiag.badgeLabel || needInfoDiag.category}
+                </span>
+              </div>
             </div>
 
-            <div className="space-y-1.5 text-xs">
+            {/* Diagnostic Details */}
+            <div className="space-y-2 text-xs">
               <div>
-                <span className="font-bold text-amber-900 block">Root Cause / Issue:</span>
-                <p className="text-amber-950 leading-relaxed mt-0.5">{needInfoDiag.description}</p>
+                <span className="font-bold text-slate-900 block">Root Cause / Clinical Finding:</span>
+                <p className="text-slate-800 leading-relaxed mt-0.5">{needInfoDiag.description}</p>
               </div>
 
               {needInfoDiag.items.length > 0 && (
-                <div>
-                  <span className="font-bold text-amber-900 block">Required Documentation / Items to Review:</span>
-                  <ul className="mt-0.5 space-y-0.5 list-disc list-inside text-amber-950">
+                <div className="p-3 rounded-lg bg-white/90 border border-slate-200/80">
+                  <span className="font-bold text-slate-900 text-xs block mb-1">
+                    {needInfoDiag.subCategory === 'CONFLICTING_CLINICAL_EVIDENCE'
+                      ? 'Reconciliation Items / Documented Discrepancies:'
+                      : 'Specific Missing Documentation Required:'}
+                  </span>
+                  <ul className="space-y-1 text-slate-800 text-xs list-disc list-inside">
                     {needInfoDiag.items.map((item, i) => (
-                      <li key={i}>{item}</li>
+                      <li key={i} className="leading-relaxed">{item}</li>
                     ))}
                   </ul>
                 </div>
               )}
 
               {needInfoDiag.providerAction && (
-                <div className="p-2 rounded bg-white/80 border border-amber-200 mt-1.5">
-                  <span className="font-bold text-amber-950 text-[11px] block">Provider Submission Guidance:</span>
-                  <p className="text-amber-900 text-xs mt-0.5">{needInfoDiag.providerAction}</p>
+                <div className="p-2.5 rounded-lg bg-white/90 border border-slate-200/80 text-xs">
+                  <span className="font-bold text-slate-900 block">Utilization Management Action:</span>
+                  <p className="text-slate-700 mt-0.5 leading-relaxed">{needInfoDiag.providerAction}</p>
+                </div>
+              )}
+
+              {/* Standardized Provider Prompt Template & 1-Click Copy */}
+              {needInfoDiag.promptTemplate && (
+                <div className="mt-2 p-3 rounded-lg bg-slate-900 text-white space-y-2 border border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-sky-400">
+                      <Send className="w-3.5 h-3.5" />
+                      <span className="text-[11px] font-bold uppercase tracking-wider">
+                        Standardized Provider Request Prompt
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleCopyPrompt}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-bold transition-all ${
+                        copiedPrompt
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                      }`}
+                      title="Copy provider prompt to clipboard"
+                    >
+                      {copiedPrompt ? (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                          <span>Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 text-slate-400" />
+                          <span>Copy Provider Prompt</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <pre className="text-[11px] font-mono text-slate-300 bg-slate-950/80 p-2.5 rounded-md overflow-x-auto whitespace-pre-wrap leading-relaxed border border-slate-800">
+                    {needInfoDiag.promptTemplate}
+                  </pre>
+                  <p className="text-[10px] text-slate-400 italic">
+                    Nurses and UM coordinators can copy this standardized communication directly to request missing documentation from the clinic.
+                  </p>
                 </div>
               )}
             </div>
@@ -674,6 +772,11 @@ export default function PAResult() {
           )}
         </div>
 
+      </div>
+
+      {/* OPERATIONAL IMPACT METRICS SECTION */}
+      <div className="print:hidden">
+        <ImpactMetricsSection compact={false} />
       </div>
 
       {/* SECONDARY VIEW: Detailed Technical Evaluation Trace (Collapsible) */}
@@ -786,6 +889,15 @@ export default function PAResult() {
           )}
         </div>
       </div>
+
+      {/* PRINT-ONLY COMPREHENSIVE MEDICAL DETERMINATION REPORT */}
+      <PrintableClinicalReport
+        record={record}
+        nurseRequirements={nurseRequirements}
+        supportingEvidence={supportingEvidenceList}
+        contradictingEvidence={contradictingEvidenceList}
+        missingEvidence={missingEvidenceList}
+      />
 
     </div>
   );

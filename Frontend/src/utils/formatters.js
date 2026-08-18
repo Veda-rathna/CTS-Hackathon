@@ -134,24 +134,30 @@ export function categorizeNeedMoreInfo(record) {
   if (!record) {
     return {
       category: 'NONE',
+      subCategory: 'NO_ADDITIONAL_INFO',
       title: 'No Information Required',
       description: 'No active prior authorization request found.',
       items: [],
       providerAction: null,
+      promptTemplate: '',
     };
   }
 
   const pa = record.pa_requests ? record.pa_requests[0] : record;
   const decision = (pa.decision || record.decision || '').toUpperCase();
+  const paId = pa.pa_request_id || record.pa_request_id || 'PA-REQUEST';
+  const procCode = pa.procedure_code || pa.service?.procedure_code || 'requested service';
 
   // If request is cleanly approved with all criteria satisfied
   if (decision === 'APPROVE' || decision === 'APPROVED' || decision.includes('APPROV')) {
     return {
       category: 'NO_ADDITIONAL_INFORMATION_REQUIRED',
+      subCategory: 'NO_ADDITIONAL_INFO',
       title: 'No Additional Information Required',
       description: 'All mandatory policy criteria and documentation requirements are satisfied.',
       items: [],
       providerAction: 'No further documentation or clinical review submission is required.',
+      promptTemplate: `Prior Authorization ${paId} is approved. No additional documentation is required.`,
     };
   }
 
@@ -159,7 +165,7 @@ export function categorizeNeedMoreInfo(record) {
   const missingInfoList = record.missing_information || [];
   const evidenceList = record.evidence || [];
 
-  // Check 1: Explicit Conflicting Clinical Evidence
+  // Check 1: Explicit Conflicting Clinical Evidence (contradictions, exclusions in notes)
   const conflictingItems = [];
   criteria.forEach((c) => {
     (c.contradicting_evidence || []).forEach((ce) => conflictingItems.push(ce));
@@ -179,12 +185,19 @@ export function categorizeNeedMoreInfo(record) {
   }
 
   if (conflictingItems.length > 0) {
+    const dedupedConflicts = Array.from(new Set(conflictingItems));
+    const promptText = `CLINICAL DISCREPANCY RECONCILIATION REQUEST:\nPrior Authorization Request: ${paId}\nProcedure Code: ${procCode}\n\nClinical evaluation identified the following conflicting documentation:\n${dedupedConflicts.map((item, i) => `  ${i + 1}. ${item}`).join('\n')}\n\nPlease review and submit clarifying provider notes or addendum reconciling these discrepancies before authorization can proceed.`;
+
     return {
       category: 'CONFLICTING CLINICAL EVIDENCE',
-      title: 'Conflicting Clinical Evidence',
+      subCategory: 'CONFLICTING_CLINICAL_EVIDENCE',
+      badgeLabel: 'Conflicting Clinical Evidence',
+      badgeColor: 'rose',
+      title: 'Conflicting Clinical Evidence Discrepancy',
       description: 'Information in the request or clinical documentation conflicts with applicable coverage criteria.',
-      items: Array.from(new Set(conflictingItems)),
-      providerAction: 'Review and reconcile the conflicting clinical documentation with the provider before proceeding.',
+      items: dedupedConflicts,
+      providerAction: 'Review and reconcile the conflicting clinical documentation with the submitting provider.',
+      promptTemplate: promptText,
     };
   }
 
@@ -206,21 +219,27 @@ export function categorizeNeedMoreInfo(record) {
   });
 
   if (missingDocItems.length > 0) {
+    const dedupedMissing = Array.from(new Set(missingDocItems));
+    const promptText = `PRIOR AUTHORIZATION DOCUMENTATION REQUEST:\nPrior Authorization Request: ${paId}\nProcedure Code: ${procCode}\n\nCoverage determination requires the following specific clinical documentation:\n${dedupedMissing.map((item, i) => `  ${i + 1}. ${item}`).join('\n')}\n\nPlease upload the required imaging reports, therapy logs, or progress notes within 5 business days to finalize review.`;
+
     return {
       category: 'MISSING DOCUMENTATION',
-      title: 'Missing Documentation',
+      subCategory: 'MISSING_DOCUMENTATION',
+      badgeLabel: 'Missing Documentation',
+      badgeColor: 'amber',
+      title: 'Missing Clinical Documentation',
       description: 'The request requires specific clinical records, imaging reports, or therapy logs to establish coverage.',
-      items: Array.from(new Set(missingDocItems)),
+      items: dedupedMissing,
       providerAction: 'Request the missing clinical records or test reports from the submitting provider.',
+      promptTemplate: promptText,
     };
   }
 
   // Check 3: Explicit Missing Clinical Information (unmapped codes, missing CPT/ICD10, absent notes)
   const missingCodeItems = [];
-  const procCode = pa.procedure_code || pa.service?.procedure_code;
   const diagCodes = pa.diagnosis_codes || pa.diagnoses?.map((d) => d.icd10_code || d.source_code) || [];
 
-  if (!procCode) missingCodeItems.push('Standard CPT / HCPCS procedure code is unassigned or unmapped.');
+  if (!pa.procedure_code && !pa.service?.procedure_code) missingCodeItems.push('Standard CPT / HCPCS procedure code is unassigned or unmapped.');
   if (diagCodes.length === 0) missingCodeItems.push('Standard ICD-10-CM diagnosis code is missing.');
 
   evidenceList.forEach((ev) => {
@@ -231,22 +250,35 @@ export function categorizeNeedMoreInfo(record) {
 
   if (missingCodeItems.length > 0 || !notes) {
     if (!notes) missingCodeItems.push('Clinical documentation or progress notes are absent from the request intake.');
+    const dedupedCodes = Array.from(new Set(missingCodeItems));
+    const promptText = `CODING & INTAKE INFORMATION REQUEST:\nPrior Authorization Request: ${paId}\n\nPlease provide the following coding identifiers and intake documentation:\n${dedupedCodes.map((item, i) => `  ${i + 1}. ${item}`).join('\n')}\n\nStandardized CPT/HCPCS and ICD-10-CM codes are required for automated policy crosswalking.`;
+
     return {
       category: 'MISSING CLINICAL INFORMATION',
-      title: 'Missing Clinical Information',
+      subCategory: 'MISSING_CLINICAL_INFORMATION',
+      badgeLabel: 'Missing Coding & Intake',
+      badgeColor: 'sky',
+      title: 'Missing Coding & Intake Identifiers',
       description: 'Essential coding identifiers or clinical intake notes are absent or require standard crosswalk mapping.',
-      items: Array.from(new Set(missingCodeItems)),
+      items: dedupedCodes,
       providerAction: 'Verify and submit standardized CPT/HCPCS and ICD-10 codes with patient clinical notes.',
+      promptTemplate: promptText,
     };
   }
 
-  // Check 4: Otherwise fallback without inventing reasons
+  // Check 4: Otherwise fallback
+  const promptText = `ADDITIONAL CLINICAL INFORMATION REQUEST:\nPrior Authorization Request: ${paId}\nProcedure Code: ${procCode}\n\nAdditional clinical progress notes are needed to complete medical necessity determination.`;
+
   return {
     category: 'NEED MORE INFORMATION',
-    title: 'Need More Information',
+    subCategory: 'NEED_MORE_INFORMATION',
+    badgeLabel: 'Need More Information',
+    badgeColor: 'amber',
+    title: 'Additional Clinical Information Required',
     description: 'Additional clinical context is required to complete determination.',
     items: ['Clinical documentation required for policy evaluation.'],
     providerAction: 'Submit additional clinical documentation to establish coverage criteria.',
+    promptTemplate: promptText,
   };
 }
 

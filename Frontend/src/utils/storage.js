@@ -11,7 +11,23 @@ export function getStoredPARequests() {
       localStorage.setItem(PA_STORAGE_KEY, JSON.stringify(INITIAL_PA_REQUESTS));
       return INITIAL_PA_REQUESTS;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      // Check if newly introduced initial requests (e.g. PA-005 rejected) are in storage; if not, merge them
+      const existingIds = new Set(parsed.map(r => r.pa_request_id?.toUpperCase()));
+      let hasNew = false;
+      INITIAL_PA_REQUESTS.forEach(initReq => {
+        if (!existingIds.has(initReq.pa_request_id?.toUpperCase())) {
+          parsed.push(initReq);
+          hasNew = true;
+        }
+      });
+      if (hasNew) {
+        localStorage.setItem(PA_STORAGE_KEY, JSON.stringify(parsed));
+      }
+      return parsed;
+    }
+    return INITIAL_PA_REQUESTS;
   } catch (err) {
     console.error('Error reading PA requests from storage:', err);
     return INITIAL_PA_REQUESTS;
