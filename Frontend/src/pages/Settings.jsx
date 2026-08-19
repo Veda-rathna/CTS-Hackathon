@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { checkHealth, checkDbHealth } from '../services/api';
+import { checkHealth, checkDbHealth, API_BASE_URL } from '../services/api';
 import { INITIAL_PA_REQUESTS } from '../utils/mockData';
 import {
   Server,
@@ -62,8 +62,10 @@ export default function Settings() {
             <Server className="w-4 h-4 text-sky-700" />
             <div>
               <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">FastAPI Backend Connection</h3>
-              <p className="text-[11px] text-slate-500">
-                Connected via <code className="font-mono font-bold text-sky-800">VITE_API_BASE_URL</code>
+              <p className="text-[11px] text-slate-500 flex items-center gap-1.5 flex-wrap">
+                <span>Connected via</span>
+                <code className="font-mono font-bold text-sky-800 bg-sky-50 px-1 py-0.5 rounded border border-sky-200">VITE_API_URL</code>
+                <span className="text-slate-400 font-mono text-[10px] break-all">({API_BASE_URL})</span>
               </p>
             </div>
           </div>

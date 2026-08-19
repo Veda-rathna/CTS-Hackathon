@@ -1,10 +1,11 @@
 import axios from 'axios';
 
-// Base URL — override via VITE_API_BASE_URL env var
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
+// Base URL — override via VITE_API_URL or VITE_API_BASE_URL env var
+const rawBaseUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
+export const API_BASE_URL = rawBaseUrl.replace(/\/+$/, '');
 
 const apiClient = axios.create({
-  baseURL: `${API_BASE_URL}/api/v1`,
+  baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   // 120s: agentic LLM pipeline (Qwen via LM Studio) can take up to 60s on CPU
   timeout: 120000,
@@ -181,6 +182,7 @@ export function transformPAFormToTriageRequest(formData) {
 }
 
 export default {
+  API_BASE_URL,
   runTriage,
   createPARequest,
   extractFromPDF,

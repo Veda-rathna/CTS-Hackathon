@@ -52,12 +52,13 @@ def get_synthea_repository(
 
 def get_policy_chunk_repository(
     settings: Annotated[Settings, Depends(get_settings)],
-):
+    session: Annotated[Session, Depends(get_db)],
+) -> PolicyChunkRepository:
     if settings.use_mock_repositories:
         from app.repositories.mock.policy_chunk_repository import MockPolicyChunkRepository
         return MockPolicyChunkRepository()
-    from app.db.session import SessionLocal
-    return PolicyChunkRepository(SessionLocal())
+
+    return PolicyChunkRepository(session)
 
 
 def get_article_repository(
