@@ -42,30 +42,30 @@ class DecisionEngine:
         warnings: List[str] = []
         criteria = criteria or []
 
-        # ── 1. Explicit policy exclusions or policy conflicts → PEND ─────────
+        # ── 1. Explicit policy exclusions or policy conflicts → DENY ─────────
         # A deterministic exclusion (SQL / authoritative) or an explicitly failed
-        # mandatory requirement maps to PEND for nurse/UM review.
+        # mandatory requirement maps to DENY.
         if ncd_result == "EXCLUDED":
             reasons.append("NCD_EXCLUDES_PROCEDURE")
-            warnings.append("Explicit NCD exclusion requires nurse/UM review.")
-            return TriageDecision.PEND, reasons, warnings
+            warnings.append("Explicit NCD exclusion. Policy does not cover this service.")
+            return TriageDecision.DENY, reasons, warnings
 
         if lcd_result == "EXCLUDED":
             reasons.append("LCD_EXCLUDES_PROCEDURE")
-            warnings.append("Explicit LCD exclusion requires nurse/UM review.")
-            return TriageDecision.PEND, reasons, warnings
+            warnings.append("Explicit LCD exclusion. Policy does not cover this service.")
+            return TriageDecision.DENY, reasons, warnings
 
         if article_result == "EXCLUDED":
             reasons.append("ARTICLE_EXCLUDES_PROCEDURE")
-            warnings.append("Explicit Article exclusion requires nurse/UM review.")
-            return TriageDecision.PEND, reasons, warnings
+            warnings.append("Explicit Article exclusion. Policy does not cover this service.")
+            return TriageDecision.DENY, reasons, warnings
 
         # Check if any mandatory criterion is NOT_SATISFIED
         for c in criteria:
             if c.mandatory and c.status == EvaluationStatus.NOT_SATISFIED:
                 reasons.append("MANDATORY_CRITERIA_NOT_SATISFIED")
-                warnings.append(f"Mandatory requirement '{c.criterion}' was not satisfied. Requires nurse/UM review.")
-                return TriageDecision.PEND, reasons, warnings
+                warnings.append(f"Mandatory requirement '{c.criterion}' was not satisfied.")
+                return TriageDecision.DENY, reasons, warnings
 
         # ── 2. Missing required information or mandatory UNKNOWN criteria ─────
         # When clinical information is missing or any mandatory criterion is UNKNOWN,

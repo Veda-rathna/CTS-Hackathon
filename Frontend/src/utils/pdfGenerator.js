@@ -21,19 +21,29 @@ export async function buildPDFDocument(record) {
   let decisionColor = [180, 83, 9]; // amber-700
   let decisionBg = [254, 243, 199]; // amber-100
 
+  const reasonCodes = record.reason_codes || [];
+  const hasExclusion =
+    reasonCodes.includes('NCD_EXCLUDES_PROCEDURE') ||
+    reasonCodes.includes('LCD_EXCLUDES_PROCEDURE') ||
+    reasonCodes.includes('ARTICLE_EXCLUDES_PROCEDURE') ||
+    reasonCodes.includes('MANDATORY_CRITERIA_NOT_SATISFIED') ||
+    record.evidence_fusion_result === 'EXCLUDED';
+
   if (rawDecision.includes('APPROV') || rawDecision === 'APPROVE') {
     decisionLabel = 'APPROVED';
     decisionColor = [4, 120, 87]; // emerald-700
     decisionBg = [209, 250, 229]; // emerald-100
   } else if (
     rawDecision === 'REJECTED' ||
+    rawDecision === 'REJECT' ||
     rawDecision === 'EXCLUDED' ||
     rawDecision === 'POLICY_EXCLUSION' ||
     rawDecision === 'NOT_COVERED' ||
     rawDecision === 'DENIED' ||
-    rawDecision === 'DENY'
+    rawDecision === 'DENY' ||
+    hasExclusion
   ) {
-    decisionLabel = 'REJECTED / POLICY EXCLUDED';
+    decisionLabel = 'REJECTED';
     decisionColor = [190, 18, 60]; // rose-700
     decisionBg = [255, 228, 230]; // rose-100
   } else if (rawDecision === 'PEND' || rawDecision === 'PENDED' || rawDecision === 'PENDING_REVIEW') {

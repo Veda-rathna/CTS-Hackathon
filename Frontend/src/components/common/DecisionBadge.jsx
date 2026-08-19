@@ -29,7 +29,7 @@ export default function DecisionBadge({ decision, size = 'md' }) {
     norm === 'DENY'
   ) {
     config = {
-      label: 'REJECTED / EXCLUDED',
+      label: 'REJECTED',
       bg: 'bg-rose-50',
       border: 'border-rose-200',
       text: 'text-rose-700',

@@ -161,6 +161,27 @@ export function categorizeNeedMoreInfo(record) {
     };
   }
 
+  // If request is rejected due to policy exclusions
+  if (
+    decision === 'REJECTED' ||
+    decision === 'REJECT' ||
+    decision === 'EXCLUDED' ||
+    decision === 'POLICY_EXCLUSION' ||
+    decision === 'NOT_COVERED' ||
+    decision === 'DENIED' ||
+    decision === 'DENY'
+  ) {
+    return {
+      category: 'NO_ADDITIONAL_INFORMATION_REQUIRED',
+      subCategory: 'POLICY_EXCLUSION',
+      title: 'Policy Coverage Exclusion',
+      description: 'The requested service or diagnosis conflicts with governing Medicare policy exclusions and cannot be authorized.',
+      items: [],
+      providerAction: 'Coverage is rejected under governing CMS policy exclusions.',
+      promptTemplate: `Prior Authorization ${paId} is non-covered under applicable policy exclusions.`,
+    };
+  }
+
   const criteria = record.criteria || record.policy_requirements || [];
   const missingInfoList = record.missing_information || [];
   const evidenceList = record.evidence || [];

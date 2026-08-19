@@ -152,12 +152,12 @@ const REALISTIC_SCENARIOS = [
   {
     id: 'PA-REAL-005',
     label: 'PA-REAL-005',
-    badgeLabel: 'JURISDICTION',
+    badgeLabel: 'REJECT',
     name: 'Knee - Out of Jurisdiction',
     subtitle: 'State Boundary Check (NY)',
-    expected: 'NEED_MORE_INFORMATION',
-    expectedBadge: 'bg-slate-100 text-slate-700 border-slate-300',
-    description: 'Patient state outside regional Medicare Administrative Contractor (MAC) Novitas Jurisdiction J5.',
+    expected: 'REJECTED',
+    expectedBadge: 'bg-rose-50 text-rose-700 border-rose-200',
+    description: 'Patient state outside regional Medicare Administrative Contractor (MAC) Novitas Jurisdiction J5. Out of jurisdiction non-coverage rejection.',
     data: {
       pa_request_id: 'PA-REAL-005',
       patient: { patient_id: '8a2af5b4-6f29-27d4-b5fd-bb687fa2169b', date_of_birth: '1956-01-25', age: 70, gender: 'M', state: 'NY' },

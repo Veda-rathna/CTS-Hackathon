@@ -93,6 +93,14 @@ export default function PAResult() {
 
   // 1. Normalized Final Decision (Mapped for presentation)
   const rawDecision = (record.decision || 'NEED_MORE_INFORMATION').toUpperCase();
+  const reasonCodes = record.reason_codes || [];
+  const hasExclusion =
+    reasonCodes.includes('NCD_EXCLUDES_PROCEDURE') ||
+    reasonCodes.includes('LCD_EXCLUDES_PROCEDURE') ||
+    reasonCodes.includes('ARTICLE_EXCLUDES_PROCEDURE') ||
+    reasonCodes.includes('MANDATORY_CRITERIA_NOT_SATISFIED') ||
+    record.evidence_fusion_result === 'EXCLUDED';
+
   let normalizedDecision = 'NEED_MORE_INFORMATION';
   let decisionDisplayTitle = 'NEED MORE INFORMATION';
 
@@ -101,14 +109,16 @@ export default function PAResult() {
     decisionDisplayTitle = 'APPROVE';
   } else if (
     rawDecision === 'REJECTED' ||
+    rawDecision === 'REJECT' ||
     rawDecision === 'EXCLUDED' ||
     rawDecision === 'POLICY_EXCLUSION' ||
     rawDecision === 'NOT_COVERED' ||
     rawDecision === 'DENIED' ||
-    rawDecision === 'DENY'
+    rawDecision === 'DENY' ||
+    hasExclusion
   ) {
     normalizedDecision = 'REJECTED';
-    decisionDisplayTitle = 'REJECTED / POLICY EXCLUDED';
+    decisionDisplayTitle = 'REJECTED';
   } else if (
     rawDecision === 'PEND' ||
     rawDecision === 'PENDED' ||
@@ -348,15 +358,19 @@ export default function PAResult() {
 
   // 5. Evaluation Narrative from existing backend response
   const getNurseEvaluation = () => {
-    if (record.decision_basis) return record.decision_basis;
-    if (record.reason) return record.reason;
-    if (record.explanation) return record.explanation;
+    let raw = record.decision_basis || record.reason || record.explanation || '';
+    if (normalizedDecision === 'REJECTED') {
+      if (raw && (raw.includes('pended for nurse/UM review') || raw.includes('human adjudication'))) {
+        raw = raw.replace('The case has been pended for nurse/UM review.', 'Coverage is rejected under governing policy.')
+                 .replace('The case requires nurse/UM review to determine the appropriate disposition.', 'Coverage cannot be authorized.');
+      }
+      if (raw) return raw;
+      return "The requested service or diagnosis conflicts with an applicable Medicare policy exclusion or non-covered indication. Coverage cannot be authorized under the governing policy.";
+    }
+    if (raw) return raw;
 
     if (normalizedDecision === 'APPROVE') {
       return "The submitted documentation supports the applicable coverage requirements. The requested service is supported by the documented diagnosis, clinical symptoms, and documented trial of prerequisite conservative therapy.";
-    }
-    if (normalizedDecision === 'REJECTED') {
-      return "The requested service or diagnosis conflicts with an applicable Medicare policy exclusion or non-covered indication. Coverage cannot be authorized under the governing policy.";
     }
     if (normalizedDecision === 'PEND') {
       return "The requested service was evaluated against the governing policy. The case requires nurse/UM clinical review to determine the appropriate authorization disposition.";
@@ -370,13 +384,18 @@ export default function PAResult() {
   const parseEvaluationNarrative = (rawText) => {
     if (!rawText) return { intro: '', items: [] };
 
-    const parts = rawText
+    let cleanedText = rawText;
+    if (normalizedDecision === 'REJECTED' && cleanedText.includes('pended for nurse/UM review')) {
+      cleanedText = cleanedText.replace('The case has been pended for nurse/UM review.', 'Coverage is rejected under governing policy.');
+    }
+
+    const parts = cleanedText
       .split(/(?:•|\n-|\n\*|\n•|\r?\n)/)
       .map((s) => s.trim())
       .filter(Boolean);
 
-    if (parts.length <= 1 && !rawText.includes('•')) {
-      return { intro: rawText, items: [] };
+    if (parts.length <= 1 && !cleanedText.includes('•')) {
+      return { intro: cleanedText, items: [] };
     }
 
     let intro = '';

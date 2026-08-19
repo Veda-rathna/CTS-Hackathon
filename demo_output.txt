@@ -1,0 +1,1215 @@
+
+===========================================================================
+  PRIOR AUTHORIZATION TRIAGE & POLICY COMPANION
+  Output Explainability & 5-Stage Agent Trace Demo (LIVE NEON POSTGRESQL)
+  LLM Mode       : LIVE — qwen.qwen3-vl-235b-a22b via BEDROCK
+  Repository Mode: LIVE NEON POSTGRESQL
+===========================================================================
+
+
+===========================================================================
+  CASE: APPROVE — Covered Knee Osteoarthritis Hyaluronan Injection (PA-REAL-001)
+===========================================================================
+
+1. REQUEST INTAKE DATA
+---------------------------------------------------------------------------
+  • Procedure Code (HCPCS/CPT) : 20610
+  • Diagnosis Codes (ICD-10)   : M17.11
+  • Service State              : TX
+  • Patient Age                : 51
+  • Clinical Documentation     : Intraarticular knee injection of hyaluronan for unilateral primary osteoarthritis right knee. Patient completed 12 weeks of physical therapy and failed meloxicam oral NSAID therapy. Standing radiographs confirm Kellgren-Lawrence Grade 3 osteoarthritis with medial joint space narrowing.
+
+2. GOVERNING POLICY HIERARCHY & RESOLUTION
+---------------------------------------------------------------------------
+  [Hierarchy Tier 1] NCD (National)     : NOT_ADDRESSED (NOT_ADDRESSED)
+  [Hierarchy Tier 2] MAC Jurisdiction   : TX → MATCHED
+  [Hierarchy Tier 3] LCD (Local Policy) : LCD 39529 — Intraarticular Knee Injections of Hyaluronan (COVERED)
+  [Hierarchy Tier 4] Article (Code Map) : Article 56157 (COVERED)
+
+3. RAG VECTOR RETRIEVAL (pgvector Cosine Search)
+---------------------------------------------------------------------------
+  [Chunk 1] Source Policy : LCD 39529 | Section: indications_limitations
+            Similarity Score: 0.8000 (Model: sentence-transformers/all-MiniLM-L6-v2)
+            Retrieved Text  : "Compliance with the provisions in this policy may be monitored and addressed through post payment data analysis and subsequent medical review audits. History/Background and/or Gene..."
+
+4. DETERMINISTIC RELATIONAL CODE MATCHING (PostgreSQL)
+---------------------------------------------------------------------------
+  [✓] HCPCS  20610 → LCD 39529       → MATCHED    (Procedure code '20610' is listed in LCD 39529 applicable HCPCS data.)
+  [✓] HCPCS  20610 → Article 56157   → MATCHED    (Procedure code '20610' is listed in article 56157.)
+  [✓] ICD-10 M17.11 → LCD 39529       → COVERED    (Diagnosis 'M17.11' is covered under LCD 39529.)
+  [✓] ICD-10 M17.11 → Article 56157   → COVERED    (Diagnosis 'M17.11' is covered.)
+
+5. POLICY CRITERIA ADJUDICATION & AGENT TRACE
+---------------------------------------------------------------------------
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C1: LCD-39529-HCPCS
+  Requirement : The requested procedure must be an applicable service under LCD 39529.
+  Type        : STRUCTURED | Evaluator: SQL | Status: [SATISFIED]
+
+  ┌── 🏛️ DETERMINISTIC SQL AUDIT (PostgreSQL)
+  │
+  ├── Repository Source  : PostgreSQL Code Repositories
+  ├── Policy Evidence    : LCD 39529 contains HCPCS 20610 in its applicable procedure list.
+  ├── Patient Evidence   : Submitted HCPCS: 20610
+  └── SQL Rule Verdict   : Procedure 20610 is listed in LCD 39529 applicable HCPCS data. Criterion SATISFIED by deterministic SQL check.
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C2: LCD-39529-ICD10-M17.11
+  Requirement : The patient's diagnosis must be an eligible diagnosis under LCD 39529.
+  Type        : STRUCTURED | Evaluator: SQL | Status: [SATISFIED]
+
+  ┌── 🏛️ DETERMINISTIC SQL AUDIT (PostgreSQL)
+  │
+  ├── Repository Source  : PostgreSQL Code Repositories
+  ├── Policy Evidence    : Diagnosis M17.11 is present in LCD 39529 covered ICD-10 data.
+  ├── Patient Evidence   : Submitted ICD-10: M17.11
+  └── SQL Rule Verdict   : Diagnosis M17.11 is covered under LCD 39529 structured data.
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C3: LCD-39529-C89e3fba7
+  Requirement : Patient has symptomatic osteoarthritis of the knee.
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [SATISFIED]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • diagnostic_confirmation: Clinical diagnosis of osteoarthritis of the knee supported by radiologic evidence such as joint space narrowing, subchondral sclerosis, osteophytes, or subchondral cysts, and presence of symptoms including pain interfering with daily activities, crepitus, or stiffness.
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : "Intraarticular knee injection of hyaluronan for unilateral primary osteoarthritis right knee."
+  │      • Supporting Evidence : "Standing radiographs confirm Kellgren-Lawrence Grade 3 osteoarthritis with medial joint space narrowing."
+  │      • Supporting Evidence : "Patient completed 12 weeks of physical therapy and failed meloxicam oral Nonsteroidal Anti-inflammatory Drug (NSAID) therapy."
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : SUPPORTED
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : SATISFIED
+  │      • Citations Validated : Intraarticular knee injection of hyaluronan for unilateral primary osteoarthritis right knee., Standing radiographs confirm Kellgren-Lawrence Grade 3 osteoarthritis with medial joint space narrowing.
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : SATISFIED (Authoritative: Deterministic Rules Over LLM)
+         • Pipeline Latency    : 19140 ms
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C4: LCD-39529-C1a8fb399
+  Requirement : Documented trial of conservative therapy (e.g. physical therapy, NSAIDs, analgesics) with inadequate response.
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [SATISFIED]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • conservative_therapy_trial: Documentation of at least 3 months of conservative therapy including nonpharmacologic therapy (e.g., physical therapy, home exercise, weight loss) and, if not contraindicated, simple analgesics (e.g., acetaminophen) or NSAIDs, with evidence of inadequate response.
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : "Patient completed 12 weeks of physical therapy"
+  │      • Supporting Evidence : "failed meloxicam oral Nonsteroidal Anti-inflammatory Drug (NSAID) therapy"
+  │      • Supporting Evidence : "Standing radiographs confirm Kellgren-Lawrence Grade 3 osteoarthritis with medial joint space narrowing"
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : SUPPORTED
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : SATISFIED
+  │      • Citations Validated : Patient completed 12 weeks of physical therapy, failed meloxicam oral Nonsteroidal Anti-inflammatory Drug (NSAID) therapy
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : SATISFIED (Authoritative: Deterministic Rules Over LLM)
+         • Pipeline Latency    : 6844 ms
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C5: ARTICLE-56157-HCPCS
+  Requirement : The requested procedure must be an applicable service under the Article.
+  Type        : STRUCTURED | Evaluator: SQL | Status: [SATISFIED]
+
+  ┌── 🏛️ DETERMINISTIC SQL AUDIT (PostgreSQL)
+  │
+  ├── Repository Source  : PostgreSQL Code Repositories
+  ├── Policy Evidence    : Article 56157 contains HCPCS 20610 in its coverage list.
+  ├── Patient Evidence   : Submitted HCPCS: 20610
+  └── SQL Rule Verdict   : Procedure code 20610 is present in Article 56157 covered procedure list.
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C6: ARTICLE-56157-ICD10-M17.11
+  Requirement : The patient's diagnosis must be an eligible diagnosis under the Article.
+  Type        : STRUCTURED | Evaluator: SQL | Status: [SATISFIED]
+
+  ┌── 🏛️ DETERMINISTIC SQL AUDIT (PostgreSQL)
+  │
+  ├── Repository Source  : PostgreSQL Code Repositories
+  ├── Policy Evidence    : Diagnosis M17.11 is present in the Article's covered ICD-10 data.
+  ├── Patient Evidence   : Submitted ICD-10: M17.11
+  └── SQL Rule Verdict   : Diagnosis code M17.11 is documented as an approved indication under Article 56157.
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+6. EVIDENCE FUSION ENGINE (Authority Precedence Truth Table)
+---------------------------------------------------------------------------
+  • Criteria SATISFIED     : 6
+  • Criteria NOT_SATISFIED : 0  (Deterministic Exclusions Override AI)
+  • Criteria UNKNOWN       : 0  (Missing Documentation Routed to Information Request)
+  • Evidence Fusion Result : COVERED
+
+7. FINAL 3-DISPOSITION ADJUDICATION DECISION
+---------------------------------------------------------------------------
+  DISPOSITION : ✅ APPROVE
+  REASON      : All applicable policy criteria were satisfied. The submitted procedure and diagnosis codes are covered under the applicable Medicare policy.
+  REASON CODES: ARTICLE_CRITERIA_SATISFIED
+
+  CLINICAL DECISION BASIS:
+    All mandatory policy requirements were satisfied by clinical evidence.
+      • LCD-39529-HCPCS: SATISFIED — The requested procedure must be an applicable service under LCD 39529.
+      • LCD-39529-ICD10-M17.11: SATISFIED — The patient's diagnosis must be an eligible diagnosis under LCD 39529.
+      • LCD-39529-C89e3fba7: SATISFIED — Patient has symptomatic osteoarthritis of the knee.
+      • LCD-39529-C1a8fb399: SATISFIED — Documented trial of conservative therapy (e.g. physical therapy, NSAIDs, analgesics) with inadequate response.
+      • ARTICLE-56157-HCPCS: SATISFIED — The requested procedure must be an applicable service under the Article.
+      • ARTICLE-56157-ICD10-M17.11: SATISFIED — The patient's diagnosis must be an eligible diagnosis under the Article.
+
+
+===========================================================================
+  CASE: APPROVE — Covered Lumbar Radiculopathy Epidural Steroid Injection (PA-REAL-002)
+===========================================================================
+
+1. REQUEST INTAKE DATA
+---------------------------------------------------------------------------
+  • Procedure Code (HCPCS/CPT) : 64483
+  • Diagnosis Codes (ICD-10)   : M54.16
+  • Service State              : TX
+  • Patient Age                : 47
+  • Clinical Documentation     : Epidural injection, lumbar or sacral. Patient presents with lumbar radiculopathy confirmed on MRI showing L5-S1 disc herniation with nerve root compression. Conservative physical therapy was tried for 8 weeks along with oral gabapentin without adequate relief.
+
+2. GOVERNING POLICY HIERARCHY & RESOLUTION
+---------------------------------------------------------------------------
+  [Hierarchy Tier 1] NCD (National)     : NOT_ADDRESSED (NOT_ADDRESSED)
+  [Hierarchy Tier 2] MAC Jurisdiction   : TX → MATCHED
+  [Hierarchy Tier 3] LCD (Local Policy) : LCD 36920 — Epidural Steroid Injections for Pain Management (COVERED)
+  [Hierarchy Tier 4] Article (Code Map) : Article 56681 (COVERED)
+
+3. RAG VECTOR RETRIEVAL (pgvector Cosine Search)
+---------------------------------------------------------------------------
+  [Chunk 1] Source Policy : LCD 36920 | Section: indications_limitations
+            Similarity Score: 0.8000 (Model: sentence-transformers/all-MiniLM-L6-v2)
+            Retrieved Text  : "Compliance with the provisions in this LCD may be monitored and addressed through post payment data analysis and subsequent medical review audits.History/Background and/or General ..."
+
+4. DETERMINISTIC RELATIONAL CODE MATCHING (PostgreSQL)
+---------------------------------------------------------------------------
+  [✓] HCPCS  64483 → LCD 36920       → MATCHED    (Procedure code '64483' is listed in LCD 36920 applicable HCPCS data.)
+  [✓] HCPCS  64483 → Article 56681   → MATCHED    (Procedure code '64483' is listed in article 56681.)
+  [✓] ICD-10 M54.16 → LCD 36920       → COVERED    (Diagnosis 'M54.16' is covered under LCD 36920.)
+  [✓] ICD-10 M54.16 → Article 56681   → COVERED    (Diagnosis 'M54.16' is covered.)
+
+5. POLICY CRITERIA ADJUDICATION & AGENT TRACE
+---------------------------------------------------------------------------
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C1: LCD-36920-HCPCS
+  Requirement : The requested procedure must be an applicable service under LCD 36920.
+  Type        : STRUCTURED | Evaluator: SQL | Status: [SATISFIED]
+
+  ┌── 🏛️ DETERMINISTIC SQL AUDIT (PostgreSQL)
+  │
+  ├── Repository Source  : PostgreSQL Code Repositories
+  ├── Policy Evidence    : LCD 36920 contains HCPCS 64483 in its applicable procedure list.
+  ├── Patient Evidence   : Submitted HCPCS: 64483
+  └── SQL Rule Verdict   : Procedure 64483 is listed in LCD 36920 applicable HCPCS data. Criterion SATISFIED by deterministic SQL check.
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C2: LCD-36920-ICD10-M54.16
+  Requirement : The patient's diagnosis must be an eligible diagnosis under LCD 36920.
+  Type        : STRUCTURED | Evaluator: SQL | Status: [SATISFIED]
+
+  ┌── 🏛️ DETERMINISTIC SQL AUDIT (PostgreSQL)
+  │
+  ├── Repository Source  : PostgreSQL Code Repositories
+  ├── Policy Evidence    : Diagnosis M54.16 is present in LCD 36920 covered ICD-10 data.
+  ├── Patient Evidence   : Submitted ICD-10: M54.16
+  └── SQL Rule Verdict   : Diagnosis M54.16 is covered under LCD 36920 structured data.
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C3: LCD-36920-Cfd4793e9
+  Requirement : Diagnosis of radiculopathy confirmed on concordant imaging (MRI or CT).
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [SATISFIED]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • diagnostic_confirmation: Diagnosis of radiculopathy supported by concordant imaging (MRI or CT).
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : "Patient presents with lumbar radiculopathy confirmed on Magnetic Resonance Imaging (MRI) showing L5-S1 disc herniation with nerve root compression."
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : SUPPORTED
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : SATISFIED
+  │      • Citations Validated : Submitted ICD-10: M54.16, Patient presents with lumbar radiculopathy confirmed on Magnetic Resonance Imaging (MRI) showing L5-S1 disc herniation with nerve root compression.
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : SATISFIED (Authoritative: Deterministic Rules Over LLM)
+         • Pipeline Latency    : 6188 ms
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C4: LCD-36920-C9ba41121
+  Requirement : Trial of conservative therapy (e.g. physical therapy, medication) of at least 4-6 weeks with inadequate relief...
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [SATISFIED]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • conservative_therapy_trial: Documentation of a trial of conservative therapy (e.g., physical therapy, medication) for at least 4-6 weeks with evidence of inadequate relief or intolerance.
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : "Conservative physical therapy was tried for 8 weeks along with oral gabapentin without adequate relief."
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : SUPPORTED
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : SATISFIED
+  │      • Citations Validated : Conservative physical therapy was tried for 8 weeks along with oral gabapentin without adequate relief.
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : SATISFIED (Authoritative: Deterministic Rules Over LLM)
+         • Pipeline Latency    : 7953 ms
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C5: ARTICLE-56681-HCPCS
+  Requirement : The requested procedure must be an applicable service under the Article.
+  Type        : STRUCTURED | Evaluator: SQL | Status: [SATISFIED]
+
+  ┌── 🏛️ DETERMINISTIC SQL AUDIT (PostgreSQL)
+  │
+  ├── Repository Source  : PostgreSQL Code Repositories
+  ├── Policy Evidence    : Article 56681 contains HCPCS 64483 in its coverage list.
+  ├── Patient Evidence   : Submitted HCPCS: 64483
+  └── SQL Rule Verdict   : Procedure code 64483 is present in Article 56681 covered procedure list.
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C6: ARTICLE-56681-ICD10-M54.16
+  Requirement : The patient's diagnosis must be an eligible diagnosis under the Article.
+  Type        : STRUCTURED | Evaluator: SQL | Status: [SATISFIED]
+
+  ┌── 🏛️ DETERMINISTIC SQL AUDIT (PostgreSQL)
+  │
+  ├── Repository Source  : PostgreSQL Code Repositories
+  ├── Policy Evidence    : Diagnosis M54.16 is present in the Article's covered ICD-10 data.
+  ├── Patient Evidence   : Submitted ICD-10: M54.16
+  └── SQL Rule Verdict   : Diagnosis code M54.16 is documented as an approved indication under Article 56681.
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+6. EVIDENCE FUSION ENGINE (Authority Precedence Truth Table)
+---------------------------------------------------------------------------
+  • Criteria SATISFIED     : 6
+  • Criteria NOT_SATISFIED : 0  (Deterministic Exclusions Override AI)
+  • Criteria UNKNOWN       : 0  (Missing Documentation Routed to Information Request)
+  • Evidence Fusion Result : COVERED
+
+7. FINAL 3-DISPOSITION ADJUDICATION DECISION
+---------------------------------------------------------------------------
+  DISPOSITION : ✅ APPROVE
+  REASON      : All applicable policy criteria were satisfied. The submitted procedure and diagnosis codes are covered under the applicable Medicare policy.
+  REASON CODES: ARTICLE_CRITERIA_SATISFIED
+
+  CLINICAL DECISION BASIS:
+    All mandatory policy requirements were satisfied by clinical evidence.
+      • LCD-36920-HCPCS: SATISFIED — The requested procedure must be an applicable service under LCD 36920.
+      • LCD-36920-ICD10-M54.16: SATISFIED — The patient's diagnosis must be an eligible diagnosis under LCD 36920.
+      • LCD-36920-Cfd4793e9: SATISFIED — Diagnosis of radiculopathy confirmed on concordant imaging (MRI or CT).
+      • LCD-36920-C9ba41121: SATISFIED — Trial of conservative therapy (e.g. physical therapy, medication) of at least 4-6 weeks with inadequate relief or intolerance.
+      • ARTICLE-56681-HCPCS: SATISFIED — The requested procedure must be an applicable service under the Article.
+      • ARTICLE-56681-ICD10-M54.16: SATISFIED — The patient's diagnosis must be an eligible diagnosis under the Article.
+
+
+===========================================================================
+  CASE: PEND — Mandatory Requirement Conflict (Non-Covered Joint Pain for Trigger Point Injection) (PA-REAL-003)
+===========================================================================
+
+1. REQUEST INTAKE DATA
+---------------------------------------------------------------------------
+  • Procedure Code (HCPCS/CPT) : 20552
+  • Diagnosis Codes (ICD-10)   : M25.50
+  • Service State              : TX
+  • Patient Age                : 61
+  • Clinical Documentation     : Injection(s), single or multiple trigger point(s), 1 or 2 muscle(s) for pain in unspecified joint without documented myofascial trigger points.
+
+2. GOVERNING POLICY HIERARCHY & RESOLUTION
+---------------------------------------------------------------------------
+  [Hierarchy Tier 1] NCD (National)     : 373 (EXCLUDED)
+  [Hierarchy Tier 2] MAC Jurisdiction   : TX → NOT_ADDRESSED
+  [Hierarchy Tier 3] LCD (Local Policy) : NOT_ADDRESSED
+
+3. RAG VECTOR RETRIEVAL (pgvector Cosine Search)
+---------------------------------------------------------------------------
+  [Chunk 1] Source Policy : NCD 373 | Section: indications_limitations
+            Similarity Score: 0.3607 (Model: sentence-transformers/all-MiniLM-L6-v2)
+            Retrieved Text  : "B. Nationally Covered Indications Effective for services performed on or after January 21, 2020, CMS will cover acupuncture for Medicare patients with chronic Lower Back Pain (cLBP..."
+  [Chunk 2] Source Policy : NCD 373 | Section: item_service_description
+            Similarity Score: 0.3027 (Model: sentence-transformers/all-MiniLM-L6-v2)
+            Retrieved Text  : "A. General Acupuncture is the selection and manipulation of specific acupuncture points by a variety of needling and non-needling techniques...."
+  [Chunk 3] Source Policy : NCD 373 | Section: title
+            Similarity Score: 0.2882 (Model: sentence-transformers/all-MiniLM-L6-v2)
+            Retrieved Text  : "Acupuncture for Chronic Lower Back Pain (cLBP)..."
+
+5. POLICY CRITERIA ADJUDICATION & AGENT TRACE
+---------------------------------------------------------------------------
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C1: NCD-373-HCPCS
+  Requirement : The requested procedure must not be explicitly excluded by NCD 373.
+  Type        : STRUCTURED | Evaluator: SQL | Status: [NOT_SATISFIED]
+
+  ┌── 🏛️ DETERMINISTIC SQL AUDIT (PostgreSQL)
+  │
+  ├── Repository Source  : PostgreSQL Code Repositories
+  ├── Policy Evidence    : NCD 373 explicitly excludes HCPCS 20552.
+  ├── Patient Evidence   : Submitted HCPCS: 20552
+  └── SQL Rule Verdict   : Procedure 20552 is listed in NCD 373 which EXCLUDES coverage. Criterion NOT_SATISFIED by deterministic SQL check.
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C2: NCD-373-Ce7649fb2
+  Requirement : Acupuncture is covered for chronic lower back pain (cLBP) lasting 12 weeks or longer with no systemic cause.
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [UNKNOWN]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • Acupuncture is covered for chronic lower back pain (cLBP) lasting 12 weeks or longer with no systemi
+  │      • B. Nationally Covered Indications Effective for services performed on or after January 21, 2020, CMS
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : (None found in submitted records)
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : INSUFFICIENT_EVIDENCE
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : UNKNOWN
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : UNKNOWN (Authoritative: Deterministic Rules Over LLM)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C3: NCD-373-C50ad5ad9
+  Requirement : Acupuncture or dry needling for any condition other than cLBP is non-covered by Medicare.
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [UNKNOWN]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • Acupuncture or dry needling for any condition other than cLBP is non-covered by Medicare.
+  │      • B. Nationally Covered Indications Effective for services performed on or after January 21, 2020, CMS
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : (None found in submitted records)
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : INSUFFICIENT_EVIDENCE
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : UNKNOWN
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : UNKNOWN (Authoritative: Deterministic Rules Over LLM)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C4: NCD-373-C39e7bb25
+  Requirement : A. General Acupuncture is the selection and manipulation of specific acupuncture points by a variety of needli...
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [UNKNOWN]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • A. General Acupuncture is the selection and manipulation of specific acupuncture points by a variety
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : (None found in submitted records)
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : INSUFFICIENT_EVIDENCE
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : UNKNOWN
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : UNKNOWN (Authoritative: Deterministic Rules Over LLM)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C5: NCD-373-C3adf5a6b
+  Requirement : Acupuncture for Chronic Lower Back Pain (cLBP)
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [UNKNOWN]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • Acupuncture for Chronic Lower Back Pain (cLBP)
+  │      • Required: diagnostic_confirmation: Diagnosis of chronic lower back pain (ICD-10 code M25.50) support
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : (None found in submitted records)
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : INSUFFICIENT_EVIDENCE
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : UNKNOWN
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : UNKNOWN (Authoritative: Deterministic Rules Over LLM)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+6. EVIDENCE FUSION ENGINE (Authority Precedence Truth Table)
+---------------------------------------------------------------------------
+  • Criteria SATISFIED     : 0
+  • Criteria NOT_SATISFIED : 1  (Deterministic Exclusions Override AI)
+  • Criteria UNKNOWN       : 4  (Missing Documentation Routed to Information Request)
+  • Evidence Fusion Result : EXCLUDED
+
+7. FINAL 3-DISPOSITION ADJUDICATION DECISION
+---------------------------------------------------------------------------
+  DISPOSITION : ⚠️ PEND (Nurse Review)
+  REASON      : The requested service conflicts with an applicable National Coverage Determination (NCD) policy exclusion. The case requires nurse/UM review to determine the appropriate disposition.
+  REASON CODES: NCD_EXCLUDES_PROCEDURE
+
+  CLINICAL DECISION BASIS:
+    The requested service conflicts with an applicable policy exclusion or requires human adjudication. The case has been pended for nurse/UM review.
+      • NCD-373-HCPCS: NOT_SATISFIED — The requested procedure must not be explicitly excluded by NCD 373.
+      • NCD-373-Ce7649fb2: UNKNOWN — Acupuncture is covered for chronic lower back pain (cLBP) lasting 12 weeks or longer with no systemic cause.
+      • NCD-373-C50ad5ad9: UNKNOWN — Acupuncture or dry needling for any condition other than cLBP is non-covered by Medicare.
+      • NCD-373-C39e7bb25: UNKNOWN — A. General Acupuncture is the selection and manipulation of specific acupuncture points by a variety of needling and non-needling techniques.
+      • NCD-373-C3adf5a6b: UNKNOWN — Acupuncture for Chronic Lower Back Pain (cLBP)
+
+
+===========================================================================
+  CASE: NEED_MORE_INFORMATION — Missing Clinical Documentation (Unlisted Headache for Epidural) (PA-REAL-004)
+===========================================================================
+
+1. REQUEST INTAKE DATA
+---------------------------------------------------------------------------
+  • Procedure Code (HCPCS/CPT) : 64483
+  • Diagnosis Codes (ICD-10)   : R51.9
+  • Service State              : TX
+  • Patient Age                : 67
+  • Clinical Documentation     : Epidural injection, lumbar or sacral for unspecified headache. No spinal physical examination or spinal MRI documentation provided in current submission.
+
+2. GOVERNING POLICY HIERARCHY & RESOLUTION
+---------------------------------------------------------------------------
+  [Hierarchy Tier 1] NCD (National)     : NOT_ADDRESSED (NOT_ADDRESSED)
+  [Hierarchy Tier 2] MAC Jurisdiction   : TX → MATCHED
+  [Hierarchy Tier 3] LCD (Local Policy) : LCD 36920 — Epidural Steroid Injections for Pain Management (UNKNOWN)
+  [Hierarchy Tier 4] Article (Code Map) : Article 56681 (UNKNOWN)
+
+3. RAG VECTOR RETRIEVAL (pgvector Cosine Search)
+---------------------------------------------------------------------------
+  [Chunk 1] Source Policy : LCD 36920 | Section: indications_limitations
+            Similarity Score: 0.8000 (Model: sentence-transformers/all-MiniLM-L6-v2)
+            Retrieved Text  : "Compliance with the provisions in this LCD may be monitored and addressed through post payment data analysis and subsequent medical review audits.History/Background and/or General ..."
+
+4. DETERMINISTIC RELATIONAL CODE MATCHING (PostgreSQL)
+---------------------------------------------------------------------------
+  [✓] HCPCS  64483 → LCD 36920       → MATCHED    (Procedure code '64483' is listed in LCD 36920 applicable HCPCS data.)
+  [✓] HCPCS  64483 → Article 56681   → MATCHED    (Procedure code '64483' is listed in article 56681.)
+  [!] ICD-10 R51.9 → Article 56681   → NOT_FOUND  (Diagnosis 'R51.9' not found in article 56681.)
+
+5. POLICY CRITERIA ADJUDICATION & AGENT TRACE
+---------------------------------------------------------------------------
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C1: LCD-36920-HCPCS
+  Requirement : The requested procedure must be an applicable service under LCD 36920.
+  Type        : STRUCTURED | Evaluator: SQL | Status: [SATISFIED]
+
+  ┌── 🏛️ DETERMINISTIC SQL AUDIT (PostgreSQL)
+  │
+  ├── Repository Source  : PostgreSQL Code Repositories
+  ├── Policy Evidence    : LCD 36920 contains HCPCS 64483 in its applicable procedure list.
+  ├── Patient Evidence   : Submitted HCPCS: 64483
+  └── SQL Rule Verdict   : Procedure 64483 is listed in LCD 36920 applicable HCPCS data. Criterion SATISFIED by deterministic SQL check.
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C2: LCD-36920-Cfd4793e9
+  Requirement : Diagnosis of radiculopathy confirmed on concordant imaging (MRI or CT).
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [UNKNOWN]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • Diagnosis of radiculopathy confirmed on concordant imaging (MRI or CT).
+  │      • Compliance with the provisions in this LCD may be monitored and addressed through post payment data 
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : "Submitted diagnosis codes: R51.9"
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : INSUFFICIENT_EVIDENCE
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : UNKNOWN
+  │      • Citations Validated : Submitted diagnosis codes: R51.9
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : UNKNOWN (Authoritative: Deterministic Rules Over LLM)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C3: LCD-36920-C9ba41121
+  Requirement : Trial of conservative therapy (e.g. physical therapy, medication) of at least 4-6 weeks with inadequate relief...
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [UNKNOWN]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • Trial of conservative therapy (e.g. physical therapy, medication) of at least 4-6 weeks with inadequ
+  │      • Compliance with the provisions in this LCD may be monitored and addressed through post payment data 
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : (None found in submitted records)
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : INSUFFICIENT_EVIDENCE
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : UNKNOWN
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : UNKNOWN (Authoritative: Deterministic Rules Over LLM)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C4: ARTICLE-56681-HCPCS
+  Requirement : The requested procedure must be an applicable service under the Article.
+  Type        : STRUCTURED | Evaluator: SQL | Status: [SATISFIED]
+
+  ┌── 🏛️ DETERMINISTIC SQL AUDIT (PostgreSQL)
+  │
+  ├── Repository Source  : PostgreSQL Code Repositories
+  ├── Policy Evidence    : Article 56681 contains HCPCS 64483 in its coverage list.
+  ├── Patient Evidence   : Submitted HCPCS: 64483
+  └── SQL Rule Verdict   : Procedure code 64483 is present in Article 56681 covered procedure list.
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+6. EVIDENCE FUSION ENGINE (Authority Precedence Truth Table)
+---------------------------------------------------------------------------
+  • Criteria SATISFIED     : 2
+  • Criteria NOT_SATISFIED : 0  (Deterministic Exclusions Override AI)
+  • Criteria UNKNOWN       : 2  (Missing Documentation Routed to Information Request)
+  • Evidence Fusion Result : UNKNOWN
+
+7. FINAL 3-DISPOSITION ADJUDICATION DECISION
+---------------------------------------------------------------------------
+  DISPOSITION : ℹ️ NEED MORE INFORMATION
+  REASON      : Additional documentation is required to complete evaluation: Diagnosis code 'R51.9' not found in policy code lists; Missing explicitly covered diagnosis codes; Diagnostic imaging report or radiographic confirmation (MRI / X-ray); Evidence of failed conservative physical therapy or medication trial.
+  REASON CODES: MISSING_REQUIRED_INFORMATION
+
+  CLINICAL DECISION BASIS:
+    Additional clinical information or documentation is required before an approval can be issued.
+      • LCD-36920-HCPCS: SATISFIED — The requested procedure must be an applicable service under LCD 36920.
+      • LCD-36920-Cfd4793e9: UNKNOWN — Diagnosis of radiculopathy confirmed on concordant imaging (MRI or CT).
+      • LCD-36920-C9ba41121: UNKNOWN — Trial of conservative therapy (e.g. physical therapy, medication) of at least 4-6 weeks with inadequate relief or intolerance.
+      • ARTICLE-56681-HCPCS: SATISFIED — The requested procedure must be an applicable service under the Article.
+
+
+===========================================================================
+  CASE: PEND — Explicit Policy Exclusion under NCD 373 (PA-REAL-005)
+===========================================================================
+
+1. REQUEST INTAKE DATA
+---------------------------------------------------------------------------
+  • Procedure Code (HCPCS/CPT) : 20552
+  • Diagnosis Codes (ICD-10)   : M25.50
+  • Service State              : TX
+  • Patient Age                : 57
+  • Clinical Documentation     : Trigger point injection for acupuncture-related indications and trigger point exclusions under NCD 373.
+
+2. GOVERNING POLICY HIERARCHY & RESOLUTION
+---------------------------------------------------------------------------
+  [Hierarchy Tier 1] NCD (National)     : 373 (EXCLUDED)
+  [Hierarchy Tier 2] MAC Jurisdiction   : TX → NOT_ADDRESSED
+  [Hierarchy Tier 3] LCD (Local Policy) : NOT_ADDRESSED
+
+3. RAG VECTOR RETRIEVAL (pgvector Cosine Search)
+---------------------------------------------------------------------------
+  [Chunk 1] Source Policy : NCD 373 | Section: indications_limitations
+            Similarity Score: 0.5940 (Model: sentence-transformers/all-MiniLM-L6-v2)
+            Retrieved Text  : "B. Nationally Covered Indications Effective for services performed on or after January 21, 2020, CMS will cover acupuncture for Medicare patients with chronic Lower Back Pain (cLBP..."
+  [Chunk 2] Source Policy : NCD 373 | Section: item_service_description
+            Similarity Score: 0.5784 (Model: sentence-transformers/all-MiniLM-L6-v2)
+            Retrieved Text  : "A. General Acupuncture is the selection and manipulation of specific acupuncture points by a variety of needling and non-needling techniques...."
+  [Chunk 3] Source Policy : NCD 373 | Section: title
+            Similarity Score: 0.5121 (Model: sentence-transformers/all-MiniLM-L6-v2)
+            Retrieved Text  : "Acupuncture for Chronic Lower Back Pain (cLBP)..."
+
+5. POLICY CRITERIA ADJUDICATION & AGENT TRACE
+---------------------------------------------------------------------------
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C1: NCD-373-HCPCS
+  Requirement : The requested procedure must not be explicitly excluded by NCD 373.
+  Type        : STRUCTURED | Evaluator: SQL | Status: [NOT_SATISFIED]
+
+  ┌── 🏛️ DETERMINISTIC SQL AUDIT (PostgreSQL)
+  │
+  ├── Repository Source  : PostgreSQL Code Repositories
+  ├── Policy Evidence    : NCD 373 explicitly excludes HCPCS 20552.
+  ├── Patient Evidence   : Submitted HCPCS: 20552
+  └── SQL Rule Verdict   : Procedure 20552 is listed in NCD 373 which EXCLUDES coverage. Criterion NOT_SATISFIED by deterministic SQL check.
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C2: NCD-373-Ce7649fb2
+  Requirement : Acupuncture is covered for chronic lower back pain (cLBP) lasting 12 weeks or longer with no systemic cause.
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [UNKNOWN]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • Acupuncture is covered for chronic lower back pain (cLBP) lasting 12 weeks or longer with no systemi
+  │      • B. Nationally Covered Indications Effective for services performed on or after January 21, 2020, CMS
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : (None found in submitted records)
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : INSUFFICIENT_EVIDENCE
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : UNKNOWN
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : UNKNOWN (Authoritative: Deterministic Rules Over LLM)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C3: NCD-373-C50ad5ad9
+  Requirement : Acupuncture or dry needling for any condition other than cLBP is non-covered by Medicare.
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [UNKNOWN]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • Acupuncture or dry needling for any condition other than cLBP is non-covered by Medicare.
+  │      • B. Nationally Covered Indications Effective for services performed on or after January 21, 2020, CMS
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : (None found in submitted records)
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : INSUFFICIENT_EVIDENCE
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : UNKNOWN
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : UNKNOWN (Authoritative: Deterministic Rules Over LLM)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C4: NCD-373-C39e7bb25
+  Requirement : A. General Acupuncture is the selection and manipulation of specific acupuncture points by a variety of needli...
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [UNKNOWN]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • A. General Acupuncture is the selection and manipulation of specific acupuncture points by a variety
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : (None found in submitted records)
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : INSUFFICIENT_EVIDENCE
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : UNKNOWN
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : UNKNOWN (Authoritative: Deterministic Rules Over LLM)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C5: NCD-373-C3adf5a6b
+  Requirement : Acupuncture for Chronic Lower Back Pain (cLBP)
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [UNKNOWN]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • Acupuncture for Chronic Lower Back Pain (cLBP)
+  │      • Required: diagnostic_confirmation: Diagnosis of chronic lower back pain (ICD-10 code M25.50) support
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : (None found in submitted records)
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : INSUFFICIENT_EVIDENCE
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : UNKNOWN
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : UNKNOWN (Authoritative: Deterministic Rules Over LLM)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+6. EVIDENCE FUSION ENGINE (Authority Precedence Truth Table)
+---------------------------------------------------------------------------
+  • Criteria SATISFIED     : 0
+  • Criteria NOT_SATISFIED : 1  (Deterministic Exclusions Override AI)
+  • Criteria UNKNOWN       : 4  (Missing Documentation Routed to Information Request)
+  • Evidence Fusion Result : EXCLUDED
+
+7. FINAL 3-DISPOSITION ADJUDICATION DECISION
+---------------------------------------------------------------------------
+  DISPOSITION : ⚠️ PEND (Nurse Review)
+  REASON      : The requested service conflicts with an applicable National Coverage Determination (NCD) policy exclusion. The case requires nurse/UM review to determine the appropriate disposition.
+  REASON CODES: NCD_EXCLUDES_PROCEDURE
+
+  CLINICAL DECISION BASIS:
+    The requested service conflicts with an applicable policy exclusion or requires human adjudication. The case has been pended for nurse/UM review.
+      • NCD-373-HCPCS: NOT_SATISFIED — The requested procedure must not be explicitly excluded by NCD 373.
+      • NCD-373-Ce7649fb2: UNKNOWN — Acupuncture is covered for chronic lower back pain (cLBP) lasting 12 weeks or longer with no systemic cause.
+      • NCD-373-C50ad5ad9: UNKNOWN — Acupuncture or dry needling for any condition other than cLBP is non-covered by Medicare.
+      • NCD-373-C39e7bb25: UNKNOWN — A. General Acupuncture is the selection and manipulation of specific acupuncture points by a variety of needling and non-needling techniques.
+      • NCD-373-C3adf5a6b: UNKNOWN — Acupuncture for Chronic Lower Back Pain (cLBP)
+
+
+===========================================================================
+  CASE: NEED_MORE_INFORMATION — Administrative Exam Code Missing Underlying Pathology (PA-REAL-006)
+===========================================================================
+
+1. REQUEST INTAKE DATA
+---------------------------------------------------------------------------
+  • Procedure Code (HCPCS/CPT) : 20610
+  • Diagnosis Codes (ICD-10)   : Z00.00
+  • Service State              : TX
+  • Patient Age                : 44
+  • Clinical Documentation     : Intraarticular knee injection of hyaluronan for general medical examination without documentation of current joint pain or physical therapy records.
+
+2. GOVERNING POLICY HIERARCHY & RESOLUTION
+---------------------------------------------------------------------------
+  [Hierarchy Tier 1] NCD (National)     : NOT_ADDRESSED (NOT_ADDRESSED)
+  [Hierarchy Tier 2] MAC Jurisdiction   : TX → MATCHED
+  [Hierarchy Tier 3] LCD (Local Policy) : LCD 39529 — Intraarticular Knee Injections of Hyaluronan (UNKNOWN)
+  [Hierarchy Tier 4] Article (Code Map) : Article 56157 (UNKNOWN)
+
+3. RAG VECTOR RETRIEVAL (pgvector Cosine Search)
+---------------------------------------------------------------------------
+  [Chunk 1] Source Policy : LCD 39529 | Section: indications_limitations
+            Similarity Score: 0.8000 (Model: sentence-transformers/all-MiniLM-L6-v2)
+            Retrieved Text  : "Compliance with the provisions in this policy may be monitored and addressed through post payment data analysis and subsequent medical review audits. History/Background and/or Gene..."
+
+4. DETERMINISTIC RELATIONAL CODE MATCHING (PostgreSQL)
+---------------------------------------------------------------------------
+  [✓] HCPCS  20610 → LCD 39529       → MATCHED    (Procedure code '20610' is listed in LCD 39529 applicable HCPCS data.)
+  [✓] HCPCS  20610 → Article 56157   → MATCHED    (Procedure code '20610' is listed in article 56157.)
+  [!] ICD-10 Z00.00 → Article 56157   → NOT_FOUND  (Diagnosis 'Z00.00' not found in article 56157.)
+
+5. POLICY CRITERIA ADJUDICATION & AGENT TRACE
+---------------------------------------------------------------------------
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C1: LCD-39529-HCPCS
+  Requirement : The requested procedure must be an applicable service under LCD 39529.
+  Type        : STRUCTURED | Evaluator: SQL | Status: [SATISFIED]
+
+  ┌── 🏛️ DETERMINISTIC SQL AUDIT (PostgreSQL)
+  │
+  ├── Repository Source  : PostgreSQL Code Repositories
+  ├── Policy Evidence    : LCD 39529 contains HCPCS 20610 in its applicable procedure list.
+  ├── Patient Evidence   : Submitted HCPCS: 20610
+  └── SQL Rule Verdict   : Procedure 20610 is listed in LCD 39529 applicable HCPCS data. Criterion SATISFIED by deterministic SQL check.
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C2: LCD-39529-C89e3fba7
+  Requirement : Patient has symptomatic osteoarthritis of the knee.
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [UNKNOWN]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • Patient has symptomatic osteoarthritis of the knee.
+  │      • Compliance with the provisions in this policy may be monitored and addressed through post payment da
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : (None found in submitted records)
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : INSUFFICIENT_EVIDENCE
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : UNKNOWN
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : UNKNOWN (Authoritative: Deterministic Rules Over LLM)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C3: LCD-39529-C1a8fb399
+  Requirement : Documented trial of conservative therapy (e.g. physical therapy, NSAIDs, analgesics) with inadequate response.
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [UNKNOWN]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • Documented trial of conservative therapy (e.g. physical therapy, NSAIDs, analgesics) with inadequate
+  │      • Compliance with the provisions in this policy may be monitored and addressed through post payment da
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : (None found in submitted records)
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : INSUFFICIENT_EVIDENCE
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : UNKNOWN
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : UNKNOWN (Authoritative: Deterministic Rules Over LLM)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C4: ARTICLE-56157-HCPCS
+  Requirement : The requested procedure must be an applicable service under the Article.
+  Type        : STRUCTURED | Evaluator: SQL | Status: [SATISFIED]
+
+  ┌── 🏛️ DETERMINISTIC SQL AUDIT (PostgreSQL)
+  │
+  ├── Repository Source  : PostgreSQL Code Repositories
+  ├── Policy Evidence    : Article 56157 contains HCPCS 20610 in its coverage list.
+  ├── Patient Evidence   : Submitted HCPCS: 20610
+  └── SQL Rule Verdict   : Procedure code 20610 is present in Article 56157 covered procedure list.
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+6. EVIDENCE FUSION ENGINE (Authority Precedence Truth Table)
+---------------------------------------------------------------------------
+  • Criteria SATISFIED     : 2
+  • Criteria NOT_SATISFIED : 0  (Deterministic Exclusions Override AI)
+  • Criteria UNKNOWN       : 2  (Missing Documentation Routed to Information Request)
+  • Evidence Fusion Result : UNKNOWN
+
+7. FINAL 3-DISPOSITION ADJUDICATION DECISION
+---------------------------------------------------------------------------
+  DISPOSITION : ℹ️ NEED MORE INFORMATION
+  REASON      : Additional documentation is required to complete evaluation: Diagnosis code 'Z00.00' not found in policy code lists; Missing explicitly covered diagnosis codes; Clinical documentation of documented joint disease severity; Evidence of failed conservative physical therapy or medication trial.
+  REASON CODES: MISSING_REQUIRED_INFORMATION
+
+  CLINICAL DECISION BASIS:
+    Additional clinical information or documentation is required before an approval can be issued.
+      • LCD-39529-HCPCS: SATISFIED — The requested procedure must be an applicable service under LCD 39529.
+      • LCD-39529-C89e3fba7: UNKNOWN — Patient has symptomatic osteoarthritis of the knee.
+      • LCD-39529-C1a8fb399: UNKNOWN — Documented trial of conservative therapy (e.g. physical therapy, NSAIDs, analgesics) with inadequate response.
+      • ARTICLE-56157-HCPCS: SATISFIED — The requested procedure must be an applicable service under the Article.
+
+
+===========================================================================
+  CASE: APPROVE — Intravenous Immune Globulin Covered under National Policy NCD 158 (PA-REAL-007)
+===========================================================================
+
+1. REQUEST INTAKE DATA
+---------------------------------------------------------------------------
+  • Procedure Code (HCPCS/CPT) : J1561
+  • Diagnosis Codes (ICD-10)   : L10.0
+  • Service State              : TX
+  • Patient Age                : 58
+  • Clinical Documentation     : Intravenous immune globulin infusion for biopsy-proven pemphigus vulgaris refractory to standard systemic corticosteroid therapy.
+
+2. GOVERNING POLICY HIERARCHY & RESOLUTION
+---------------------------------------------------------------------------
+  [Hierarchy Tier 1] NCD (National)     : 158 (COVERED)
+  [Hierarchy Tier 2] MAC Jurisdiction   : TX → NOT_ADDRESSED
+  [Hierarchy Tier 3] LCD (Local Policy) : NOT_ADDRESSED
+
+3. RAG VECTOR RETRIEVAL (pgvector Cosine Search)
+---------------------------------------------------------------------------
+  [Chunk 1] Source Policy : NCD 158 | Section: indications_limitations
+            Similarity Score: 0.5856 (Model: sentence-transformers/all-MiniLM-L6-v2)
+            Retrieved Text  : "Effective October 1, 2002, IVIg is covered for the treatment of biopsy-proven (1) Pemphigus Vulgaris, (2) Pemphigus Foliaceus, (3) Bullous Pemphigoid, (4) Mucous Membrane Pemphigoi..."
+  [Chunk 2] Source Policy : NCD 158 | Section: title
+            Similarity Score: 0.5569 (Model: sentence-transformers/all-MiniLM-L6-v2)
+            Retrieved Text  : "Intravenous Immune Globulin for the Treatment of Autoimmune Mucocutaneous Blistering Diseases..."
+  [Chunk 3] Source Policy : NCD 158 | Section: item_service_description
+            Similarity Score: 0.4592 (Model: sentence-transformers/all-MiniLM-L6-v2)
+            Retrieved Text  : "Intravenous immune globulin (IVIg) is a blood product prepared from the pooled plasma of donors. It has been used to treat a variety of autoimmune diseases, including mucocutaneous..."
+
+4. DETERMINISTIC RELATIONAL CODE MATCHING (PostgreSQL)
+---------------------------------------------------------------------------
+  [✓] HCPCS  J1561 → NCD 158         → MATCHED    (Procedure code 'J1561' is listed in NCD 158 covered codes.)
+
+5. POLICY CRITERIA ADJUDICATION & AGENT TRACE
+---------------------------------------------------------------------------
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C1: NCD-158-HCPCS
+  Requirement : The requested procedure must be an applicable service under NCD 158.
+  Type        : STRUCTURED | Evaluator: SQL | Status: [SATISFIED]
+
+  ┌── 🏛️ DETERMINISTIC SQL AUDIT (PostgreSQL)
+  │
+  ├── Repository Source  : PostgreSQL Code Repositories
+  ├── Policy Evidence    : NCD 158 contains HCPCS J1561 in its covered-procedure list.
+  ├── Patient Evidence   : Submitted HCPCS: J1561
+  └── SQL Rule Verdict   : Procedure J1561 is listed in NCD 158 covered HCPCS codes. Criterion SATISFIED by deterministic SQL check.
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C2: NCD-158-C8b2a5a2f
+  Requirement : IVIg is covered for the treatment of biopsy-proven Pemphigus Vulgaris (or covered mucocutaneous blistering dis...
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [SATISFIED]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • diagnostic_confirmation: Biopsy-proven diagnosis of one of: Pemphigus Vulgaris, Pemphigus Foliaceus, Bullous Pemphigoid, Mucous Membrane Pemphigoid, or Epidermolysis Bullosa Acquisita
+  │      • treatment_context: Documentation that patient meets one of: failure of conventional therapy, contraindication to conventional therapy, or rapidly progressive disease requiring IVIg as bridging therapy
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : "biopsy-proven pemphigus vulgaris"
+  │      • Supporting Evidence : "refractory to standard systemic corticosteroid therapy"
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : SUPPORTED
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : SATISFIED
+  │      • Citations Validated : biopsy-proven pemphigus vulgaris, refractory to standard systemic corticosteroid therapy
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : SATISFIED (Authoritative: Deterministic Rules Over LLM)
+         • Pipeline Latency    : 6985 ms
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C3: NCD-158-C212a74b2
+  Requirement : Patient has failed conventional therapy (or conventional therapy is contraindicated or rapidly progressive).
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [SATISFIED]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • therapy_failure_or_contraindication_or_rapid_progression: Patient must have ONE of: failed conventional therapy, contraindication to conventional therapy, or rapidly progressive disease as defined by the Medicare Administrative Contractor.
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : "refractory to standard systemic corticosteroid therapy"
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : SUPPORTED
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : SATISFIED
+  │      • Citations Validated : refractory to standard systemic corticosteroid therapy
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : SATISFIED (Authoritative: Deterministic Rules Over LLM)
+         • Pipeline Latency    : 5687 ms
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C4: NCD-158-C2e84b768
+  Requirement : Intravenous Immune Globulin for the Treatment of Autoimmune Mucocutaneous Blistering Diseases
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [UNKNOWN]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • Intravenous Immune Globulin for the Treatment of Autoimmune Mucocutaneous Blistering Diseases
+  │      • Required: diagnostic_confirmation: Diagnosis of autoimmune mucocutaneous blistering disease (e.g., L
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : "Intravenous immune globulin infusion for biopsy-proven pemphigus vulgaris refractory to standard systemic corticosteroid therapy."
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : INSUFFICIENT_EVIDENCE
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : UNKNOWN
+  │      • Citations Validated : Intravenous immune globulin infusion for biopsy-proven pemphigus vulgaris refractory to standard systemic corticosteroid therapy.
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : UNKNOWN (Authoritative: Deterministic Rules Over LLM)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CRITERION C5: NCD-158-Cff4a4e5a
+  Requirement : Intravenous immune globulin (IVIg) is a blood product prepared from the pooled plasma of donors. It has been u...
+  Type        : SEMANTIC | Evaluator: AGENTIC_QWEN | Status: [SATISFIED]
+
+  ┌── 🤖 5-STAGE AGENTIC EXECUTION TRACE
+  │
+  ├── 1. [PolicyAgent] (LLM: Qwen — Requirement Decomposition)
+  │      Decomposes policy text into expected clinical evidence categories:
+  │      • diagnostic_confirmation: Diagnosis of an autoimmune disease, including mucocutaneous blistering disease
+  │
+  ├── 2. [ClinicalEvidenceAgent] (LLM: Qwen + Medical Synonym Lexicon)
+  │      Scans clinical notes, expands synonyms (e.g. PT->Physical Therapy, ESI->Epidural):
+  │      • Supporting Evidence : "Intravenous immune globulin infusion for biopsy-proven pemphigus vulgaris refractory to standard systemic corticosteroid therapy."
+  │      • Fabrication Guard   : Word-presence filter verified citations in raw text
+  │
+  ├── 3. [EvaluationAgent] (Deterministic Heuristic / No LLM)
+  │      • Pre-Assessment      : SUPPORTED
+  │      • Prompt Isolation    : Structured clinical facts isolated from instructions
+  │
+  ├── 4. [Qwen Reasoning Engine] (LLM: Qwen Bedrock)
+  │      • Semantic Verdict    : SATISFIED
+  │      • Citations Validated : Intravenous immune globulin infusion for biopsy-proven pemphigus vulgaris refractory to standard systemic corticosteroid therapy.
+  │
+  └── 5. [CriticAgent] (Deterministic Safety Guard / No LLM)
+         • Critic Verdict      : VALIDATED
+         • Safety Audits Run   : 5 checks (Grounding, Word Overlap >= 35%, Absence vs Contradiction)
+         • Fused Verdict       : SATISFIED (Authoritative: Deterministic Rules Over LLM)
+         • Pipeline Latency    : 8204 ms
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+6. EVIDENCE FUSION ENGINE (Authority Precedence Truth Table)
+---------------------------------------------------------------------------
+  • Criteria SATISFIED     : 4
+  • Criteria NOT_SATISFIED : 0  (Deterministic Exclusions Override AI)
+  • Criteria UNKNOWN       : 1  (Missing Documentation Routed to Information Request)
+  • Evidence Fusion Result : COVERED
+
+7. FINAL 3-DISPOSITION ADJUDICATION DECISION
+---------------------------------------------------------------------------
+  DISPOSITION : ✅ APPROVE
+  REASON      : All applicable policy criteria were satisfied. The submitted procedure meets National Coverage Determination criteria.
+  REASON CODES: NCD_CRITERIA_SATISFIED
+
+  CLINICAL DECISION BASIS:
+    All mandatory policy requirements were satisfied by clinical evidence.
+      • NCD-158-HCPCS: SATISFIED — The requested procedure must be an applicable service under NCD 158.
+      • NCD-158-C8b2a5a2f: SATISFIED — IVIg is covered for the treatment of biopsy-proven Pemphigus Vulgaris (or covered mucocutaneous blistering disease).
+      • NCD-158-C212a74b2: SATISFIED — Patient has failed conventional therapy (or conventional therapy is contraindicated or rapidly progressive).
+      • NCD-158-C2e84b768: UNKNOWN — Intravenous Immune Globulin for the Treatment of Autoimmune Mucocutaneous Blistering Diseases
+      • NCD-158-Cff4a4e5a: SATISFIED — Intravenous immune globulin (IVIg) is a blood product prepared from the pooled plasma of donors. It has been used to treat a variety of autoimmune diseases, including mucocutaneous blistering diseases. It has fewer side effects than steroids or immun
+
+===========================================================================
+  END OF DEMO
+===========================================================================
+

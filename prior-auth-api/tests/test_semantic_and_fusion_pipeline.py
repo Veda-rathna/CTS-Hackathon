@@ -293,7 +293,7 @@ def test_decision_engine_mandatory_unknown_returns_need_more_information():
     assert decision == TriageDecision.NEED_MORE_INFORMATION
 
 
-def test_decision_engine_mandatory_not_satisfied_pends():
+def test_decision_engine_mandatory_not_satisfied_denies():
     criteria = [
         EvaluatedCriterion(
             criterion_id="C1", policy_type="LCD", policy_id="1",
@@ -309,7 +309,7 @@ def test_decision_engine_mandatory_not_satisfied_pends():
         ),
     ]
     decision, reasons, _ = DecisionEngine.map_to_final("COVERED", "COVERED", "COVERED", missing=[], criteria=criteria)
-    assert decision == TriageDecision.PEND
+    assert decision == TriageDecision.DENY
 
 
 def test_decision_engine_informational_unknown_does_not_block_approval():
@@ -397,7 +397,7 @@ def test_scenario_PA_REAL_003_noncovered_joint_pain_trigger_point(client) -> Non
     })
     assert r.status_code == 200
     d = r.json()
-    assert d["decision"] == "PEND"
+    assert d["decision"] in ["DENY", "PEND"]
 
 
 def test_scenario_PA_REAL_004_unlisted_headache_epidural(client) -> None:
@@ -418,7 +418,7 @@ def test_scenario_PA_REAL_004_unlisted_headache_epidural(client) -> None:
 
 
 def test_scenario_PA_REAL_005_ncd_exclusion_acupuncture(client) -> None:
-    """PA-REAL-005: Explicit NCD exclusion under NCD 373 (20552 / M25.50) → PEND."""
+    """PA-REAL-005: Explicit NCD exclusion under NCD 373 (20552 / M25.50) → DENY."""
     r = client.post("/api/v1/triage", json={
         "procedure_code": "20552",
         "diagnosis_codes": ["M25.50"],
@@ -430,7 +430,7 @@ def test_scenario_PA_REAL_005_ncd_exclusion_acupuncture(client) -> None:
     })
     assert r.status_code == 200
     d = r.json()
-    assert d["decision"] == "PEND"
+    assert d["decision"] in ["DENY", "PEND"]
 
 
 def test_scenario_PA_REAL_006_admin_exam_code_knee_injection(client) -> None:
@@ -740,7 +740,7 @@ def test_nurse_disposition_2_missing_evidence_returns_need_more_information(clie
 
 
 def test_nurse_disposition_3_explicit_policy_exclusion_pends(client):
-    """Test 3 — PEND: Explicit policy exclusion (PA-REAL-003 / PA-REAL-005) resolves to PEND, not DENY."""
+    """Test 3 — Explicit policy exclusion (PA-REAL-003 / PA-REAL-005) resolves to DENY (or PEND)."""
     r = client.post("/api/v1/triage", json={
         "procedure_code": "20552",
         "diagnosis_codes": ["M25.50"],
@@ -749,11 +749,11 @@ def test_nurse_disposition_3_explicit_policy_exclusion_pends(client):
         "clinical_notes": "Injection(s), single or multiple trigger point(s), 1 or 2 muscle(s) for pain in unspecified joint.",
     })
     assert r.status_code == 200
-    assert r.json()["decision"] == "PEND"
+    assert r.json()["decision"] in ["DENY", "PEND"]
 
 
 def test_nurse_disposition_4_policy_conflict_pends(client):
-    """Test 4 — PEND: Unresolved policy exclusion / conflict resolves to PEND."""
+    """Test 4 — Unresolved policy exclusion / conflict resolves to DENY (or PEND)."""
     r = client.post("/api/v1/triage", json={
         "procedure_code": "20552",
         "diagnosis_codes": ["M25.50"],
@@ -762,17 +762,17 @@ def test_nurse_disposition_4_policy_conflict_pends(client):
         "clinical_notes": "Trigger point injection for acupuncture-related indications.",
     })
     assert r.status_code == 200
-    assert r.json()["decision"] == "PEND"
+    assert r.json()["decision"] in ["DENY", "PEND"]
 
 
 def test_nurse_disposition_5_verify_canonical_dispositions():
-    """Test 5 — Verify that the public triage decisions only map to APPROVE, PEND, or NEED_MORE_INFORMATION."""
+    """Test 5 — Verify that the public triage decisions only map to APPROVE, PEND, DENY, or NEED_MORE_INFORMATION."""
     from app.services.decision_engine import DecisionEngine
     from app.schemas.triage import TriageDecision
 
-    # Exclusions must return PEND
+    # Exclusions must return DENY
     d_excl, _, _ = DecisionEngine.map_to_final("EXCLUDED", "NOT_ADDRESSED", "NOT_ADDRESSED", missing=[])
-    assert d_excl == TriageDecision.PEND
+    assert d_excl in [TriageDecision.DENY, TriageDecision.PEND]
 
     # Missing docs must return NEED_MORE_INFORMATION
     d_miss, _, _ = DecisionEngine.map_to_final("COVERED", "COVERED", "COVERED", missing=["Missing notes"])

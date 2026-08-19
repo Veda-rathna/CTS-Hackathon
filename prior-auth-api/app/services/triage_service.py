@@ -727,18 +727,21 @@ def _build_reason_narrative(
             return "All applicable policy criteria were satisfied. The submitted procedure meets National Coverage Determination criteria."
         return "All mandatory policy requirements were satisfied by the clinical documentation. The authorization request is approved."
 
-    if decision in (TriageDecision.PEND, TriageDecision.DENY):
+    if decision == TriageDecision.DENY:
+        if "NCD_EXCLUDES_PROCEDURE" in reason_codes:
+            return "The requested service conflicts with an applicable National Coverage Determination (NCD) policy exclusion. Coverage cannot be authorized under Medicare policy."
+        if "LCD_EXCLUDES_PROCEDURE" in reason_codes:
+            return "The requested service conflicts with an applicable Local Coverage Determination (LCD) policy exclusion. Coverage cannot be authorized under Medicare policy."
+        if "ARTICLE_EXCLUDES_PROCEDURE" in reason_codes:
+            return "The submitted diagnosis code conflicts with policy coverage rules. Coverage cannot be authorized."
+        if "MANDATORY_CRITERIA_NOT_SATISFIED" in reason_codes:
+            return "One or more mandatory clinical policy requirements were not satisfied based on available documentation. Coverage is rejected under governing policy."
+        return "The requested service or diagnosis conflicts with an applicable Medicare policy exclusion or non-covered indication. Coverage cannot be authorized."
+
+    if decision == TriageDecision.PEND:
         if "POLICY_EXPIRED" in reason_codes:
             return "All matching coverage policies for this procedure code have expired and are no longer in effect. The case requires nurse/UM review."
-        if "NCD_EXCLUDES_PROCEDURE" in reason_codes:
-            return "The requested service conflicts with an applicable National Coverage Determination (NCD) policy exclusion. The case requires nurse/UM review to determine the appropriate disposition."
-        if "LCD_EXCLUDES_PROCEDURE" in reason_codes:
-            return "The requested service conflicts with an applicable Local Coverage Determination (LCD) policy exclusion. The case requires nurse/UM review to determine the appropriate disposition."
-        if "ARTICLE_EXCLUDES_PROCEDURE" in reason_codes:
-            return "The submitted diagnosis code conflicts with policy coverage rules. The case requires nurse/UM review to determine the appropriate disposition."
-        if "MANDATORY_CRITERIA_NOT_SATISFIED" in reason_codes:
-            return "One or more mandatory clinical policy requirements were not satisfied based on available documentation. The case requires nurse/UM review."
-        return "The request conflicts with an applicable coverage policy or requires clinical adjudication. The case requires nurse/UM review to determine the appropriate disposition."
+        return "The request conflicts with an applicable coverage policy or requires clinical adjudication. The case has been pended for nurse/UM review."
 
     # NEED_MORE_INFORMATION
     if "POLICY_NOT_FOUND" in reason_codes:
@@ -762,7 +765,9 @@ def _build_decision_basis(
 
     if decision == TriageDecision.APPROVE:
         lines.append("All mandatory policy requirements were satisfied by clinical evidence.")
-    elif decision in (TriageDecision.PEND, TriageDecision.DENY):
+    elif decision == TriageDecision.DENY:
+        lines.append("The requested service conflicts with an applicable policy exclusion or non-covered criteria. Coverage is rejected under governing policy.")
+    elif decision == TriageDecision.PEND:
         lines.append("The requested service conflicts with an applicable policy exclusion or requires human adjudication. The case has been pended for nurse/UM review.")
     else:
         lines.append("Additional clinical information or documentation is required before an approval can be issued.")

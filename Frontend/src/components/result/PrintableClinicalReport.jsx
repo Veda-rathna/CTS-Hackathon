@@ -12,18 +12,28 @@ export default function PrintableClinicalReport({ record, nurseRequirements = []
   let decisionLabel = 'NEED MORE INFORMATION';
   let decisionColor = 'border-amber-500 text-amber-900 bg-amber-50';
 
+  const reasonCodes = record.reason_codes || [];
+  const hasExclusion =
+    reasonCodes.includes('NCD_EXCLUDES_PROCEDURE') ||
+    reasonCodes.includes('LCD_EXCLUDES_PROCEDURE') ||
+    reasonCodes.includes('ARTICLE_EXCLUDES_PROCEDURE') ||
+    reasonCodes.includes('MANDATORY_CRITERIA_NOT_SATISFIED') ||
+    record.evidence_fusion_result === 'EXCLUDED';
+
   if (rawDecision.includes('APPROV') || rawDecision === 'APPROVE') {
     decisionLabel = 'APPROVED';
     decisionColor = 'border-emerald-600 text-emerald-900 bg-emerald-50';
   } else if (
     rawDecision === 'REJECTED' ||
+    rawDecision === 'REJECT' ||
     rawDecision === 'EXCLUDED' ||
     rawDecision === 'POLICY_EXCLUSION' ||
     rawDecision === 'NOT_COVERED' ||
     rawDecision === 'DENIED' ||
-    rawDecision === 'DENY'
+    rawDecision === 'DENY' ||
+    hasExclusion
   ) {
-    decisionLabel = 'REJECTED / POLICY EXCLUDED';
+    decisionLabel = 'REJECTED';
     decisionColor = 'border-rose-600 text-rose-900 bg-rose-50';
   } else if (rawDecision === 'PEND' || rawDecision === 'PENDED' || rawDecision === 'PENDING_REVIEW') {
     decisionLabel = 'PENDED FOR CLINICAL REVIEW';
